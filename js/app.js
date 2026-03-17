@@ -1,4 +1,10 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    const ready = await window.initializeSupabaseConfig();
+    if (!ready) {
+        alert('Chua cau hinh SUPABASE_URL hoac SUPABASE_ANON_KEY. Vui long them Environment Variables tren Vercel.');
+        return;
+    }
+
     // Initialize modules
     Upload.init();
     Camera.init();

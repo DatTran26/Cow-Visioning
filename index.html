@@ -11,8 +11,14 @@
         <!-- Sidebar -->
         <nav class="sidebar">
             <div class="sidebar-logo">
-                <span class="logo-icon">🐄</span>
-                <span class="logo-text">Cow Visioning</span>
+                <div class="logo-head">
+                    <span class="logo-icon">🐄</span>
+                    <span class="logo-text">Cow Visioning</span>
+                </div>
+                <div class="sidebar-live-info">
+                    <p id="sidebar-clock" class="sidebar-live-line">--:--:--</p>
+                    <p id="sidebar-location" class="sidebar-live-line">Vị trí: Đang lấy...</p>
+                </div>
             </div>
             <ul class="nav-list">
                 <li class="nav-item active" data-tab="upload">
@@ -36,6 +42,10 @@
 
         <!-- Main Content -->
         <main class="main-content">
+            <div class="mobile-main-live-info">
+                <p id="mobile-main-clock" class="mobile-main-live-line">--:--:--</p>
+                <p id="mobile-main-location" class="mobile-main-live-line">Vị trí: Đang lấy...</p>
+            </div>
             <!-- ===== UPLOAD TAB ===== -->
             <section id="tab-upload" class="tab-content active">
                 <h1>Tải ảnh lên</h1>
@@ -209,14 +219,15 @@
                                     id="cam-auto-save-toggle"
                                     checked
                                 />
-                                <span>Tự lưu không cần thiết lập</span>
+                                <span id="cam-auto-save-label">Tự lưu không cần thiết lập</span>
                             </label>
                             <button
                                 type="button"
                                 class="btn btn-secondary"
                                 id="toggle-cam-settings-btn"
                             >
-                                ⚙️ Thiết lập trước khi chụp
+                                <span class="cam-settings-text-full">⚙️ Thiết lập trước khi chụp</span>
+                                <span class="cam-settings-text-mobile">⚙️ Thiết lập</span>
                             </button>
                         </div>
                         <div class="camera-viewfinder" id="camera-viewfinder">

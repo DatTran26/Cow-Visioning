@@ -20,7 +20,7 @@ body {
 
 /* ===== Sidebar ===== */
 .sidebar {
-    width: 220px;
+    width: 250px;
     background: #1a1a2e;
     color: #fff;
     display: flex;
@@ -33,17 +33,43 @@ body {
 }
 .sidebar-logo {
     display: flex;
-    align-items: center;
-    gap: 10px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
     padding: 24px 20px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
+.logo-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
 .logo-icon {
-    font-size: 28px;
+    font-size: 26px;
 }
 .logo-text {
-    font-size: 17px;
+    font-size: 20px;
     font-weight: 700;
+    line-height: 1;
+}
+.sidebar-live-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+}
+.mobile-tab-live-info {
+    display: none;
+}
+.mobile-main-live-info {
+    display: none;
+}
+.sidebar-live-line {
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.72);
+    white-space: normal;
+    overflow: visible;
+    line-height: 1.2;
 }
 .nav-list {
     list-style: none;
@@ -75,7 +101,7 @@ body {
 
 /* ===== Main Content ===== */
 .main-content {
-    margin-left: 220px;
+    margin-left: 250px;
     flex: 1;
     padding: 32px 40px;
     min-height: 100vh;
@@ -583,6 +609,9 @@ tr:hover td {
     height: 16px;
     accent-color: #2563eb;
 }
+.cam-settings-text-mobile {
+    display: none;
+}
 
 .camera-viewfinder {
     position: relative;
@@ -842,6 +871,7 @@ tr:hover td {
     justify-content: center;
     outline: none;
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 .shutter-btn:hover {
     transform: scale(1.06);
@@ -903,9 +933,10 @@ tr:hover td {
 /* ===== Responsive ===== */
 @media (max-width: 768px) {
     .sidebar {
-        width: 64px;
+        width: 74px;
     }
     .logo-text,
+    .sidebar-live-info,
     .nav-item span:last-child {
         display: none;
     }
@@ -913,8 +944,23 @@ tr:hover td {
         justify-content: center;
         padding: 14px;
     }
+    .mobile-main-live-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        margin-bottom: 10px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: #e2e8f0;
+    }
+    .mobile-main-live-line {
+        font-size: 12px;
+        color: #1e293b;
+        line-height: 1.2;
+        margin: 0;
+    }
     .main-content {
-        margin-left: 64px;
+        margin-left: 74px;
         padding: 20px;
     }
     .form-grid {
@@ -941,8 +987,30 @@ tr:hover td {
         min-height: 0;
     }
     .cam-auto-save-toggle {
-        width: 100%;
-        justify-content: center;
+        width: auto;
+        justify-content: flex-start;
+        padding: 7px 10px;
+        font-size: 12px;
+        border-radius: 10px;
+        flex: 1;
+        min-width: 0;
+    }
+    .cam-toolbar {
+        gap: 8px;
+        flex-wrap: nowrap;
+        align-items: center;
+    }
+    #toggle-cam-settings-btn {
+        padding: 8px 10px;
+        font-size: 12px;
+        white-space: nowrap;
+        flex: 0 0 auto;
+    }
+    .cam-settings-text-full {
+        display: none;
+    }
+    .cam-settings-text-mobile {
+        display: inline;
     }
     .viewfinder-frame {
         inset: 18px;

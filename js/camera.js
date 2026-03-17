@@ -1,6 +1,7 @@
 const Camera = (() => {
     let stream = null;
     let isOn = false;
+    let isCapturing = false;
     let savedCount = 0;
     let savedThumbs = []; // { url }
     let settingsVisible = false;
@@ -13,7 +14,12 @@ const Camera = (() => {
 
     function init() {
         document.getElementById('toggle-camera-btn').addEventListener('click', toggleCamera);
-        document.getElementById('capture-btn').addEventListener('click', captureAndSave);
+        const captureBtn = document.getElementById('capture-btn');
+        captureBtn.addEventListener('click', captureAndSave);
+        captureBtn.addEventListener('pointerup', captureAndSave);
+        captureBtn.addEventListener('pointerdown', captureAndSave);
+        captureBtn.addEventListener('touchend', captureAndSave, { passive: false });
+        captureBtn.addEventListener('touchstart', captureAndSave, { passive: false });
         document.getElementById('toggle-cam-settings-btn').addEventListener('click', toggleSettings);
         document.getElementById('close-cam-settings').addEventListener('click', hideSettings);
 
@@ -32,11 +38,42 @@ const Camera = (() => {
 
         updateAutoSaveUI();
         updateSettingsUI();
+
+        const cameraTab = document.getElementById('tab-camera');
+        if (cameraTab && cameraTab.classList.contains('active')) {
+            startCamera();
+        }
+    }
+
+    function mapCameraError(err) {
+        if (!err || !err.name) return 'Khong the mo camera. Vui long thu lai.';
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+            return 'Ban da tu choi quyen camera. Hay cap quyen camera cho trinh duyet roi thu lai.';
+        }
+        if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+            return 'Khong tim thay camera tren thiet bi.';
+        }
+        if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+            return 'Camera dang duoc ung dung khac su dung. Hay dong app khac roi thu lai.';
+        }
+        if (err.name === 'OverconstrainedError' || err.name === 'ConstraintNotSatisfiedError') {
+            return 'Cau hinh camera khong duoc ho tro tren thiet bi nay.';
+        }
+        if (err.name === 'SecurityError') {
+            return 'Trinh duyet chan camera vi ly do bao mat. Hay dung HTTPS.';
+        }
+        return `Khong the mo camera: ${err.message || err.name}`;
     }
 
     function updateAutoSaveUI() {
-        const label = document.querySelector('.cam-auto-save-toggle span');
+        const label = document.getElementById('cam-auto-save-label');
         if (!label) return;
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        if (isMobile) {
+            label.textContent = autoSaveEnabled ? 'Tự lưu: Bật' : 'Tự lưu: Tắt';
+            return;
+        }
+
         label.textContent = autoSaveEnabled
             ? 'Tự lưu không cần thiết lập: Bật'
             : 'Tự lưu không cần thiết lập: Tắt';
@@ -55,9 +92,24 @@ const Camera = (() => {
     function updateSettingsUI() {
         const camPage = document.getElementById('cam-page');
         const toggleBtn = document.getElementById('toggle-cam-settings-btn');
+        const fullText = toggleBtn?.querySelector('.cam-settings-text-full');
+        const mobileText = toggleBtn?.querySelector('.cam-settings-text-mobile');
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
         camPage.classList.toggle('settings-hidden', !settingsVisible);
-        toggleBtn.textContent = settingsVisible ? '🙈 Ẩn thiết lập trước khi chụp' : '⚙️ Thiết lập trước khi chụp';
+
+        if (fullText && mobileText) {
+            fullText.textContent = settingsVisible
+                ? '🙈 Ẩn thiết lập trước khi chụp'
+                : '⚙️ Thiết lập trước khi chụp';
+            mobileText.textContent = settingsVisible ? '🙈 Ẩn' : '⚙️ Thiết lập';
+        } else {
+            toggleBtn.textContent = settingsVisible ? '🙈 Ẩn thiết lập trước khi chụp' : '⚙️ Thiết lập trước khi chụp';
+        }
+
+        if (isMobile) {
+            updateAutoSaveUI();
+        }
     }
 
     async function toggleCamera() {
@@ -71,20 +123,51 @@ const Camera = (() => {
     async function startCamera() {
         const status = document.getElementById('camera-status');
         const toggleBtn = document.getElementById('toggle-camera-btn');
+
+        if (isOn) return;
+
+        if (!window.isSecureContext) {
+            status.textContent = 'Camera can HTTPS hoac localhost. Neu dung dien thoai, hay mo ban deploy Vercel (https).';
+            status.className = 'status-msg error';
+            return;
+        }
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            status.textContent = 'Trinh duyet khong ho tro getUserMedia.';
+            status.className = 'status-msg error';
+            return;
+        }
+
         try {
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'environment' },
-                audio: false,
-            });
-            document.getElementById('camera-video').srcObject = stream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: { ideal: 'environment' } },
+                    audio: false,
+                });
+            } catch (primaryErr) {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: false,
+                });
+                console.warn('Fallback camera constraints applied:', primaryErr);
+            }
+
+            const videoEl = document.getElementById('camera-video');
+            videoEl.srcObject = stream;
+            try {
+                await videoEl.play();
+            } catch (playErr) {
+                console.warn('video.play failed, keep stream attached:', playErr);
+            }
             document.getElementById('camera-overlay').hidden = true;
             document.getElementById('capture-btn').disabled = false;
             toggleBtn.classList.add('active');
             document.getElementById('toggle-cam-icon').textContent = '⏹';
             isOn = true;
             status.textContent = '';
+            status.className = 'status-msg';
         } catch (err) {
-            status.textContent = 'Không thể mở camera: ' + err.message;
+            status.textContent = mapCameraError(err);
             status.className = 'status-msg error';
         }
     }
@@ -103,7 +186,15 @@ const Camera = (() => {
         isOn = false;
     }
 
-    async function captureAndSave() {
+    async function captureAndSave(event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        if (isCapturing) return;
+        isCapturing = true;
+
         // Read settings
         const cowId = document.getElementById('cam-cow-id').value.trim();
         const behavior = document.getElementById('cam-behavior').value;
@@ -114,115 +205,156 @@ const Camera = (() => {
         const shutterBtn = document.getElementById('capture-btn');
         const saving = document.getElementById('cam-saving');
 
-        if (!supabase) {
-            cameraStatus.textContent = 'Chua cau hinh SUPABASE_URL/SUPABASE_ANON_KEY tren Vercel';
-            cameraStatus.className = 'status-msg error';
-            return;
-        }
-
-        if (!isOn) {
-            cameraStatus.textContent = 'Vui lòng mở camera trước khi chụp';
-            cameraStatus.className = 'status-msg error';
-            return;
-        }
-
-        // Disable shutter briefly to prevent double-tap
-        shutterBtn.disabled = true;
-
-        status.textContent = '';
-        cameraStatus.textContent = '';
-
-        // Capture frame
-        const video = document.getElementById('camera-video');
-        const canvas = document.getElementById('camera-canvas');
-        if (!video.videoWidth || !video.videoHeight) {
-            cameraStatus.textContent = 'Camera chưa sẵn sàng, vui lòng thử lại sau 1 giây';
-            cameraStatus.className = 'status-msg error';
-            if (isOn) shutterBtn.disabled = false;
-            return;
-        }
-
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
-
-        // Flash
-        const vf = document.getElementById('camera-viewfinder');
-        vf.classList.add('flash');
-        setTimeout(() => vf.classList.remove('flash'), 250);
-
-        // Convert to blob
-        const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.92));
-        if (!blob) {
-            cameraStatus.textContent = 'Không thể tạo ảnh từ camera, vui lòng thử lại';
-            cameraStatus.className = 'status-msg error';
-            if (isOn) shutterBtn.disabled = false;
-            return;
-        }
-
-        const thumbUrl = URL.createObjectURL(blob);
-
-        // Show last thumb immediately
-        const lastThumb = document.getElementById('cam-last-thumb');
-        lastThumb.innerHTML = `<img src="${thumbUrl}">`;
-        lastThumb.classList.add('has-img');
-
-        if (!autoSaveEnabled && (!cowId || !behavior || !barnArea)) {
-            cameraStatus.textContent = 'Chế độ tự lưu đang tắt. Vui lòng điền Mã bò, Hành vi và Khu vực để lưu.';
-            cameraStatus.className = 'status-msg error';
-            if (isOn) shutterBtn.disabled = false;
-            return;
-        }
-
-        const cowIdToSave = cowId || generateAutoCowId();
-        const behaviorToSave = behavior || 'abnormal';
-        const barnAreaToSave = barnArea || 'Chua xac dinh';
-        const notesToSave = notes || 'Auto-captured (khong thiet lap truoc)';
-
-        // Show saving indicator
-        saving.hidden = false;
-
         try {
-            const uniqueName = `${crypto.randomUUID()}.jpg`;
+            if (!isOn) {
+                await startCamera();
+                if (!isOn) {
+                    cameraStatus.textContent = 'Vui long mo camera truoc khi chup';
+                    cameraStatus.className = 'status-msg error';
+                    return;
+                }
+            }
 
-            const { error: storageError } = await supabase.storage
-                .from(BUCKET_NAME)
-                .upload(uniqueName, blob, { contentType: 'image/jpeg' });
-            if (storageError) throw storageError;
+            // Disable shutter briefly to prevent double-tap
+            shutterBtn.disabled = true;
 
-            const { data: urlData } = supabase.storage
-                .from(BUCKET_NAME)
-                .getPublicUrl(uniqueName);
+            status.textContent = '';
+            cameraStatus.textContent = '';
 
-            const { error: dbError } = await supabase
-                .from('cow_images')
-                .insert({
-                    cow_id: cowIdToSave,
-                    behavior: behaviorToSave,
-                    barn_area: barnAreaToSave,
-                    captured_at: new Date().toISOString(),
-                    notes: notesToSave,
-                    image_url: urlData.publicUrl,
-                    file_name: uniqueName,
-                    file_size: blob.size,
-                });
-            if (dbError) throw dbError;
+            // Capture frame
+            const video = document.getElementById('camera-video');
+            const canvas = document.getElementById('camera-canvas');
+
+            let sourceWidth = video.videoWidth || video.clientWidth;
+            let sourceHeight = video.videoHeight || video.clientHeight;
+
+            if (!sourceWidth || !sourceHeight) {
+                cameraStatus.textContent = 'Camera chua san sang, vui long thu lai sau 1 giay';
+                cameraStatus.className = 'status-msg error';
+                return;
+            }
+
+            // Scale down extremely large frames for better mobile compatibility.
+            const maxWidth = 1600;
+            if (sourceWidth > maxWidth) {
+                const ratio = maxWidth / sourceWidth;
+                sourceWidth = Math.round(sourceWidth * ratio);
+                sourceHeight = Math.round(sourceHeight * ratio);
+            }
+
+            canvas.width = sourceWidth;
+            canvas.height = sourceHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0, sourceWidth, sourceHeight);
+
+            // Flash
+            const vf = document.getElementById('camera-viewfinder');
+            vf.classList.add('flash');
+            setTimeout(() => vf.classList.remove('flash'), 250);
+
+            // Convert to blob
+            let blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.9));
+            if (!blob) {
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                blob = dataURLToBlob(dataUrl);
+            }
+
+            if (!blob) {
+                cameraStatus.textContent = 'Khong the tao anh tu camera, vui long thu lai';
+                cameraStatus.className = 'status-msg error';
+                return;
+            }
+
+            const thumbUrl = URL.createObjectURL(blob);
+
+            // Show last thumb immediately
+            const lastThumb = document.getElementById('cam-last-thumb');
+            lastThumb.innerHTML = `<img src="${thumbUrl}">`;
+            lastThumb.classList.add('has-img');
+
+            if (!autoSaveEnabled && (!cowId || !behavior || !barnArea)) {
+                cameraStatus.textContent = 'Che do tu luu dang tat. Vui long dien Ma bo, Hanh vi va Khu vuc de luu.';
+                cameraStatus.className = 'status-msg error';
+                return;
+            }
+
+            const cowIdToSave = cowId || generateAutoCowId();
+            const behaviorToSave = behavior || 'abnormal';
+            const barnAreaToSave = barnArea || 'Chua xac dinh';
+            const notesToSave = notes || 'Auto-captured (khong thiet lap truoc)';
 
             savedCount++;
             savedThumbs.unshift({ url: thumbUrl });
             updateSavedUI();
-            cameraStatus.textContent = autoSaveEnabled
-                ? 'Da chup va tu dong luu anh len he thong'
-                : 'Da chup va luu anh len he thong';
-            cameraStatus.className = 'status-msg success';
+
+            if (!supabase) {
+                cameraStatus.textContent = 'Da chup thanh cong (local). Chua cau hinh Supabase nen chua luu len he thong.';
+                cameraStatus.className = 'status-msg success';
+                return;
+            }
+
+            // Show saving indicator
+            saving.hidden = false;
+
+            try {
+                const uniqueName = `${crypto.randomUUID()}.jpg`;
+
+                const { error: storageError } = await supabase.storage
+                    .from(BUCKET_NAME)
+                    .upload(uniqueName, blob, { contentType: 'image/jpeg' });
+                if (storageError) throw storageError;
+
+                const { data: urlData } = supabase.storage
+                    .from(BUCKET_NAME)
+                    .getPublicUrl(uniqueName);
+
+                const { error: dbError } = await supabase
+                    .from('cow_images')
+                    .insert({
+                        cow_id: cowIdToSave,
+                        behavior: behaviorToSave,
+                        barn_area: barnAreaToSave,
+                        captured_at: new Date().toISOString(),
+                        notes: notesToSave,
+                        image_url: urlData.publicUrl,
+                        file_name: uniqueName,
+                        file_size: blob.size,
+                    });
+                if (dbError) throw dbError;
+
+                cameraStatus.textContent = autoSaveEnabled
+                    ? 'Da chup va tu dong luu anh len he thong'
+                    : 'Da chup va luu anh len he thong';
+                cameraStatus.className = 'status-msg success';
+            } catch (err) {
+                console.error('Save error:', err);
+                status.textContent = 'Loi luu anh: ' + err.message;
+                status.className = 'status-msg error';
+            } finally {
+                saving.hidden = true;
+            }
         } catch (err) {
-            console.error('Save error:', err);
-            status.textContent = 'Lỗi lưu ảnh: ' + err.message;
-            status.className = 'status-msg error';
+            console.error('Capture error:', err);
+            cameraStatus.textContent = 'Loi khi chup anh: ' + (err.message || 'khong xac dinh');
+            cameraStatus.className = 'status-msg error';
         } finally {
-            saving.hidden = true;
             if (isOn) shutterBtn.disabled = false;
+            isCapturing = false;
         }
+    }
+
+    function dataURLToBlob(dataUrl) {
+        if (!dataUrl) return null;
+        const parts = dataUrl.split(',');
+        if (parts.length !== 2) return null;
+        const mimeMatch = parts[0].match(/:(.*?);/);
+        const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+        const binary = atob(parts[1]);
+        const len = binary.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return new Blob([bytes], { type: mime });
     }
 
     function updateSavedUI() {
@@ -248,5 +380,5 @@ const Camera = (() => {
         });
     }
 
-    return { init };
+    return { init, startCamera, stopCamera };
 })();

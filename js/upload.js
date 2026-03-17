@@ -72,6 +72,11 @@ const Upload = (() => {
         const progress = document.getElementById('upload-progress');
         const progressFill = progress.querySelector('.progress-fill');
 
+        if (!supabase) {
+            showStatus(status, 'Chua cau hinh SUPABASE_URL/SUPABASE_ANON_KEY tren Vercel', 'error');
+            return;
+        }
+
         const cowId = document.getElementById('cow-id').value.trim();
         const behavior = document.getElementById('behavior').value;
         const barnArea = document.getElementById('barn-area').value.trim();

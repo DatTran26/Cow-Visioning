@@ -11,6 +11,14 @@ const Export = (() => {
     async function loadData() {
         const status = document.getElementById('export-status');
         const countEl = document.getElementById('export-count');
+
+        if (!supabase) {
+            status.textContent = 'Chua cau hinh SUPABASE_URL/SUPABASE_ANON_KEY tren Vercel';
+            status.className = 'status-msg error';
+            countEl.textContent = '';
+            return;
+        }
+
         status.textContent = 'Đang tải dữ liệu...';
         status.className = 'status-msg info';
 

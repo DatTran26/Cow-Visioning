@@ -12,6 +12,14 @@ const Gallery = (() => {
     async function loadGallery() {
         const status = document.getElementById('gallery-status');
         const grid = document.getElementById('gallery-grid');
+
+        if (!supabase) {
+            status.textContent = 'Chua cau hinh SUPABASE_URL/SUPABASE_ANON_KEY tren Vercel';
+            status.className = 'status-msg error';
+            grid.innerHTML = '';
+            return;
+        }
+
         status.textContent = 'Đang tải...';
         status.className = 'status-msg info';
         grid.innerHTML = '';

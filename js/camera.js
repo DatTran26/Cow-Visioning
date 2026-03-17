@@ -114,6 +114,12 @@ const Camera = (() => {
         const shutterBtn = document.getElementById('capture-btn');
         const saving = document.getElementById('cam-saving');
 
+        if (!supabase) {
+            cameraStatus.textContent = 'Chua cau hinh SUPABASE_URL/SUPABASE_ANON_KEY tren Vercel';
+            cameraStatus.className = 'status-msg error';
+            return;
+        }
+
         if (!isOn) {
             cameraStatus.textContent = 'Vui lòng mở camera trước khi chụp';
             cameraStatus.className = 'status-msg error';

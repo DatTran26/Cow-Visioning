@@ -33,6 +33,27 @@ document.addEventListener('DOMContentLoaded', () => {
     Camera.init();
     Gallery.init();
     Export.init();
+
+    // Logout handler
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                await fetch('/auth/logout', { method: 'POST' });
+            } catch (e) {}
+            window.location.href = '/auth/login';
+        });
+    }
+
+    // Global 401 handler - redirect to login if session expired
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+        const response = await originalFetch(...args);
+        if (response.status === 401 && !args[0].toString().includes('/auth/')) {
+            window.location.href = '/auth/login';
+        }
+        return response;
+    };
 });
 
 function initSidebarLiveInfo() {

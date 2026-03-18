@@ -3,6 +3,7 @@
 ## Tổng quan dự án
 
 **Cow-Visioning** là web app quản lý dataset ảnh bò cho AI training.
+- **Giới thiệu**: Trang tổng quan về dự án, mô tả chức năng và phân loại hành vi
 - **Upload ảnh**: Drag-drop hoặc form
 - **Camera**: Chụp từ webcam (có Burst Mode)
 - **Gallery**: Xem, tìm kiếm, xóa ảnh
@@ -385,8 +386,28 @@ Khi push code lên `main`:
 git push origin main
 ```
 ↓ GitHub Actions trigger (.github/workflows/deploy.yml)
-↓ SSH vào VPS, pull code, npm install, pm2 restart
+↓ SSH vào VPS với user `cowapp`
+↓ `git pull origin main` — kéo code mới
+↓ `npm install --production` — cài dependencies
+↓ `psql -f schema.sql` — auto-migrate database (tạo bảng mới nếu có)
+↓ `pm2 restart` — restart server
 ↓ ✅ Server tự động update
+
+> **Lưu ý auto-migrate:** Dùng `CREATE TABLE IF NOT EXISTS` nên an toàn — bảng đã có sẽ bị bỏ qua, không mất dữ liệu. Tuy nhiên, nếu cần thêm cột mới vào bảng đã tồn tại, phải dùng `ALTER TABLE` trong schema.sql.
+
+### SSH Setup cho CI/CD
+
+Workflow deploy sử dụng SSH key của user `cowapp` (không dùng root vì lý do bảo mật):
+
+1. **GitHub Secret `DEPLOY_KEY`**: Private key SSH
+2. **VPS `/home/cowapp/.ssh/authorized_keys`**: Public key tương ứng
+3. **VPS `/home/cowapp/.ssh/id_ed25519`**: SSH key để `git pull` từ GitHub
+4. **GitHub repo → Deploy keys**: Public key của `id_ed25519` (read-only)
+
+### Yêu cầu trên VPS cho auto-migrate
+- File `.env` phải tồn tại tại `/home/cowapp/myapp/.env` với `DB_PASSWORD` chính xác
+- User `cowapp` trong PostgreSQL phải có password khớp với `DB_PASSWORD`
+- GitHub known_hosts: `/home/cowapp/.ssh/known_hosts` phải chứa GitHub SSH fingerprint
 
 ### Check Deployment Status
 - **GitHub**: Actions tab → xem log của workflow
@@ -400,12 +421,15 @@ Những gì cần làm trước deploy:
 
 - [ ] PostgreSQL đã cài & chạy trên VPS
 - [ ] Database `cow_visioning` đã tạo & schema.sql đã chạy
-- [ ] `.env` trên VPS có DB_PASSWORD chính xác
+- [ ] `.env` trên VPS có DB_PASSWORD chính xác (`/home/cowapp/myapp/.env`)
+- [ ] PostgreSQL user `cowapp` có password khớp với DB_PASSWORD
 - [ ] `npm install --production` đã chạy
 - [ ] PM2 đã start server: `pm2 start ecosystem.config.js`
 - [ ] Nginx config đã cấu hình & reload
 - [ ] SSL certificate đã setup (Let's Encrypt)
-- [ ] GitHub Deploy Key đã thêm vào Secrets
+- [ ] GitHub Deploy Key (SSH) đã thêm vào Secrets (`DEPLOY_KEY`, `VPS_HOST`, `VPS_USER=cowapp`)
+- [ ] VPS SSH key cho git pull: `/home/cowapp/.ssh/id_ed25519` + GitHub Deploy Key (repo)
+- [ ] GitHub known_hosts: `ssh-keyscan github.com >> /home/cowapp/.ssh/known_hosts`
 - [ ] `.github/workflows/deploy.yml` đã push lên repo
 
 ---
@@ -639,4 +663,4 @@ sudo ufw enable
 ---
 
 **Last Updated**: 2026-03-18
-**Maintained by**: Your Team
+**Maintained by**: DatTran26

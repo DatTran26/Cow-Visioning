@@ -4,12 +4,13 @@ A web application for managing cow image datasets for AI training. Capture, uplo
 
 ## ✨ Features
 
+- **About Page**: Project introduction with feature overview and behavior classification
 - **Upload Images**: Drag-drop or form-based upload with metadata
 - **Camera Integration**: Real-time webcam capture with Burst Mode (continuous shooting)
 - **Image Gallery**: Browse, search, filter, and delete images
 - **Export Dataset**: Export as CSV or JSON for AI training
 - **Local Database**: PostgreSQL storage for metadata
-- **Auto-Deploy**: GitHub Actions → VPS auto-deployment
+- **Auto-Deploy**: GitHub Actions → VPS auto-deployment with auto database migration
 - **Responsive UI**: Works on desktop and mobile
 
 ## 🏗️ Architecture
@@ -139,6 +140,7 @@ cow-visioning/
 │   └── deploy.yml            # GitHub Actions CI/CD
 │
 ├── DEPLOYMENT.md             # Detailed deployment guide
+├── VPS_QUICKSTART.md         # Step-by-step VPS setup guide
 └── README.md                 # This file
 ```
 
@@ -306,6 +308,7 @@ UPLOAD_DIR=./uploads                  # Image storage directory
    git push origin main
    ```
    → Automatically triggers GitHub Actions → Deploys to VPS
+   → Auto-runs `schema.sql` for database migrations (safe with `IF NOT EXISTS`)
 
 4. **Monitor:**
    - Check Actions tab in GitHub for deployment logs

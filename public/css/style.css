@@ -74,6 +74,24 @@ body {
 .nav-list {
     list-style: none;
     padding: 12px 0;
+    flex: 1;
+}
+.sidebar-logout {
+    padding: 12px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.logout-btn {
+    background: none;
+    border: none;
+    color: #fff;
+    width: 100%;
+    font-family: inherit;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+.logout-btn:hover {
+    opacity: 1;
+    background: rgba(220, 38, 38, 0.2) !important;
 }
 .nav-item {
     display: flex;

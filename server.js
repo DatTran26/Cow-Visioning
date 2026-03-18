@@ -6,6 +6,10 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { Pool } = require('pg');
+const session = require('express-session');
+const PgSession = require('connect-pg-simple')(session);
+const speakeasy = require('speakeasy');
+const QRCode = require('qrcode');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -49,10 +53,257 @@ const upload = multer({
     },
 });
 
-// --- Static files ---
+// --- Session middleware (BEFORE static files) ---
+app.use(express.json());
+
+app.use(session({
+    store: new PgSession({
+        pool: pool,
+        tableName: 'session',
+        createTableIfMissing: true,
+    }),
+    secret: process.env.SESSION_SECRET || 'cow-visioning-default-secret-change-me',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: false, // set to true if using HTTPS only
+    },
+}));
+
+// --- Auth Routes (BEFORE auth middleware) ---
+
+// Check if TOTP is configured
+app.get('/auth/status', async (req, res) => {
+    try {
+        const result = await pool.query(
+            "SELECT value FROM app_config WHERE key = 'totp_configured'"
+        );
+        res.json({
+            configured: result.rows.length > 0 && result.rows[0].value === 'true',
+        });
+    } catch (err) {
+        res.json({ configured: false });
+    }
+});
+
+// Login page
+app.get('/auth/login', async (req, res) => {
+    if (req.session && req.session.authenticated) {
+        return res.redirect('/');
+    }
+    try {
+        const result = await pool.query(
+            "SELECT value FROM app_config WHERE key = 'totp_configured'"
+        );
+        if (result.rows.length === 0 || result.rows[0].value !== 'true') {
+            return res.redirect('/auth/setup');
+        }
+    } catch (err) {
+        // If table doesn't exist yet, go to setup
+        return res.redirect('/auth/setup');
+    }
+    res.sendFile(path.join(__dirname, 'public', 'auth', 'login.html'));
+});
+
+// Setup page - first time TOTP configuration
+app.get('/auth/setup', async (req, res) => {
+    try {
+        const result = await pool.query(
+            "SELECT value FROM app_config WHERE key = 'totp_configured'"
+        );
+        if (result.rows.length > 0 && result.rows[0].value === 'true') {
+            return res.redirect('/auth/login');
+        }
+    } catch (err) {
+        // Table might not exist yet, continue to setup
+    }
+
+    // Generate TOTP secret
+    const secret = speakeasy.generateSecret({
+        name: process.env.TOTP_APP_NAME || 'Cow-Visioning',
+        issuer: 'Cow-Visioning',
+    });
+
+    // Store temp secret in session
+    req.session.tempSecret = secret.base32;
+
+    // Generate QR code
+    const qrDataUrl = await QRCode.toDataURL(secret.otpauth_url);
+
+    // Render setup page inline
+    res.send(`<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cow Visioning - Thiet lap xac thuc</title>
+    <link rel="stylesheet" href="/css/auth.css" />
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-logo">
+                <span class="auth-logo-icon">🐄</span>
+                <h1>Thiet lap xac thuc</h1>
+            </div>
+            <p class="auth-subtitle">Cai dat Google Authenticator de bao ve ung dung</p>
+
+            <div class="setup-steps">
+                <div class="setup-step">
+                    <span class="step-num">1</span>
+                    <span class="step-text">Tai app <strong>Google Authenticator</strong> tren dien thoai (iOS / Android)</span>
+                </div>
+                <div class="setup-step">
+                    <span class="step-num">2</span>
+                    <span class="step-text">Mo app va quet ma QR ben duoi</span>
+                </div>
+            </div>
+
+            <div class="qr-wrapper">
+                <img src="${qrDataUrl}" alt="QR Code" width="200" height="200" />
+            </div>
+
+            <p class="secret-label">Hoac nhap thu cong ma nay:</p>
+            <div class="secret-text">${secret.base32}</div>
+
+            <div class="setup-steps">
+                <div class="setup-step">
+                    <span class="step-num">3</span>
+                    <span class="step-text">Nhap ma 6 so hien tren app de xac nhan</span>
+                </div>
+            </div>
+
+            <form id="setup-form" class="auth-form">
+                <div class="code-input-wrapper">
+                    <input
+                        type="text"
+                        id="setup-code"
+                        inputmode="numeric"
+                        pattern="[0-9]{6}"
+                        maxlength="6"
+                        autocomplete="one-time-code"
+                        placeholder="000000"
+                        required
+                    />
+                </div>
+                <div id="setup-error" class="auth-error" hidden></div>
+                <button type="submit" class="auth-btn" id="setup-submit">
+                    Xac nhan va Kich hoat
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/auth.js"></script>
+</body>
+</html>`);
+});
+
+// Verify setup code (first time)
+app.post('/auth/setup/verify', async (req, res) => {
+    const { code } = req.body;
+    const tempSecret = req.session.tempSecret;
+
+    if (!tempSecret) {
+        return res.status(400).json({ error: 'Chua bat dau qua trinh thiet lap' });
+    }
+
+    const verified = speakeasy.totp.verify({
+        secret: tempSecret,
+        encoding: 'base32',
+        token: code,
+        window: 1,
+    });
+
+    if (!verified) {
+        return res.status(400).json({ error: 'Ma khong hop le. Vui long thu lai.' });
+    }
+
+    try {
+        // Save the secret permanently
+        await pool.query(
+            "INSERT INTO app_config (key, value) VALUES ('totp_secret', $1) ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()",
+            [tempSecret]
+        );
+        await pool.query(
+            "INSERT INTO app_config (key, value) VALUES ('totp_configured', 'true') ON CONFLICT (key) DO UPDATE SET value = 'true', updated_at = NOW()"
+        );
+
+        delete req.session.tempSecret;
+        req.session.authenticated = true;
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Setup verify error:', err);
+        res.status(500).json({ error: 'Loi luu cau hinh' });
+    }
+});
+
+// Verify login code
+app.post('/auth/verify', async (req, res) => {
+    const { code } = req.body;
+
+    try {
+        const result = await pool.query(
+            "SELECT value FROM app_config WHERE key = 'totp_secret'"
+        );
+        if (result.rows.length === 0) {
+            return res.status(500).json({ error: 'TOTP chua duoc thiet lap' });
+        }
+
+        const verified = speakeasy.totp.verify({
+            secret: result.rows[0].value,
+            encoding: 'base32',
+            token: code,
+            window: 1,
+        });
+
+        if (!verified) {
+            return res.status(401).json({ error: 'Ma khong hop le' });
+        }
+
+        req.session.authenticated = true;
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Auth verify error:', err);
+        res.status(500).json({ error: 'Loi xac thuc' });
+    }
+});
+
+// Logout
+app.post('/auth/logout', (req, res) => {
+    req.session.destroy(() => {
+        res.json({ success: true });
+    });
+});
+
+// --- Auth Middleware (BEFORE static files & API) ---
+app.use((req, res, next) => {
+    // Allow auth-related paths
+    if (req.path.startsWith('/auth/') || req.path === '/css/auth.css' || req.path === '/js/auth.js') {
+        return next();
+    }
+
+    // Check session
+    if (req.session && req.session.authenticated) {
+        return next();
+    }
+
+    // API requests get 401 JSON
+    if (req.path.startsWith('/api/')) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // All other requests redirect to login
+    res.redirect('/auth/login');
+});
+
+// --- Static files (now protected by auth) ---
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.resolve(UPLOAD_DIR)));
-app.use(express.json());
 
 // --- API Routes ---
 

@@ -17,3 +17,20 @@ CREATE TABLE IF NOT EXISTS cow_images (
 CREATE INDEX IF NOT EXISTS idx_cow_images_cow_id ON cow_images (cow_id);
 CREATE INDEX IF NOT EXISTS idx_cow_images_behavior ON cow_images (behavior);
 CREATE INDEX IF NOT EXISTS idx_cow_images_created_at ON cow_images (created_at DESC);
+
+-- App config (TOTP secret storage)
+CREATE TABLE IF NOT EXISTS app_config (
+    key VARCHAR(100) PRIMARY KEY,
+    value TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Session storage for express-session (connect-pg-simple)
+CREATE TABLE IF NOT EXISTS "session" (
+    "sid" VARCHAR NOT NULL COLLATE "default",
+    "sess" JSON NOT NULL,
+    "expire" TIMESTAMP(6) NOT NULL,
+    PRIMARY KEY ("sid")
+);
+CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");

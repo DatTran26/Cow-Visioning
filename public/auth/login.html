@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="vi">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Cow Visioning - Xac thuc</title>
+        <link rel="stylesheet" href="/css/auth.css" />
+    </head>
+    <body>
+        <div class="auth-container">
+            <div class="auth-card">
+                <div class="auth-logo">
+                    <span class="auth-logo-icon">🐄</span>
+                    <h1>Cow Visioning</h1>
+                </div>
+                <p class="auth-subtitle">Nhap ma 6 so tu Google Authenticator</p>
+
+                <form id="auth-form" class="auth-form">
+                    <div class="code-input-wrapper">
+                        <input
+                            type="text"
+                            id="auth-code"
+                            inputmode="numeric"
+                            pattern="[0-9]{6}"
+                            maxlength="6"
+                            autocomplete="one-time-code"
+                            placeholder="000000"
+                            autofocus
+                            required
+                        />
+                    </div>
+                    <div id="auth-error" class="auth-error" hidden></div>
+                    <button type="submit" class="auth-btn" id="auth-submit">
+                        Xac nhan
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <script src="/js/auth.js"></script>
+    </body>
+</html>

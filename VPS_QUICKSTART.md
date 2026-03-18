@@ -22,7 +22,8 @@
 - [ ] Cài npm dependencies
 - [ ] Start server với PM2
 - [ ] Cấu hình Nginx reverse proxy
-- [ ] Setup SSL với Let's Encrypt
+- [ ] Trỏ DNS domain về VPS
+- [ ] Setup SSL với Let's Encrypt (bắt buộc cho Camera)
 - [ ] Test ứng dụng
 - [ ] Setup GitHub Actions auto-deploy
 
@@ -309,80 +310,156 @@ cp /home/cowapp/myapp/nginx-cow-visioning.conf /etc/nginx/sites-available/cow-vi
 ln -s /etc/nginx/sites-available/cow-visioning /etc/nginx/sites-enabled/
 ```
 
-**Sửa config để thay domain:**
+**Xóa default site (tránh xung đột):**
 ```bash
-nano /etc/nginx/sites-available/cow-visioning
+rm -f /etc/nginx/sites-enabled/default
 ```
 
-Tìm và thay `your-domain.com` bằng **domain thực** của bạn (hoặc IP nếu chưa có domain)
+> **Lưu ý:** File config đã có sẵn `server_name pctsv.io.vn www.pctsv.io.vn`. Nếu dùng domain khác, sửa lại:
+> ```bash
+> nano /etc/nginx/sites-available/cow-visioning
+> # Tìm dòng server_name và thay bằng domain của bạn
+> ```
 
-Ví dụ:
-```nginx
-server_name 192.168.1.100;  # Nếu dùng IP VPS
-# hoặc
-server_name cow-visioning.example.com;  # Nếu có domain
-```
-
-**Lưu file và test Nginx config:**
+**Test và reload Nginx:**
 ```bash
 nginx -t
+systemctl reload nginx
 ```
 
 ✅ **Kết quả mong đợi:** `test successful`
 
-**Reload Nginx:**
+---
+
+## Step 1️⃣6️⃣: Trỏ DNS domain về VPS
+
+⚠️ **Phải làm bước này TRƯỚC khi chạy certbot!**
+
+### Tại nhà cung cấp domain (TinoHost / Azdigi / ...)
+
+Vào trang quản lý DNS, thêm 2 bản ghi:
+
+| Type | Name | Value | TTL |
+|------|------|-------|-----|
+| A | `@` (hoặc tên domain) | IP VPS (vd: `180.93.2.32`) | 600 |
+| A | `www` | IP VPS (vd: `180.93.2.32`) | 600 |
+
+### Kiểm tra DNS đã lan truyền
+
 ```bash
-systemctl reload nginx
+# Chờ 5-30 phút, rồi kiểm tra
+nslookup pctsv.io.vn 8.8.8.8
 ```
+
+✅ **Kết quả mong đợi:**
+```
+Name:    pctsv.io.vn
+Address:  180.93.2.32
+```
+
+### ⚠️ Lỗi thường gặp với DNS
+
+**Lỗi: DNS timeout / không resolve**
+
+Kiểm tra có **bản ghi xung đột** không. Ví dụ thực tế đã gặp:
+- Domain trước đó trỏ về **Vercel** → tồn tại bản ghi ALIAS cũ
+- Bản ghi A (VPS) + ALIAS (Vercel) **xung đột** → DNS timeout hoàn toàn
+
+**Cách fix:**
+1. Xóa **tất cả** bản ghi cũ (ALIAS, CNAME trỏ về hosting cũ)
+2. Chỉ giữ 2 bản ghi A trỏ về VPS IP
+3. Nếu bản ghi cũ bị khóa (trên Vercel có icon 🔒): **chuyển nameserver** về nhà cung cấp domain gốc trước
+
+**Lỗi: Nameserver trỏ sai**
+
+Nếu nameserver đang trỏ về Vercel (`ns1.vercel-dns.com`), bản ghi tại nhà cung cấp sẽ **không có tác dụng**.
+
+```bash
+# Check nameserver
+nslookup -type=NS pctsv.io.vn
+```
+
+Fix: Đổi nameserver về mặc định của nhà cung cấp domain.
 
 ---
 
-## Step 1️⃣6️⃣: Setup SSL với Let's Encrypt
+## Step 1️⃣7️⃣: Setup SSL với Let's Encrypt
+
+⚠️ **BẮT BUỘC cho Camera!** Trình duyệt chặn webcam (`getUserMedia`) trên HTTP. Không có SSL = camera không hoạt động.
+
+**Yêu cầu:**
+- DNS đã trỏ domain về VPS (Step 16 ✅)
+- Nginx đang chạy
+- Port 80 + 443 đã mở
 
 ```bash
+# Mở port trên firewall (nếu dùng ufw)
+ufw allow 80
+ufw allow 443
+
+# Cài certbot
 apt install -y certbot python3-certbot-nginx
 ```
 
-**Cấp chứng chỉ SSL (thay domain):**
+**Tip: Test staging trước (tránh bị rate limit):**
 ```bash
-certbot --nginx -d your-domain.com
+certbot --nginx --staging -d pctsv.io.vn -d www.pctsv.io.vn
+# Nếu thành công → chạy lại production (không có --staging)
 ```
 
-**Hoặc nếu dùng IP, bạn có thể bỏ qua SSL lúc này:**
+**Cấp SSL certificate production:**
 ```bash
-echo "Skip SSL nếu chưa có domain"
+certbot --nginx -d pctsv.io.vn -d www.pctsv.io.vn
 ```
 
 Khi được hỏi:
-- Email: Gõ email của bạn
-- Agree to terms: `Y`
-- Share email: `Y` (tuỳ chọn)
-- Redirect HTTP to HTTPS: `Y` (recommend)
+- **Email**: Gõ email (nhận thông báo cert sắp hết hạn)
+- **Agree to terms**: `Y`
+- **Redirect HTTP to HTTPS**: chọn `2` (tự động redirect — recommend)
 
-✅ **Kết quả mong đợi:** Chứng chỉ được cấp, Nginx reload tự động
+**Kiểm tra SSL hoạt động:**
+```bash
+# Test auto-renew (cert tự gia hạn mỗi 90 ngày)
+certbot renew --dry-run
+
+# Kiểm tra HTTPS response
+curl -I https://pctsv.io.vn
+```
+
+✅ **Kết quả mong đợi:** `HTTP/2 200` hoặc `HTTP/1.1 200 OK`
+
+### Lỗi thường gặp với Certbot
+
+| Lỗi | Nguyên nhân | Fix |
+|-----|-------------|-----|
+| `Challenge failed` | DNS chưa trỏ về VPS | Quay lại Step 16, check `nslookup` |
+| `Connection refused` | Nginx chưa chạy / port 80 bị chặn | `systemctl start nginx` + `ufw allow 80` |
+| `Too many requests` | Chạy certbot quá nhiều lần | Chờ 1 giờ, dùng `--staging` lần sau |
+| `Could not bind port 80` | Apache/service khác chiếm port | `lsof -i :80` → stop service đó |
+| Cert hết hạn | Auto-renew lỗi | `certbot renew --force-renewal` |
 
 ---
 
-## Step 1️⃣7️⃣: Test ứng dụng
+## Step 1️⃣8️⃣: Test ứng dụng
 
 **Từ máy tính cá nhân, mở browser:**
 ```
-http://your_vps_ip:3000
-hoặc
-https://your-domain.com (nếu có SSL)
+https://pctsv.io.vn
 ```
+
+> ⚠️ **Phải dùng HTTPS** để camera hoạt động!
 
 **Test các chức năng:**
 - [ ] Mở tab "Upload" → Upload ảnh
-- [ ] Mở tab "Camera" → Chụp ảnh / Burst Mode
+- [ ] Mở tab "Camera" → Chụp ảnh / Burst Mode (phải có HTTPS!)
 - [ ] Mở tab "Gallery" → Xem ảnh
 - [ ] Mở tab "Export" → Export CSV/JSON
 
-✅ **Thành công:** Tất cả tab hoạt động, ảnh được lưu
+✅ **Thành công:** Tất cả tab hoạt động, ảnh được lưu, camera cho phép truy cập webcam
 
 ---
 
-## Step 1️⃣8️⃣: Setup GitHub Actions auto-deploy
+## Step 1️⃣9️⃣: Setup GitHub Actions auto-deploy
 
 **Trên VPS (user cowapp), tạo SSH key:**
 ```bash
@@ -430,7 +507,7 @@ Sao chép toàn bộ nội dung (từ `-----BEGIN` đến `-----END`)
 
 ---
 
-## Step 1️⃣9️⃣: Test auto-deploy
+## Step 2️⃣0️⃣: Test auto-deploy
 
 **Trên máy tính local:**
 ```bash
@@ -476,11 +553,16 @@ pm2 logs cow-visioning --lines 20
 
 | Vấn đề | Giải pháp |
 |--------|----------|
+| **DNS timeout / không resolve** | Xóa bản ghi ALIAS/CNAME cũ, chỉ giữ A record. Check: `nslookup pctsv.io.vn 8.8.8.8` |
+| **DNS xung đột (A + ALIAS)** | Xóa ALIAS cũ (Vercel). Nếu bị khóa → đổi nameserver về nhà cung cấp domain gốc |
+| **Camera không hoạt động** | Phải dùng HTTPS! Chạy certbot lấy SSL certificate (Step 17) |
+| **Certbot challenge failed** | DNS chưa trỏ về VPS. Chờ propagation, check `nslookup domain 8.8.8.8` |
+| **Certbot rate limit** | Dùng `--staging` để test trước, chờ 1 giờ nếu bị limit |
 | **Cannot connect to database** | Kiểm tra `.env` password, chạy `psql -U cowapp -d cow_visioning` |
 | **npm install failed** | Chạy `npm cache clean --force` rồi thử lại |
-| **Nginx 502 error** | Check `pm2 logs`, đảm bảo server chạy: `pm2 list` |
-| **SSL certificate failed** | Kiểm tra domain + DNS pointing, chạy `certbot renew` |
+| **Nginx 502 error** | Check `pm2 logs cow-visioning`, đảm bảo server chạy: `pm2 list` |
 | **Port 3000 in use** | `pm2 stop cow-visioning` rồi `pm2 start ecosystem.config.js` |
+| **Firewall chặn kết nối** | `ufw allow 22 && ufw allow 80 && ufw allow 443 && ufw enable` |
 
 ---
 

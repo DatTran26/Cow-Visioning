@@ -10,7 +10,9 @@
       "Bash(echo \"$f: OK\")",
       "Bash(done)",
       "Bash(timeout 5 node -e \":*)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(nslookup pctsv.io.vn 8.8.8.8)",
+      "Bash(gh auth:*)"
     ]
   }
 }

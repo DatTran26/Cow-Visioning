@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -f index.html)",
+      "Bash(rm -rf js/ css/ api/)",
+      "Bash(npm install:*)",
+      "Bash(node -c server.js)",
+      "Bash(for f:*)",
+      "Bash(do node:*)",
+      "Bash(echo \"$f: OK\")",
+      "Bash(done)",
+      "Bash(timeout 5 node -e \":*)",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}

@@ -12,28 +12,21 @@ const Export = (() => {
         const status = document.getElementById('export-status');
         const countEl = document.getElementById('export-count');
 
-        if (!supabase) {
-            status.textContent = 'Chua cau hinh SUPABASE_URL/SUPABASE_ANON_KEY tren Vercel';
-            status.className = 'status-msg error';
-            countEl.textContent = '';
-            return;
-        }
-
         status.textContent = 'Đang tải dữ liệu...';
         status.className = 'status-msg info';
 
-        const { data, error } = await supabase
-            .from('cow_images')
-            .select('*')
-            .order('created_at', { ascending: false });
+        try {
+            const res = await fetch(`${API_BASE}/api/images`);
+            const result = await res.json();
 
-        if (error) {
-            status.textContent = `Lỗi: ${error.message}`;
+            if (!res.ok) throw new Error(result.error || 'Tai du lieu that bai');
+
+            records = result.data || [];
+        } catch (err) {
+            status.textContent = `Lỗi: ${err.message}`;
             status.className = 'status-msg error';
             return;
         }
-
-        records = data || [];
         countEl.textContent = `Tổng cộng: ${records.length} bản ghi`;
 
         // Enable export buttons

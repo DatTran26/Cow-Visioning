@@ -1,7 +1,6 @@
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
     initSidebarLiveInfo();
 
-    // Tab navigation should always work, even if backend config is missing.
     const navItems = document.querySelectorAll('.nav-item');
     const tabs = document.querySelectorAll('.tab-content');
 
@@ -9,15 +8,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         item.addEventListener('click', () => {
             const tabName = item.dataset.tab;
 
-            // Update nav
             navItems.forEach(n => n.classList.remove('active'));
             item.classList.add('active');
 
-            // Update content
             tabs.forEach(t => t.classList.remove('active'));
             document.getElementById(`tab-${tabName}`).classList.add('active');
 
-            // Auto-load gallery when switching to it
             if (tabName === 'gallery') {
                 Gallery.loadGallery();
             }
@@ -31,17 +27,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     });
-
-    let ready = false;
-    if (typeof window.initializeSupabaseConfig === 'function') {
-        ready = await window.initializeSupabaseConfig();
-    } else {
-        console.warn('initializeSupabaseConfig is unavailable. Continue in local-only mode.');
-    }
-
-    if (!ready) {
-        console.warn('Chua cau hinh SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY. Cac chuc nang cloud co the bi han che.');
-    }
 
     // Initialize modules
     Upload.init();

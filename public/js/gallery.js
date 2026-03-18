@@ -1,6 +1,5 @@
 const Gallery = (() => {
     let deleteTargetId = null;
-    let deleteTargetFileName = null;
 
     function init() {
         document.getElementById('search-btn').addEventListener('click', loadGallery);
@@ -13,13 +12,6 @@ const Gallery = (() => {
         const status = document.getElementById('gallery-status');
         const grid = document.getElementById('gallery-grid');
 
-        if (!supabase) {
-            status.textContent = 'Chua cau hinh SUPABASE_URL/SUPABASE_ANON_KEY tren Vercel';
-            status.className = 'status-msg error';
-            grid.innerHTML = '';
-            return;
-        }
-
         status.textContent = 'Đang tải...';
         status.className = 'status-msg info';
         grid.innerHTML = '';
@@ -28,29 +20,29 @@ const Gallery = (() => {
         const behavior = document.getElementById('filter-behavior').value;
         const barn = document.getElementById('filter-barn').value.trim();
 
-        let query = supabase
-            .from('cow_images')
-            .select('*')
-            .order('created_at', { ascending: false });
+        const params = new URLSearchParams();
+        if (cowId) params.append('cow_id', cowId);
+        if (behavior) params.append('behavior', behavior);
+        if (barn) params.append('barn_area', barn);
 
-        if (cowId) query = query.ilike('cow_id', `%${cowId}%`);
-        if (behavior) query = query.eq('behavior', behavior);
-        if (barn) query = query.ilike('barn_area', `%${barn}%`);
+        try {
+            const res = await fetch(`${API_BASE}/api/images?${params}`);
+            const result = await res.json();
 
-        const { data, error } = await query;
+            if (!res.ok) throw new Error(result.error || 'Tai du lieu that bai');
 
-        if (error) {
-            status.textContent = `Lỗi: ${error.message}`;
+            const data = result.data || [];
+
+            status.textContent = `Tìm thấy ${data.length} ảnh`;
+            status.className = 'status-msg success';
+
+            data.forEach(record => {
+                grid.appendChild(createCard(record));
+            });
+        } catch (err) {
+            status.textContent = `Lỗi: ${err.message}`;
             status.className = 'status-msg error';
-            return;
         }
-
-        status.textContent = `Tìm thấy ${data.length} ảnh`;
-        status.className = 'status-msg success';
-
-        data.forEach(record => {
-            grid.appendChild(createCard(record));
-        });
     }
 
     function createCard(r) {
@@ -77,15 +69,14 @@ const Gallery = (() => {
         `;
 
         card.querySelector('.btn-icon').addEventListener('click', () => {
-            openDeleteModal(r.id, r.file_name, r.cow_id);
+            openDeleteModal(r.id, r.cow_id);
         });
 
         return card;
     }
 
-    function openDeleteModal(id, fileName, cowId) {
+    function openDeleteModal(id, cowId) {
         deleteTargetId = id;
-        deleteTargetFileName = fileName;
         document.getElementById('delete-msg').textContent =
             `Bạn có chắc muốn xoá ảnh của bò ${cowId}?`;
         document.getElementById('delete-modal').hidden = false;
@@ -94,7 +85,6 @@ const Gallery = (() => {
     function closeDeleteModal() {
         document.getElementById('delete-modal').hidden = true;
         deleteTargetId = null;
-        deleteTargetFileName = null;
     }
 
     async function confirmDelete() {
@@ -105,18 +95,12 @@ const Gallery = (() => {
         confirmBtn.textContent = 'Đang xoá...';
 
         try {
-            // Delete from storage
-            await supabase.storage
-                .from(BUCKET_NAME)
-                .remove([deleteTargetFileName]);
+            const res = await fetch(`${API_BASE}/api/images/${deleteTargetId}`, {
+                method: 'DELETE',
+            });
 
-            // Delete from database
-            const { error } = await supabase
-                .from('cow_images')
-                .delete()
-                .eq('id', deleteTargetId);
-
-            if (error) throw error;
+            const result = await res.json();
+            if (!res.ok) throw new Error(result.error || 'Xoa that bai');
 
             closeDeleteModal();
             loadGallery();

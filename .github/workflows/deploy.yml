@@ -1,0 +1,50 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy to VPS
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+          set -e
+
+          echo "=== Pulling latest code ==="
+          cd /home/${{ secrets.VPS_USER }}/myapp
+          git pull origin main
+
+          echo "=== Installing dependencies ==="
+          npm install --production
+
+          echo "=== Restarting server ==="
+          pm2 restart cow-visioning || pm2 start ecosystem.config.js
+
+          echo "=== Deployment successful ==="
+          pm2 logs cow-visioning --lines 5
+          EOF
+
+      - name: Notify Slack (Optional)
+        if: always()
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK }} \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "text": "Deployment '${{ job.status }}': Cow-Visioning on VPS",
+              "blocks": [{
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": "*Deployment Status*\nCommit: ${{ github.sha }}\nBranch: ${{ github.ref }}\nStatus: ${{ job.status }}"}
+              }]
+            }' || true

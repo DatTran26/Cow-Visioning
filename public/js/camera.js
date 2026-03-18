@@ -7,6 +7,11 @@ const Camera = (() => {
     let settingsVisible = false;
     let autoSaveEnabled = true;
 
+    // Burst mode state
+    let burstInterval = null;
+    let burstActive = false;
+    const BURST_DELAY = 500; // ms between burst shots
+
     function generateAutoCowId() {
         const ts = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
         return `AUTO-${ts}`;
@@ -14,12 +19,36 @@ const Camera = (() => {
 
     function init() {
         document.getElementById('toggle-camera-btn').addEventListener('click', toggleCamera);
+
         const captureBtn = document.getElementById('capture-btn');
-        captureBtn.addEventListener('click', captureAndSave);
-        captureBtn.addEventListener('pointerup', captureAndSave);
-        captureBtn.addEventListener('pointerdown', captureAndSave);
-        captureBtn.addEventListener('touchend', captureAndSave, { passive: false });
-        captureBtn.addEventListener('touchstart', captureAndSave, { passive: false });
+
+        // Burst mode: hold to burst, tap for single shot
+        captureBtn.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            startBurstOrSingle();
+        });
+        captureBtn.addEventListener('pointerup', (e) => {
+            e.preventDefault();
+            stopBurst();
+        });
+        captureBtn.addEventListener('pointerleave', (e) => {
+            e.preventDefault();
+            stopBurst();
+        });
+        // Touch events for mobile
+        captureBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startBurstOrSingle();
+        }, { passive: false });
+        captureBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            stopBurst();
+        }, { passive: false });
+        captureBtn.addEventListener('touchcancel', (e) => {
+            e.preventDefault();
+            stopBurst();
+        }, { passive: false });
+
         document.getElementById('toggle-cam-settings-btn').addEventListener('click', toggleSettings);
         document.getElementById('close-cam-settings').addEventListener('click', hideSettings);
 
@@ -43,6 +72,29 @@ const Camera = (() => {
         if (cameraTab && cameraTab.classList.contains('active')) {
             startCamera();
         }
+    }
+
+    function startBurstOrSingle() {
+        if (!isOn || burstActive) return;
+        burstActive = true;
+
+        // Fire first shot immediately
+        captureAndSave();
+
+        // Start burst after holding for BURST_DELAY
+        burstInterval = setInterval(() => {
+            if (isOn && !isCapturing) {
+                captureAndSave();
+            }
+        }, BURST_DELAY);
+    }
+
+    function stopBurst() {
+        if (burstInterval) {
+            clearInterval(burstInterval);
+            burstInterval = null;
+        }
+        burstActive = false;
     }
 
     function mapCameraError(err) {
@@ -127,7 +179,7 @@ const Camera = (() => {
         if (isOn) return;
 
         if (!window.isSecureContext) {
-            status.textContent = 'Camera can HTTPS hoac localhost. Neu dung dien thoai, hay mo ban deploy Vercel (https).';
+            status.textContent = 'Camera can HTTPS hoac localhost.';
             status.className = 'status-msg error';
             return;
         }
@@ -173,6 +225,7 @@ const Camera = (() => {
     }
 
     function stopCamera() {
+        stopBurst();
         if (stream) {
             stream.getTracks().forEach(t => t.stop());
             stream = null;
@@ -286,40 +339,27 @@ const Camera = (() => {
             savedThumbs.unshift({ url: thumbUrl });
             updateSavedUI();
 
-            if (!supabase) {
-                cameraStatus.textContent = 'Da chup thanh cong (local). Chua cau hinh Supabase nen chua luu len he thong.';
-                cameraStatus.className = 'status-msg success';
-                return;
-            }
-
             // Show saving indicator
             saving.hidden = false;
 
             try {
                 const uniqueName = `${crypto.randomUUID()}.jpg`;
 
-                const { error: storageError } = await supabase.storage
-                    .from(BUCKET_NAME)
-                    .upload(uniqueName, blob, { contentType: 'image/jpeg' });
-                if (storageError) throw storageError;
+                const formData = new FormData();
+                formData.append('image', blob, uniqueName);
+                formData.append('cow_id', cowIdToSave);
+                formData.append('behavior', behaviorToSave);
+                formData.append('barn_area', barnAreaToSave);
+                formData.append('captured_at', new Date().toISOString());
+                formData.append('notes', notesToSave);
 
-                const { data: urlData } = supabase.storage
-                    .from(BUCKET_NAME)
-                    .getPublicUrl(uniqueName);
+                const res = await fetch(`${API_BASE}/api/images`, {
+                    method: 'POST',
+                    body: formData,
+                });
 
-                const { error: dbError } = await supabase
-                    .from('cow_images')
-                    .insert({
-                        cow_id: cowIdToSave,
-                        behavior: behaviorToSave,
-                        barn_area: barnAreaToSave,
-                        captured_at: new Date().toISOString(),
-                        notes: notesToSave,
-                        image_url: urlData.publicUrl,
-                        file_name: uniqueName,
-                        file_size: blob.size,
-                    });
-                if (dbError) throw dbError;
+                const result = await res.json();
+                if (!res.ok) throw new Error(result.error || 'Luu anh that bai');
 
                 cameraStatus.textContent = autoSaveEnabled
                     ? 'Da chup va tu dong luu anh len he thong'

@@ -72,11 +72,6 @@ const Upload = (() => {
         const progress = document.getElementById('upload-progress');
         const progressFill = progress.querySelector('.progress-fill');
 
-        if (!supabase) {
-            showStatus(status, 'Chua cau hinh SUPABASE_URL/SUPABASE_ANON_KEY tren Vercel', 'error');
-            return;
-        }
-
         const cowId = document.getElementById('cow-id').value.trim();
         const behavior = document.getElementById('behavior').value;
         const barnArea = document.getElementById('barn-area').value.trim();
@@ -98,36 +93,22 @@ const Upload = (() => {
 
         for (const file of selectedFiles) {
             try {
-                const ext = file.name.split('.').pop() || 'jpg';
-                const uniqueName = `${crypto.randomUUID()}.${ext}`;
+                const formData = new FormData();
+                formData.append('image', file);
+                formData.append('cow_id', cowId);
+                formData.append('behavior', behavior);
+                formData.append('barn_area', barnArea);
+                formData.append('captured_at', capturedAt || new Date().toISOString());
+                formData.append('notes', notes);
 
-                // Upload to storage
-                const { error: storageError } = await supabase.storage
-                    .from(BUCKET_NAME)
-                    .upload(uniqueName, file, { contentType: file.type });
+                const res = await fetch(`${API_BASE}/api/images`, {
+                    method: 'POST',
+                    body: formData,
+                });
 
-                if (storageError) throw storageError;
+                const result = await res.json();
+                if (!res.ok) throw new Error(result.error || 'Upload that bai');
 
-                // Get public URL
-                const { data: urlData } = supabase.storage
-                    .from(BUCKET_NAME)
-                    .getPublicUrl(uniqueName);
-
-                // Insert record
-                const { error: dbError } = await supabase
-                    .from('cow_images')
-                    .insert({
-                        cow_id: cowId,
-                        behavior: behavior,
-                        barn_area: barnArea || null,
-                        captured_at: capturedAt ? new Date(capturedAt).toISOString() : new Date().toISOString(),
-                        notes: notes || null,
-                        image_url: urlData.publicUrl,
-                        file_name: uniqueName,
-                        file_size: file.size,
-                    });
-
-                if (dbError) throw dbError;
                 uploaded++;
             } catch (err) {
                 console.error('Upload error:', err);

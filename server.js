@@ -422,6 +422,44 @@ app.delete('/api/images/:id', async (req, res) => {
     }
 });
 
+// POST /api/totp/reset - Reset TOTP configuration
+app.post('/api/totp/reset', async (req, res) => {
+    const { code } = req.body;
+
+    if (!code || code.length !== 6) {
+        return res.status(400).json({ error: 'Vui long nhap du 6 so' });
+    }
+
+    try {
+        const result = await pool.query(
+            "SELECT value FROM app_config WHERE key = 'totp_secret'"
+        );
+        if (result.rows.length === 0) {
+            return res.status(400).json({ error: 'TOTP chua duoc thiet lap' });
+        }
+
+        const verified = speakeasy.totp.verify({
+            secret: result.rows[0].value,
+            encoding: 'base32',
+            token: code,
+            window: 1,
+        });
+
+        if (!verified) {
+            return res.status(401).json({ error: 'Ma khong hop le. Vui long thu lai.' });
+        }
+
+        await pool.query("DELETE FROM app_config WHERE key IN ('totp_secret', 'totp_configured')");
+
+        req.session.destroy(() => {
+            res.json({ success: true });
+        });
+    } catch (err) {
+        console.error('POST /api/totp/reset error:', err);
+        res.status(500).json({ error: 'Loi he thong' });
+    }
+});
+
 // --- Start server ---
 app.listen(PORT, () => {
     console.log(`Cow-Visioning server running at http://localhost:${PORT}`);

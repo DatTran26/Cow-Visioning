@@ -40,6 +40,10 @@
                     <span class="nav-icon">📊</span>
                     <span>Xuất dữ liệu</span>
                 </li>
+                <li class="nav-item" data-tab="settings">
+                    <span class="nav-icon">⚙️</span>
+                    <span>Cài đặt</span>
+                </li>
             </ul>
             <div class="sidebar-logout">
                 <button class="nav-item logout-btn" id="logout-btn">
@@ -434,6 +438,41 @@
                     </table>
                 </div>
             </section>
+
+            <!-- ===== SETTINGS TAB ===== -->
+            <section id="tab-settings" class="tab-content">
+                <h1>Cài đặt</h1>
+                <p class="subtitle">Quản lý cấu hình ứng dụng</p>
+
+                <div class="settings-section">
+                    <div class="settings-card">
+                        <div class="settings-card-icon">🔐</div>
+                        <div class="settings-card-body">
+                            <h3>Đặt lại xác thực TOTP</h3>
+                            <p>Xoá cấu hình Google Authenticator hiện tại và thiết lập lại từ đầu. Bạn sẽ cần quét lại mã QR mới.</p>
+                        </div>
+                    </div>
+
+                    <div class="settings-reset-form">
+                        <p class="settings-reset-hint">Nhập mã 6 số hiện tại từ Google Authenticator để xác nhận:</p>
+                        <div class="settings-code-row">
+                            <input
+                                type="text"
+                                id="totp-reset-code"
+                                inputmode="numeric"
+                                pattern="[0-9]{6}"
+                                maxlength="6"
+                                autocomplete="one-time-code"
+                                placeholder="000000"
+                            />
+                            <button class="btn btn-danger" id="totp-reset-btn">
+                                Đặt lại TOTP
+                            </button>
+                        </div>
+                        <div id="totp-reset-status" class="status-msg"></div>
+                    </div>
+                </div>
+            </section>
         </main>
 
         <!-- Delete confirmation modal -->
@@ -457,6 +496,7 @@
         <script src="js/camera.js"></script>
         <script src="js/gallery.js"></script>
         <script src="js/export.js"></script>
+        <script src="js/settings.js"></script>
         <script src="js/app.js"></script>
     </body>
 </html>

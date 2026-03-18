@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     Camera.init();
     Gallery.init();
     Export.init();
+    Settings.init();
 
     // Logout handler
     const logoutBtn = document.getElementById('logout-btn');

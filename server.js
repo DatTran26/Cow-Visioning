@@ -11,8 +11,16 @@ const PgSession = require('connect-pg-simple')(session);
 const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
 
+const { execSync } = require('child_process');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// --- App version (git commit hash, set at startup) ---
+let APP_VERSION = Date.now().toString();
+try {
+    APP_VERSION = execSync('git rev-parse --short HEAD').toString().trim();
+} catch (e) {}
 
 // --- PostgreSQL ---
 const pool = new Pool({
@@ -280,10 +288,15 @@ app.post('/auth/logout', (req, res) => {
     });
 });
 
+// --- Version check endpoint (public, no auth needed) ---
+app.get('/api/version', (req, res) => {
+    res.json({ version: APP_VERSION });
+});
+
 // --- Auth Middleware (BEFORE static files & API) ---
 app.use((req, res, next) => {
     // Allow auth-related paths
-    if (req.path.startsWith('/auth/') || req.path === '/css/auth.css' || req.path === '/js/auth.js') {
+    if (req.path.startsWith('/auth/') || req.path === '/css/auth.css' || req.path === '/js/auth.js' || req.path === '/api/version') {
         return next();
     }
 

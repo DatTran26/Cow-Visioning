@@ -24,7 +24,8 @@ jobs:
 
           echo "=== Pulling latest code ==="
           cd /home/${{ secrets.VPS_USER }}/myapp
-          git pull origin main
+          git fetch origin main
+          git reset --hard origin/main
 
           echo "=== Installing dependencies ==="
           npm install --production

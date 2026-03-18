@@ -54,6 +54,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return response;
     };
+
+    // Version check - notify user when new deploy is available
+    initVersionChecker();
 });
 
 function initSidebarLiveInfo() {
@@ -115,4 +118,51 @@ function initSidebarLiveInfo() {
             maximumAge: 300000,
         }
     );
+}
+
+function initVersionChecker() {
+    let currentVersion = null;
+
+    async function checkVersion() {
+        try {
+            const res = await fetch('/api/version');
+            if (!res.ok) return;
+            const data = await res.json();
+
+            if (currentVersion === null) {
+                // First check - save current version
+                currentVersion = data.version;
+            } else if (data.version !== currentVersion) {
+                // Version changed - show update popup
+                showUpdatePopup();
+            }
+        } catch (e) {}
+    }
+
+    // Check immediately, then every 30 seconds
+    checkVersion();
+    setInterval(checkVersion, 30 * 1000);
+}
+
+function showUpdatePopup() {
+    // Don't show if already showing
+    if (document.getElementById('update-popup')) return;
+
+    const popup = document.createElement('div');
+    popup.id = 'update-popup';
+    popup.className = 'update-popup';
+    popup.innerHTML = `
+        <div class="update-popup-content">
+            <span class="update-popup-icon">🔄</span>
+            <div class="update-popup-text">
+                <strong>Phien ban moi!</strong>
+                <p>Ung dung da duoc cap nhat. Tai lai trang de su dung phien ban moi nhat.</p>
+            </div>
+            <div class="update-popup-actions">
+                <button class="update-btn-refresh" onclick="location.reload()">Tai lai ngay</button>
+                <button class="update-btn-dismiss" onclick="this.closest('.update-popup').remove()">De sau</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(popup);
 }

@@ -1029,4 +1029,96 @@ tr:hover td {
     .cam-page.settings-hidden .cam-settings {
         display: none;
     }
+    .about-grid {
+        grid-template-columns: 1fr;
+    }
 }
+
+/* ===== About Tab ===== */
+.about-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin: 24px 0;
+}
+.about-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.about-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+.about-card-icon {
+    font-size: 36px;
+    margin-bottom: 12px;
+}
+.about-card h3 {
+    font-size: 18px;
+    margin-bottom: 8px;
+    color: #1a1a2e;
+}
+.about-card p {
+    font-size: 14px;
+    color: #555;
+    line-height: 1.6;
+}
+.about-info {
+    background: #fff;
+    border-radius: 12px;
+    padding: 28px;
+    margin-top: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.about-info h2 {
+    font-size: 20px;
+    color: #1a1a2e;
+    margin-bottom: 12px;
+    margin-top: 20px;
+}
+.about-info h2:first-child {
+    margin-top: 0;
+}
+.about-info p {
+    font-size: 14px;
+    color: #555;
+    line-height: 1.7;
+}
+.about-behaviors {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+}
+.behavior-tag {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 16px;
+    border-radius: 20px;
+}
+.behavior-tag.standing {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+.behavior-tag.lying {
+    background: #dcfce7;
+    color: #15803d;
+}
+.behavior-tag.eating {
+    background: #ffedd5;
+    color: #c2410c;
+}
+.behavior-tag.drinking {
+    background: #cffafe;
+    color: #0e7490;
+}
+.behavior-tag.walking {
+    background: #f3e8ff;
+    color: #7c3aed;
+}
+.behavior-tag.abnormal {
+    background: #fee2e2;
+    color: #dc2626;

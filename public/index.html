@@ -20,7 +20,11 @@
                 </div>
             </div>
             <ul class="nav-list">
-                <li class="nav-item active" data-tab="upload">
+                <li class="nav-item active" data-tab="about">
+                    <span class="nav-icon">ℹ️</span>
+                    <span>Giới thiệu</span>
+                </li>
+                <li class="nav-item" data-tab="upload">
                     <span class="nav-icon">📤</span>
                     <span>Tải ảnh</span>
                 </li>
@@ -45,8 +49,52 @@
                 <p id="mobile-main-clock" class="mobile-main-live-line">--:--:--</p>
                 <p id="mobile-main-location" class="mobile-main-live-line">Vị trí: Đang lấy...</p>
             </div>
+            <!-- ===== ABOUT TAB ===== -->
+            <section id="tab-about" class="tab-content active">
+                <h1>Cow Visioning</h1>
+                <p class="subtitle">Hệ thống thu thập dữ liệu hình ảnh để nhận diện hành vi bò bằng AI</p>
+
+                <div class="about-grid">
+                    <div class="about-card">
+                        <div class="about-card-icon">📤</div>
+                        <h3>Tải ảnh lên</h3>
+                        <p>Upload ảnh bò kèm thông tin gán nhãn hành vi (đứng, nằm, ăn, uống, đi lại, bất thường). Hỗ trợ kéo thả nhiều ảnh cùng lúc, tối đa 10MB/ảnh.</p>
+                    </div>
+                    <div class="about-card">
+                        <div class="about-card-icon">📷</div>
+                        <h3>Chụp trực tiếp</h3>
+                        <p>Sử dụng camera thiết bị để chụp ảnh trực tiếp. Hỗ trợ chế độ chụp liên tục (burst), tự động lưu và thiết lập thông tin trước khi chụp.</p>
+                    </div>
+                    <div class="about-card">
+                        <div class="about-card-icon">🖼️</div>
+                        <h3>Thư viện ảnh</h3>
+                        <p>Xem, tìm kiếm và quản lý toàn bộ ảnh đã thu thập. Lọc theo mã bò, hành vi hoặc khu vực chuồng trại.</p>
+                    </div>
+                    <div class="about-card">
+                        <div class="about-card-icon">📊</div>
+                        <h3>Xuất dữ liệu</h3>
+                        <p>Xuất dataset sang định dạng CSV hoặc JSON để phục vụ huấn luyện mô hình AI nhận diện hành vi bò.</p>
+                    </div>
+                </div>
+
+                <div class="about-info">
+                    <h2>Mục tiêu dự án</h2>
+                    <p>Cow Visioning giúp xây dựng bộ dữ liệu hình ảnh có gán nhãn hành vi của bò, phục vụ cho việc huấn luyện các mô hình trí tuệ nhân tạo (AI) trong lĩnh vực chăn nuôi thông minh. Hệ thống cho phép thu thập, phân loại và xuất dữ liệu một cách có hệ thống và hiệu quả.</p>
+
+                    <h2>Hành vi được phân loại</h2>
+                    <div class="about-behaviors">
+                        <span class="behavior-tag standing">Đứng</span>
+                        <span class="behavior-tag lying">Nằm</span>
+                        <span class="behavior-tag eating">Ăn</span>
+                        <span class="behavior-tag drinking">Uống nước</span>
+                        <span class="behavior-tag walking">Đi lại</span>
+                        <span class="behavior-tag abnormal">Bất thường</span>
+                    </div>
+                </div>
+            </section>
+
             <!-- ===== UPLOAD TAB ===== -->
-            <section id="tab-upload" class="tab-content active">
+            <section id="tab-upload" class="tab-content">
                 <h1>Tải ảnh lên</h1>
                 <p class="subtitle">
                     Upload ảnh bò và gán nhãn hành vi để tạo dataset huấn luyện

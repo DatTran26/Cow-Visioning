@@ -1,462 +1,468 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="vi">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Cow Visioning - Dataset Nhận diện Hành vi Bò</title>
-        <link rel="stylesheet" href="css/style.css" />
-    </head>
-    <body>
-        <!-- Sidebar -->
-        <nav class="sidebar">
-            <div class="sidebar-logo">
-                <div class="logo-head">
-                    <span class="logo-icon">🐄</span>
-                    <span class="logo-text">Cow Visioning</span>
-                </div>
-                <div class="sidebar-live-info">
-                    <p id="sidebar-clock" class="sidebar-live-line">--:--:--</p>
-                    <p id="sidebar-location" class="sidebar-live-line">Vị trí: Đang lấy...</p>
-                </div>
-            </div>
-            <ul class="nav-list">
-                <li class="nav-item active" data-tab="about">
-                    <span class="nav-icon">ℹ️</span>
-                    <span>Giới thiệu</span>
-                </li>
-                <li class="nav-item" data-tab="upload">
-                    <span class="nav-icon">📤</span>
-                    <span>Tải ảnh</span>
-                </li>
-                <li class="nav-item" data-tab="camera">
-                    <span class="nav-icon">📷</span>
-                    <span>Camera</span>
-                </li>
-                <li class="nav-item" data-tab="gallery">
-                    <span class="nav-icon">🖼️</span>
-                    <span>Thư viện</span>
-                </li>
-                <li class="nav-item" data-tab="export">
-                    <span class="nav-icon">📊</span>
-                    <span>Xuất dữ liệu</span>
-                </li>
-            </ul>
-            <div class="sidebar-logout">
-                <button class="nav-item logout-btn" id="logout-btn">
-                    <span class="nav-icon">🚪</span>
-                    <span>Đăng xuất</span>
-                </button>
-            </div>
-        </nav>
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Con Bò Cười — AI Livestock Dataset Platform</title>
+<meta name="description" content="Hệ thống thu thập, phân loại hình ảnh hành vi bò phục vụ huấn luyện AI trong chăn nuôi thông minh."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Nunito:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/main.css"/>
+</head>
+<body>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <div class="mobile-main-live-info">
-                <p id="mobile-main-clock" class="mobile-main-live-line">--:--:--</p>
-                <p id="mobile-main-location" class="mobile-main-live-line">Vị trí: Đang lấy...</p>
-            </div>
-            <!-- ===== ABOUT TAB ===== -->
-            <section id="tab-about" class="tab-content active">
-                <h1>Cow Visioning</h1>
-                <p class="subtitle">Hệ thống thu thập dữ liệu hình ảnh để nhận diện hành vi bò bằng AI</p>
+<!-- ═══ TOP NAVBAR ═══ -->
+<nav class="topnav" id="topnav">
+  <a class="topnav-logo" href="#" onclick="switchTab('about');return false;">
+    <div class="logo-cow">🐄</div>
+    <div>
+      <span class="logo-name">Con Bò Cười</span>
+      <span class="logo-sub">Livestock AI Platform</span>
+    </div>
+  </a>
+  <ul class="topnav-list">
+    <li class="topnav-item active" data-tab="about">Giới thiệu</li>
+    <li class="topnav-item" data-tab="upload">Tải ảnh</li>
+    <li class="topnav-item" data-tab="camera">Camera</li>
+    <li class="topnav-item" data-tab="gallery">Thư viện</li>
+    <li class="topnav-item" data-tab="export">Xuất dữ liệu</li>
+  </ul>
+  <div class="topnav-right">
+    <div class="topnav-time" id="topnav-clock">--:--:--</div>
+    <button class="topnav-logout" id="logout-btn">Đăng xuất</button>
+  </div>
+</nav>
 
-                <div class="about-grid">
-                    <div class="about-card">
-                        <div class="about-card-icon">📤</div>
-                        <h3>Tải ảnh lên</h3>
-                        <p>Upload ảnh bò kèm thông tin gán nhãn hành vi (đứng, nằm, ăn, uống, đi lại, bất thường). Hỗ trợ kéo thả nhiều ảnh cùng lúc, tối đa 10MB/ảnh.</p>
-                    </div>
-                    <div class="about-card">
-                        <div class="about-card-icon">📷</div>
-                        <h3>Chụp trực tiếp</h3>
-                        <p>Sử dụng camera thiết bị để chụp ảnh trực tiếp. Hỗ trợ chế độ chụp liên tục (burst), tự động lưu và thiết lập thông tin trước khi chụp.</p>
-                    </div>
-                    <div class="about-card">
-                        <div class="about-card-icon">🖼️</div>
-                        <h3>Thư viện ảnh</h3>
-                        <p>Xem, tìm kiếm và quản lý toàn bộ ảnh đã thu thập. Lọc theo mã bò, hành vi hoặc khu vực chuồng trại.</p>
-                    </div>
-                    <div class="about-card">
-                        <div class="about-card-icon">📊</div>
-                        <h3>Xuất dữ liệu</h3>
-                        <p>Xuất dataset sang định dạng CSV hoặc JSON để phục vụ huấn luyện mô hình AI nhận diện hành vi bò.</p>
-                    </div>
-                </div>
+<!-- ═══ MAIN WRAPPER ═══ -->
+<main class="page-main">
 
-                <div class="about-info">
-                    <h2>Mục tiêu dự án</h2>
-                    <p>Cow Visioning giúp xây dựng bộ dữ liệu hình ảnh có gán nhãn hành vi của bò, phục vụ cho việc huấn luyện các mô hình trí tuệ nhân tạo (AI) trong lĩnh vực chăn nuôi thông minh. Hệ thống cho phép thu thập, phân loại và xuất dữ liệu một cách có hệ thống và hiệu quả.</p>
+<!-- ══ TAB: GIỚI THIỆU (Blog Landing) ══ -->
+<div id="tab-about" class="tab-panel active">
 
-                    <h2>Hành vi được phân loại</h2>
-                    <div class="about-behaviors">
-                        <span class="behavior-tag standing">Đứng</span>
-                        <span class="behavior-tag lying">Nằm</span>
-                        <span class="behavior-tag eating">Ăn</span>
-                        <span class="behavior-tag drinking">Uống nước</span>
-                        <span class="behavior-tag walking">Đi lại</span>
-                        <span class="behavior-tag abnormal">Bất thường</span>
-                    </div>
-                </div>
-            </section>
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-content">
+  <span class="hero-badge">AI · Chăn nuôi thông minh · 2026</span>
+      <h1 class="hero-title">Con Bò Cười</h1>
+      <p class="hero-sub">Nền tảng thu thập &amp; phân loại hình ảnh hành vi đàn bò — kết nối người chăn nuôi với công nghệ nhận diện AI trong nông nghiệp thông minh.</p>
+      <div class="hero-btns">
+        <button class="btn-hero-solid" onclick="switchTab('camera')">Bắt đầu chụp ảnh</button>
+        <button class="btn-hero-line" onclick="switchTab('upload')">Tải ảnh lên</button>
+      </div>
+    </div>
+    <div class="hero-scroll-hint"><span></span><p>Cuộn xuống</p></div>
+  </section>
 
-            <!-- ===== UPLOAD TAB ===== -->
-            <section id="tab-upload" class="tab-content">
-                <h1>Tải ảnh lên</h1>
-                <p class="subtitle">
-                    Upload ảnh bò và gán nhãn hành vi để tạo dataset huấn luyện
-                    AI
-                </p>
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-cell"><span class="stat-n">6</span><span class="stat-l">Hành vi nhận diện</span></div>
+    <div class="stat-cell"><span class="stat-n">10MB</span><span class="stat-l">Giới hạn mỗi ảnh</span></div>
+    <div class="stat-cell"><span class="stat-n">500ms</span><span class="stat-l">Tốc độ Burst Mode</span></div>
+    <div class="stat-cell"><span class="stat-n">±5%</span><span class="stat-l">Độ chính xác AI</span></div>
+  </div>
 
-                <form id="upload-form" class="form-grid">
-                    <div class="form-group">
-                        <label for="cow-id"
-                            >Mã con bò <span class="required">*</span></label
-                        >
-                        <input
-                            type="text"
-                            id="cow-id"
-                            placeholder="VD: BO-001"
-                            required
-                        />
-                    </div>
-                    <div class="form-group">
-                        <label for="behavior"
-                            >Hành vi <span class="required">*</span></label
-                        >
-                        <select id="behavior" required>
-                            <option value="">-- Chọn hành vi --</option>
-                            <option value="standing">Đứng</option>
-                            <option value="lying">Nằm</option>
-                            <option value="eating">Ăn</option>
-                            <option value="drinking">Uống nước</option>
-                            <option value="walking">Đi lại</option>
-                            <option value="abnormal">Bất thường</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="barn-area">Khu vực chuồng</label>
-                        <input
-                            type="text"
-                            id="barn-area"
-                            placeholder="VD: Chuồng A1"
-                        />
-                    </div>
-                    <div class="form-group">
-                        <label for="captured-at">Thời gian chụp</label>
-                        <input type="datetime-local" id="captured-at" />
-                    </div>
-                    <div class="form-group full-width">
-                        <label for="notes">Ghi chú</label>
-                        <textarea
-                            id="notes"
-                            rows="2"
-                            placeholder="Ghi chú thêm..."
-                        ></textarea>
-                    </div>
-
-                    <div class="form-group full-width">
-                        <label>Chọn ảnh <span class="required">*</span></label>
-                        <div class="dropzone" id="dropzone">
-                            <span class="dropzone-icon">📁</span>
-                            <p>
-                                Kéo thả ảnh vào đây hoặc
-                                <strong>nhấn để chọn</strong>
-                            </p>
-                            <p class="dropzone-hint">
-                                JPG, PNG, WebP, GIF — Tối đa 10MB/ảnh
-                            </p>
-                            <input
-                                type="file"
-                                id="file-input"
-                                multiple
-                                accept="image/jpeg,image/png,image/webp,image/gif"
-                                hidden
-                            />
-                        </div>
-                        <div id="file-preview" class="file-preview"></div>
-                    </div>
-
-                    <div class="form-group full-width">
-                        <button
-                            type="submit"
-                            class="btn btn-primary"
-                            id="upload-btn"
-                        >
-                            <span>☁️ Tải lên</span>
-                        </button>
-                    </div>
-                    <div id="upload-progress" class="progress-bar" hidden>
-                        <div class="progress-fill"></div>
-                    </div>
-                    <div id="upload-status" class="status-msg"></div>
-                </form>
-            </section>
-
-            <!-- ===== CAMERA TAB ===== -->
-            <section id="tab-camera" class="tab-content">
-                <div class="cam-page settings-hidden" id="cam-page">
-                    <!-- Left: Settings panel -->
-                    <aside class="cam-settings">
-                        <div class="cam-settings-header">
-                            <h2>Thiết lập</h2>
-                            <button
-                                type="button"
-                                class="cam-settings-close"
-                                id="close-cam-settings"
-                                title="Ẩn thiết lập"
-                            >
-                                ✕
-                            </button>
-                        </div>
-                        <div class="cam-settings-form">
-                            <div class="form-group">
-                                <label for="cam-cow-id">Mã con bò</label>
-                                <input
-                                    type="text"
-                                    id="cam-cow-id"
-                                    placeholder="VD: BO-001"
-                                />
-                            </div>
-                            <div class="form-group">
-                                <label for="cam-behavior">Hành vi</label>
-                                <select id="cam-behavior">
-                                    <option value="">-- Chọn --</option>
-                                    <option value="standing">Đứng</option>
-                                    <option value="lying">Nằm</option>
-                                    <option value="eating">Ăn</option>
-                                    <option value="drinking">Uống nước</option>
-                                    <option value="walking">Đi lại</option>
-                                    <option value="abnormal">Bất thường</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="cam-barn-area"
-                                    >Khu vực chuồng</label
-                                >
-                                <input
-                                    type="text"
-                                    id="cam-barn-area"
-                                    placeholder="VD: Chuồng A1"
-                                />
-                            </div>
-                            <div class="form-group">
-                                <label for="cam-notes">Ghi chú</label>
-                                <input
-                                    type="text"
-                                    id="cam-notes"
-                                    placeholder="Tuỳ chọn..."
-                                />
-                            </div>
-                        </div>
-
-                        <hr class="cam-divider" />
-                        <h3>
-                            Ảnh đã chụp
-                            <span id="cam-saved-count" class="cam-saved-badge"
-                                >0</span
-                            >
-                        </h3>
-                        <div id="captured-strip" class="captured-strip"></div>
-                        <div id="cam-upload-status" class="status-msg"></div>
-                    </aside>
-
-                    <!-- Right: Camera viewfinder -->
-                    <div class="cam-live-area">
-                        <div class="cam-toolbar">
-                            <label
-                                class="cam-auto-save-toggle"
-                                for="cam-auto-save-toggle"
-                            >
-                                <input
-                                    type="checkbox"
-                                    id="cam-auto-save-toggle"
-                                    checked
-                                />
-                                <span id="cam-auto-save-label">Tự lưu không cần thiết lập</span>
-                            </label>
-                            <button
-                                type="button"
-                                class="btn btn-secondary"
-                                id="toggle-cam-settings-btn"
-                            >
-                                <span class="cam-settings-text-full">⚙️ Thiết lập trước khi chụp</span>
-                                <span class="cam-settings-text-mobile">⚙️ Thiết lập</span>
-                            </button>
-                        </div>
-                        <div class="camera-viewfinder" id="camera-viewfinder">
-                            <video
-                                id="camera-video"
-                                autoplay
-                                playsinline
-                            ></video>
-                            <canvas id="camera-canvas" hidden></canvas>
-                            <div class="viewfinder-frame">
-                                <span class="vf-corner vf-tl"></span>
-                                <span class="vf-corner vf-tr"></span>
-                                <span class="vf-corner vf-bl"></span>
-                                <span class="vf-corner vf-br"></span>
-                            </div>
-                            <!-- Overlay when camera off -->
-                            <div class="camera-overlay" id="camera-overlay">
-                                <span class="camera-overlay-icon">📷</span>
-                                <p>Nhấn nút bên dưới để mở camera</p>
-                            </div>
-                            <!-- Photo count badge -->
-                            <div
-                                class="cam-count-badge"
-                                id="cam-count-badge"
-                                hidden
-                            >
-                                <span id="cam-count-num">0</span> ảnh
-                            </div>
-                            <!-- Saving indicator -->
-                            <div class="cam-saving" id="cam-saving" hidden>
-                                <div class="spinner"></div>
-                                Đang lưu...
-                            </div>
-                        </div>
-
-                        <!-- iPhone-style bottom bar -->
-                        <div class="cam-bottom-bar">
-                            <div class="cam-bottom-left">
-                                <div
-                                    id="cam-last-thumb"
-                                    class="cam-last-thumb"
-                                ></div>
-                            </div>
-                            <div class="cam-bottom-center">
-                                <button
-                                    class="shutter-btn"
-                                    id="capture-btn"
-                                    disabled
-                                    title="Chụp ảnh"
-                                >
-                                    <span class="shutter-inner"></span>
-                                </button>
-                            </div>
-                            <div class="cam-bottom-right">
-                                <button
-                                    class="btn-cam-toggle"
-                                    id="toggle-camera-btn"
-                                    title="Mở/Tắt camera"
-                                >
-                                    <span id="toggle-cam-icon">📷</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div id="camera-status" class="status-msg"></div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ===== GALLERY TAB ===== -->
-            <section id="tab-gallery" class="tab-content">
-                <h1>Thư viện ảnh</h1>
-                <p class="subtitle">Xem, tìm kiếm và quản lý ảnh đã tải lên</p>
-
-                <div class="filter-bar">
-                    <input
-                        type="text"
-                        id="filter-cow-id"
-                        placeholder="Mã bò..."
-                    />
-                    <select id="filter-behavior">
-                        <option value="">Tất cả hành vi</option>
-                        <option value="standing">Đứng</option>
-                        <option value="lying">Nằm</option>
-                        <option value="eating">Ăn</option>
-                        <option value="drinking">Uống nước</option>
-                        <option value="walking">Đi lại</option>
-                        <option value="abnormal">Bất thường</option>
-                    </select>
-                    <input
-                        type="text"
-                        id="filter-barn"
-                        placeholder="Khu vực..."
-                    />
-                    <button class="btn btn-primary" id="search-btn">
-                        🔍 Tìm kiếm
-                    </button>
-                    <button class="btn btn-secondary" id="reset-btn">
-                        ↻ Đặt lại
-                    </button>
-                </div>
-
-                <div id="gallery-status" class="status-msg"></div>
-                <div id="gallery-grid" class="gallery-grid"></div>
-            </section>
-
-            <!-- ===== EXPORT TAB ===== -->
-            <section id="tab-export" class="tab-content">
-                <h1>Xuất dữ liệu</h1>
-                <p class="subtitle">
-                    Xuất dataset sang CSV hoặc JSON để phục vụ huấn luyện mô
-                    hình AI
-                </p>
-
-                <div class="export-actions">
-                    <button class="btn btn-primary" id="load-export-btn">
-                        📥 Tải dữ liệu
-                    </button>
-                    <button
-                        class="btn btn-success"
-                        id="export-csv-btn"
-                        disabled
-                    >
-                        📄 Xuất CSV
-                    </button>
-                    <button
-                        class="btn btn-warning"
-                        id="export-json-btn"
-                        disabled
-                    >
-                        📋 Xuất JSON
-                    </button>
-                </div>
-
-                <div id="export-status" class="status-msg"></div>
-                <div id="export-count" class="record-count"></div>
-
-                <div id="export-table-wrap" class="table-wrap" hidden>
-                    <table id="export-table">
-                        <thead>
-                            <tr>
-                                <th>Mã bò</th>
-                                <th>Hành vi</th>
-                                <th>Khu vực</th>
-                                <th>Thời gian</th>
-                                <th>Ghi chú</th>
-                                <th>URL ảnh</th>
-                            </tr>
-                        </thead>
-                        <tbody id="export-tbody"></tbody>
-                    </table>
-                </div>
-            </section>
-        </main>
-
-        <!-- Delete confirmation modal -->
-        <div class="modal-overlay" id="delete-modal" hidden>
-            <div class="modal">
-                <h3>Xác nhận xoá</h3>
-                <p id="delete-msg">Bạn có chắc muốn xoá ảnh này?</p>
-                <div class="modal-actions">
-                    <button class="btn btn-secondary" id="cancel-delete">
-                        Huỷ
-                    </button>
-                    <button class="btn btn-danger" id="confirm-delete">
-                        Xoá
-                    </button>
-                </div>
-            </div>
+  <!-- INTRO SPLIT -->
+  <section class="intro-split">
+    <div class="wrap">
+      <div class="split-grid">
+        <div class="split-img reveal">
+          <img src="images/tag.jpg" alt="Bò nghiên cứu"/>
+          <div class="split-badge"><span>Dự án 2026</span><strong>Con Bò Cười 🐄</strong></div>
         </div>
+        <div class="split-text reveal r1">
+          <p class="sec-tag">Về dự án</p>
+          <h2 class="sec-title">Tại sao cần<br/>Con Bò Cười?</h2>
+          <p class="sec-sub">Ứng dụng Computer Vision trong chăn nuôi bò thịt có thể giúp ước tính khối lượng cơ thể, theo dõi hành vi và phát hiện bất thường — giảm chi phí vận hành và tăng năng suất. Con Bò Cười là nền tảng thu thập dữ liệu hình ảnh chuẩn hóa cho mục tiêu đó.</p>
+          <ul class="feat-list">
+            <li><span class="feat-ic">01</span><div><strong>Thu thập dữ liệu chuẩn</strong><small>Upload hoặc chụp ảnh trực tiếp, gán nhãn hành vi và khu vực chuồng trại theo chuẩn AI Vision</small></div></li>
+            <li><span class="feat-ic">02</span><div><strong>Burst Mode tốc độ cao</strong><small>Chụp liên tục ~500ms/ảnh không giới hạn, tất cả cùng metadata — giảm 80% thời gian gán nhãn</small></div></li>
+            <li><span class="feat-ic">03</span><div><strong>Xuất dataset AI-ready</strong><small>Chuẩn hóa ra CSV hoặc JSON, tương thích YOLO và các framework deep learning phổ biến</small></div></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
 
-        <script src="js/api-config.js"></script>
-        <script src="js/upload.js"></script>
-        <script src="js/camera.js"></script>
-        <script src="js/gallery.js"></script>
-        <script src="js/export.js"></script>
-        <script src="js/app.js"></script>
-    </body>
+  <!-- STEPS -->
+  <section class="steps-sec">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <p class="sec-tag">Cách thức hoạt động</p>
+        <h2 class="sec-title">3 bước tạo dataset hoàn hảo</h2>
+      </div>
+      <div class="steps-grid">
+        <div class="step-card reveal"><div class="step-n">01</div><div class="step-ic">📷</div><h3>Chụp &amp; Upload</h3><p>Dùng webcam hoặc upload ảnh có sẵn. Hỗ trợ Burst Mode chụp liên tục khi giữ nút.</p><button class="step-btn" onclick="switchTab('camera')">Mở Camera →</button></div>
+        <div class="step-card reveal r1"><div class="step-n">02</div><div class="step-ic">🏷️</div><h3>Gán nhãn hành vi</h3><p>Điền mã bò, hành vi, khu vực chuồng và thời gian. Dữ liệu lưu vào PostgreSQL tức thì.</p><button class="step-btn" onclick="switchTab('upload')">Tải ảnh lên →</button></div>
+        <div class="step-card reveal r2"><div class="step-n">03</div><div class="step-ic">🤖</div><h3>Xuất &amp; Huấn luyện</h3><p>Xuất dataset sang CSV hoặc JSON. Đưa vào YOLO, TensorFlow để train mô hình nhận diện.</p><button class="step-btn" onclick="switchTab('export')">Xuất dataset →</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ARTICLES -->
+  <section class="articles-sec">
+    <div class="wrap">
+      <div class="art-header reveal"><p class="sec-tag">Nghiên cứu & Tài liệu</p><h2 class="sec-title">Ứng dụng AI trong chăn nuôi</h2></div>
+      <div class="art-grid">
+        <div class="art-card big reveal">
+          <img src="images/tag.webp" alt="Burst Mode" class="art-img"/>
+          <div class="art-body">
+            <p class="art-cat">📷 Camera & Chụp ảnh</p>
+            <h3>Burst Mode — Chụp liên tục cho dataset AI chất lượng cao</h3>
+            <p>Giữ nút chụp để bắn ảnh liên tục ~500ms/frame. Toàn bộ ảnh trong một phiên burst được lưu cùng metadata, giảm 80% thời gian gán nhãn thủ công.</p>
+            <div class="art-meta"><span>Cow-Visioning Team</span><span>5 phút đọc</span><span>Tháng 3, 2026</span></div>
+          </div>
+        </div>
+        <div class="art-col">
+          <div class="art-card reveal r1">
+            <img src="images/tag.jpg" alt="Dataset" class="art-img"/>
+            <div class="art-body">
+              <p class="art-cat">📊 Dataset & AI</p>
+              <h3>6 hành vi bò và cách phân loại chuẩn cho Vision AI</h3>
+              <p>Đứng, nằm, ăn, uống, đi lại và bất thường — mỗi class cần bao nhiêu ảnh để train đủ tốt?</p>
+              <div class="art-meta"><span>AI Research</span><span>Tháng 3, 2026</span></div>
+            </div>
+          </div>
+          <div class="art-card reveal r2">
+            <img src="images/backround.jpg" alt="Upload" class="art-img"/>
+            <div class="art-body">
+              <p class="art-cat">🚀 Hướng dẫn sử dụng</p>
+              <h3>Upload hàng trăm ảnh trong vài phút với drag-and-drop</h3>
+              <p>Preview ảnh trước khi gửi, thanh tiến trình thời gian thực và xử lý hàng loạt.</p>
+              <div class="art-meta"><span>Dev Team</span><span>Tháng 3, 2026</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-sec">
+    <div class="wrap" style="text-align:center;position:relative;z-index:2">
+      <h2 class="reveal">Bắt đầu xây dựng<br/>dataset của bạn</h2>
+      <p class="reveal r1">Thu thập, phân loại và xuất dữ liệu hình ảnh bò theo chuẩn AI — chỉ vài bước đơn giản.</p>
+      <div class="cta-btns reveal r2">
+        <button class="btn-hero-solid" onclick="switchTab('camera')">Mở Camera</button>
+        <button class="btn-hero-line" onclick="switchTab('gallery')">Xem thư viện</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER IMG -->
+  <img src="images/footer.jpg" alt="Trang trại" class="footer-img-full"/>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="f-brand">
+          <div class="f-logo">🐄 Cow-Visioning</div>
+          <div class="f-logo-sub">AI Livestock Dataset Platform</div>
+          <p>Hệ thống thu thập &amp; phân loại hình ảnh hành vi bò phục vụ huấn luyện AI trong chăn nuôi thông minh.</p>
+        </div>
+        <div class="f-col">
+          <h4>Tính năng</h4>
+          <a href="#" onclick="switchTab('upload');return false">Tải ảnh lên</a>
+          <a href="#" onclick="switchTab('camera');return false">Camera Burst Mode</a>
+          <a href="#" onclick="switchTab('gallery');return false">Thư viện ảnh</a>
+          <a href="#" onclick="switchTab('export');return false">Xuất dataset</a>
+        </div>
+        <div class="f-col">
+          <h4>Dự án</h4>
+          <a href="https://github.com/DatTran26/Cow-Visioning" target="_blank">GitHub Repository</a>
+          <a href="#">README</a>
+          <a href="#">API Docs</a>
+        </div>
+        <div class="f-col">
+          <h4>Liên hệ</h4>
+          <p>📧 contact@conbocuoi.vn</p>
+          <p>Trường Đại học Công nghệ Thông tin</p>
+          <p>TP. Hồ Chí Minh, Việt Nam</p>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>© 2026 Con Bò Cười — AI Livestock Platform. Mọi quyền được bảo lưu.</p>
+        <p>Phát triển bởi nhóm nghiên cứu <strong>Cattle Frame</strong></p>
+      </div>
+    </div>
+  </footer>
+</div><!-- /tab-about -->
+
+<!-- ══ TAB: TẢI ẢNH ══ -->
+<div id="tab-upload" class="tab-panel app-panel">
+  <div class="app-inner">
+    <h1>Tải ảnh lên</h1>
+    <p class="app-sub">Upload ảnh bò và gán nhãn hành vi để tạo dataset huấn luyện AI</p>
+    <form id="upload-form" class="form-grid">
+      <div class="form-group"><label for="cow-id">Mã con bò <span class="req">*</span></label><input type="text" id="cow-id" placeholder="VD: BO-001" required/></div>
+      <div class="form-group"><label for="behavior">Hành vi <span class="req">*</span></label>
+        <select id="behavior" required>
+          <option value="">-- Chọn hành vi --</option>
+          <option value="standing">Đứng</option>
+          <option value="lying">Nằm</option>
+          <option value="eating">Ăn</option>
+          <option value="drinking">Uống nước</option>
+          <option value="walking">Đi lại</option>
+          <option value="abnormal">Bất thường</option>
+        </select>
+      </div>
+      <div class="form-group"><label for="barn-area">Khu vực chuồng</label><input type="text" id="barn-area" placeholder="VD: Chuồng A1"/></div>
+      <div class="form-group"><label for="captured-at">Thời gian chụp</label><input type="datetime-local" id="captured-at"/></div>
+      <div class="form-group full-width"><label for="notes">Ghi chú</label><textarea id="notes" rows="2" placeholder="Ghi chú thêm..."></textarea></div>
+      <div class="form-group full-width">
+        <label>Chọn ảnh <span class="req">*</span></label>
+        <div class="dropzone" id="dropzone">
+          <span class="dropzone-icon">📁</span>
+          <p>Kéo thả ảnh vào đây hoặc <strong>nhấn để chọn</strong></p>
+          <p class="dropzone-hint">JPG, PNG, WebP — Tối đa 10MB/ảnh</p>
+          <input type="file" id="file-input" multiple accept="image/*" hidden/>
+        </div>
+        <div id="file-preview" class="file-preview"></div>
+      </div>
+      <div class="form-group full-width"><button type="submit" class="btn btn-primary" id="upload-btn">☁️ Tải lên</button></div>
+      <div id="upload-progress" class="progress-bar" hidden><div class="progress-fill"></div></div>
+      <div id="upload-status" class="status-msg"></div>
+    </form>
+  </div>
+</div>
+
+<!-- ══ TAB: CAMERA ══ -->
+<div id="tab-camera" class="tab-panel app-panel">
+  <div class="cam-page settings-hidden" id="cam-page">
+    <aside class="cam-settings">
+      <div class="cam-settings-header">
+        <h2>Thiết lập</h2>
+        <button class="cam-settings-close" id="close-cam-settings">✕</button>
+      </div>
+      <div class="cam-settings-form">
+        <div class="form-group"><label for="cam-cow-id">Mã con bò</label><input type="text" id="cam-cow-id" placeholder="VD: BO-001"/></div>
+        <div class="form-group"><label for="cam-behavior">Hành vi</label>
+          <select id="cam-behavior">
+            <option value="">-- Chọn --</option>
+            <option value="standing">Đứng</option>
+            <option value="lying">Nằm</option>
+            <option value="eating">Ăn</option>
+            <option value="drinking">Uống nước</option>
+            <option value="walking">Đi lại</option>
+            <option value="abnormal">Bất thường</option>
+          </select>
+        </div>
+        <div class="form-group"><label for="cam-barn-area">Khu vực chuồng</label><input type="text" id="cam-barn-area" placeholder="VD: Chuồng A1"/></div>
+        <div class="form-group"><label for="cam-notes">Ghi chú</label><input type="text" id="cam-notes" placeholder="Tuỳ chọn..."/></div>
+      </div>
+      <hr class="cam-divider"/>
+      <h3>Ảnh đã chụp <span id="cam-saved-count" class="cam-saved-badge">0</span></h3>
+      <div id="captured-strip" class="captured-strip"></div>
+      <div id="cam-upload-status" class="status-msg"></div>
+    </aside>
+    <div class="cam-live-area">
+      <div class="cam-toolbar">
+        <label class="cam-auto-save-toggle" for="cam-auto-save-toggle">
+          <input type="checkbox" id="cam-auto-save-toggle" checked/>
+          <span id="cam-auto-save-label">Tự lưu không cần thiết lập</span>
+        </label>
+        <button class="btn btn-secondary" id="toggle-cam-settings-btn">
+          <span class="cam-settings-text-full">⚙️ Thiết lập trước khi chụp</span>
+          <span class="cam-settings-text-mobile">⚙️ Thiết lập</span>
+        </button>
+      </div>
+      <div class="camera-viewfinder" id="camera-viewfinder">
+        <video id="camera-video" autoplay playsinline></video>
+        <canvas id="camera-canvas" hidden></canvas>
+        <div class="viewfinder-frame">
+          <span class="vf-corner vf-tl"></span><span class="vf-corner vf-tr"></span>
+          <span class="vf-corner vf-bl"></span><span class="vf-corner vf-br"></span>
+        </div>
+        <div class="camera-overlay" id="camera-overlay">
+          <span class="camera-overlay-icon">📷</span>
+          <p>Nhấn nút bên dưới để mở camera</p>
+        </div>
+        <div class="cam-count-badge" id="cam-count-badge" hidden><span id="cam-count-num">0</span> ảnh</div>
+        <div class="cam-saving" id="cam-saving" hidden><div class="spinner"></div>Đang lưu...</div>
+      </div>
+      <div class="cam-bottom-bar">
+        <div class="cam-bottom-left"><div id="cam-last-thumb" class="cam-last-thumb"></div></div>
+        <div class="cam-bottom-center"><button class="shutter-btn" id="capture-btn" disabled><span class="shutter-inner"></span></button></div>
+        <div class="cam-bottom-right"><button class="btn-cam-toggle" id="toggle-camera-btn"><span id="toggle-cam-icon">📷</span></button></div>
+      </div>
+      <div id="camera-status" class="status-msg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB: THƯ VIỆN ══ -->
+<div id="tab-gallery" class="tab-panel app-panel">
+  <div class="app-inner">
+    <h1>Thư viện ảnh</h1>
+    <p class="app-sub">Xem, tìm kiếm và quản lý ảnh đã tải lên</p>
+    <div class="filter-bar">
+      <input type="text" id="filter-cow-id" placeholder="Mã bò..."/>
+      <select id="filter-behavior">
+        <option value="">Tất cả hành vi</option>
+        <option value="standing">Đứng</option>
+        <option value="lying">Nằm</option>
+        <option value="eating">Ăn</option>
+        <option value="drinking">Uống nước</option>
+        <option value="walking">Đi lại</option>
+        <option value="abnormal">Bất thường</option>
+      </select>
+      <input type="text" id="filter-barn" placeholder="Khu vực..."/>
+      <button class="btn btn-primary" id="search-btn">Tìm kiếm</button>
+      <button class="btn btn-secondary" id="reset-btn">Đặt lại</button>
+    </div>
+    <div id="gallery-status" class="status-msg"></div>
+    <div id="gallery-grid" class="gallery-grid"></div>
+  </div>
+</div>
+
+<!-- ══ TAB: XUẤT DỮ LIỆU ══ -->
+<div id="tab-export" class="tab-panel app-panel">
+  <div class="app-inner">
+    <h1>Xuất dữ liệu</h1>
+    <p class="app-sub">Xuất dataset sang CSV hoặc JSON để phục vụ huấn luyện mô hình AI</p>
+    <div class="export-actions">
+      <button class="btn btn-primary" id="load-export-btn">Tải dữ liệu</button>
+      <button class="btn btn-success" id="export-csv-btn" disabled>Xuất CSV</button>
+      <button class="btn btn-warning" id="export-json-btn" disabled>Xuất JSON</button>
+    </div>
+    <div id="export-status" class="status-msg"></div>
+    <div id="export-count" class="record-count"></div>
+    <div id="export-table-wrap" class="table-wrap" hidden>
+      <table id="export-table">
+        <thead><tr><th>Mã bò</th><th>Hành vi</th><th>Khu vực</th><th>Thời gian</th><th>Ghi chú</th><th>URL ảnh</th></tr></thead>
+        <tbody id="export-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</main><!-- /page-main -->
+
+<!-- MODAL XOÁ -->
+<div class="modal-overlay" id="delete-modal" hidden>
+  <div class="modal">
+    <h3>Xác nhận xoá</h3>
+    <p id="delete-msg">Bạn có chắc muốn xoá ảnh này?</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="cancel-delete">Huỷ</button>
+      <button class="btn btn-danger" id="confirm-delete">Xoá</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHATBOT -->
+<button class="chat-fab" id="chatFab">💬<span class="chat-notif">1</span></button>
+<div class="chat-win" id="chatWin">
+  <div class="chat-hdr">
+    <div class="chat-av">🐄</div>
+    <div><h4>Trợ lý Cow-Visioning</h4><p><span class="chat-dot"></span>Đang hoạt động</p></div>
+    <button class="chat-x" id="chatX">✕</button>
+  </div>
+  <div class="chat-msgs" id="chatMsgs">
+    <div class="msg bot"><div class="msg-bbl">Xin chào! 👋 Tôi là trợ lý <strong>Cow-Visioning</strong>. Hỏi tôi về cách chụp ảnh, upload hoặc xuất dataset nhé!</div></div>
+  </div>
+  <div class="chat-chips">
+    <span class="chip" onclick="chatAsk('Cách upload ảnh?')">📤 Upload</span>
+    <span class="chip" onclick="chatAsk('Burst Mode là gì?')">📷 Burst Mode</span>
+    <span class="chip" onclick="chatAsk('Xuất CSV như thế nào?')">📊 Xuất data</span>
+  </div>
+  <div class="chat-inp-row">
+    <input class="chat-inp" id="chatInp" placeholder="Nhập câu hỏi..."/>
+    <button class="chat-send" id="chatSend">➤</button>
+  </div>
+</div>
+
+<script src="js/api-config.js"></script>
+<script src="js/upload.js"></script>
+<script src="js/camera.js"></script>
+<script src="js/gallery.js"></script>
+<script src="js/export.js"></script>
+<script>
+// ── TAB SWITCHING ──
+function switchTab(name, el) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.topnav-item').forEach(n => n.classList.remove('active'));
+  const panel = document.getElementById('tab-' + name);
+  if (panel) { panel.classList.add('active'); if (name !== 'about') window.scrollTo(0,0); }
+  const nav = document.querySelector('.topnav-item[data-tab="' + name + '"]');
+  if (nav) nav.classList.add('active');
+  if (name === 'gallery' && typeof Gallery !== 'undefined') Gallery.loadGallery();
+  if (name === 'camera' && typeof Camera !== 'undefined') Camera.startCamera();
+  if (name !== 'camera' && typeof Camera !== 'undefined') Camera.stopCamera();
+}
+document.querySelectorAll('.topnav-item[data-tab]').forEach(item => {
+  item.addEventListener('click', () => {
+    const t = item.dataset.tab;
+    // ripple
+    const r = document.createElement('span');
+    Object.assign(r.style,{position:'absolute',width:'80px',height:'80px',background:'rgba(255,255,255,0.25)',borderRadius:'50%',transform:'scale(0)',animation:'ripple .5s linear',pointerEvents:'none',left:'50%',top:'50%',marginLeft:'-40px',marginTop:'-40px'});
+    item.style.position='relative'; item.style.overflow='hidden';
+    item.appendChild(r); setTimeout(()=>r.remove(),500);
+    switchTab(t);
+  });
+});
+
+// ── NAVBAR SCROLL ──
+const tnav = document.getElementById('topnav');
+window.addEventListener('scroll', () => { tnav.classList.toggle('scrolled', window.scrollY > 80); });
+
+// ── PARALLAX HERO ──
+const heroBg = document.querySelector('.hero-bg');
+window.addEventListener('scroll', () => {
+  if (document.getElementById('tab-about').classList.contains('active'))
+    heroBg.style.transform = `translateY(${window.scrollY * 0.35}px)`;
+});
+
+// ── CLOCK ──
+function tick() {
+  const n = new Date();
+  const pad = v => String(v).padStart(2,'0');
+  document.getElementById('topnav-clock').textContent =
+    `${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
+}
+tick(); setInterval(tick, 1000);
+
+// ── SCROLL REVEAL ──
+const ro = new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible')}),{threshold:0.1});
+document.querySelectorAll('.reveal').forEach(el=>ro.observe(el));
+
+// ── LOGOUT ──
+document.getElementById('logout-btn').addEventListener('click', async () => {
+  await fetch('/auth/logout', {method:'POST'}).catch(()=>{});
+  window.location.href = '/auth/login';
+});
+
+// ── CHATBOT ──
+const fab=document.getElementById('chatFab'), win=document.getElementById('chatWin');
+fab.addEventListener('click',()=>{win.classList.toggle('open');fab.querySelector('.chat-notif').style.display='none';});
+document.getElementById('chatX').addEventListener('click',()=>win.classList.remove('open'));
+const answers={
+  upload:'Vào tab <strong>Tải ảnh</strong> → kéo thả ảnh vào vùng dropzone. Hỗ trợ JPG/PNG/WebP tối đa 10MB. 📤',
+  burst:'<strong>Burst Mode</strong>: Giữ nút chụp trên tab Camera → hệ thống tự chụp ~1 ảnh/500ms liên tục. 📷',
+  csv:'Vào tab <strong>Xuất dữ liệu</strong> → nhấn "Tải dữ liệu" → chọn CSV hoặc JSON. 📊',
+  camera:'Tab <strong>Camera</strong> → nhấn 📷 mở webcam → thiết lập thông tin → chụp ảnh. 🎥',
+  def:'Bạn có thể hỏi về: upload ảnh, tính năng camera, Burst Mode, hoặc cách xuất dataset nhé! 😊'
+};
+function getAns(q){q=q.toLowerCase();if(q.includes('upload')||q.includes('tải'))return answers.upload;if(q.includes('burst')||q.includes('liên tục'))return answers.burst;if(q.includes('csv')||q.includes('xuất'))return answers.csv;if(q.includes('camera')||q.includes('chụp'))return answers.camera;return answers.def;}
+function addMsg(txt,role){const d=document.createElement('div');d.className='msg '+role;d.innerHTML=`<div class="msg-bbl">${txt}</div>`;document.getElementById('chatMsgs').appendChild(d);document.getElementById('chatMsgs').scrollTop=9999;}
+function chatAsk(q){addMsg(q,'user');setTimeout(()=>addMsg(getAns(q),'bot'),500);}
+document.getElementById('chatSend').addEventListener('click',()=>{const v=document.getElementById('chatInp').value.trim();if(v){chatAsk(v);document.getElementById('chatInp').value='';}});
+document.getElementById('chatInp').addEventListener('keydown',e=>{if(e.key==='Enter'){const v=e.target.value.trim();if(v){chatAsk(v);e.target.value=''}}});
+
+// ── RIPPLE KEYFRAMES ──
+const s=document.createElement('style');
+s.textContent='@keyframes ripple{to{transform:scale(4);opacity:0}}';
+document.head.appendChild(s);
+
+// ── INIT APP MODULES ──
+document.addEventListener('DOMContentLoaded',()=>{
+  if(typeof Upload!=='undefined') Upload.init();
+  if(typeof Camera!=='undefined') Camera.init();
+  if(typeof Gallery!=='undefined') Gallery.init();
+  if(typeof Export!=='undefined') Export.init();
+});
+</script>
+</body>
 </html>

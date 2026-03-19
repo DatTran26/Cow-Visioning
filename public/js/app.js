@@ -8,11 +8,41 @@ document.addEventListener('DOMContentLoaded', () => {
         item.addEventListener('click', () => {
             const tabName = item.dataset.tab;
 
+            // Ripple effect
+            const ripple = document.createElement('span');
+            ripple.style.position = 'absolute';
+            ripple.style.width = '100px';
+            ripple.style.height = '100px';
+            ripple.style.background = 'rgba(255, 255, 255, 0.2)';
+            ripple.style.borderRadius = '50%';
+            ripple.style.transform = 'scale(0)';
+            ripple.style.animation = 'ripple 0.6s linear';
+            ripple.style.pointerEvents = 'none';
+            ripple.style.left = '50%';
+            ripple.style.top = '50%';
+            ripple.style.marginLeft = '-50px';
+            ripple.style.marginTop = '-50px';
+            item.style.position = 'relative';
+            item.style.overflow = 'hidden';
+            item.appendChild(ripple);
+            setTimeout(() => ripple.remove(), 600);
+
             navItems.forEach(n => n.classList.remove('active'));
             item.classList.add('active');
 
-            tabs.forEach(t => t.classList.remove('active'));
-            document.getElementById(`tab-${tabName}`).classList.add('active');
+            const targetTab = document.getElementById(`tab-${tabName}`);
+            tabs.forEach(t => {
+                t.classList.remove('active');
+                t.style.opacity = '0';
+                t.style.transform = 'translateY(10px)';
+            });
+
+            targetTab.classList.add('active');
+            setTimeout(() => {
+                targetTab.style.transition = 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+                targetTab.style.opacity = '1';
+                targetTab.style.transform = 'translateY(0)';
+            }, 10);
 
             if (tabName === 'gallery') {
                 Gallery.loadGallery();
@@ -27,6 +57,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    // Add ripple animation keyframes
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes ripple {
+            to { transform: scale(4); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
 
     // Initialize modules
     Upload.init();

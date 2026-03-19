@@ -516,42 +516,110 @@
 
     <!-- ══ TAB: BLOG ══ -->
     <div id="tab-blog" class="tab-panel app-panel">
-      <div class="app-inner">
-        <h1>Blog Cộng đồng</h1>
-        <p class="app-sub">Đăng bài, bình luận và tương tác như một mạng xã hội mini</p>
+      <div class="app-inner blog-layout">
+        <div class="blog-page-grid">
+          <aside class="blog-left-rail">
+            <div class="blog-rail-card">
+              <h3>Trang của bạn</h3>
+              <p>Quản lý nội dung, tương tác và theo dõi bài viết mới nhất trong cộng đồng.</p>
+            </div>
+            <div class="blog-rail-card">
+              <h3>Lối tắt</h3>
+              <ul class="blog-rail-list">
+                <li>Bài đã lưu</li>
+                <li>Bài của tôi</li>
+                <li>Chủ đề theo dõi</li>
+              </ul>
+            </div>
+          </aside>
 
-        <section class="blog-composer">
-          <h2>Tạo bài viết mới</h2>
-          <form id="blog-post-form" class="blog-form">
-            <div class="form-group full-width">
-              <label for="blog-title">Tiêu đề <span class="req">*</span></label>
-              <input type="text" id="blog-title" maxlength="255" placeholder="Nhập tiêu đề bài viết..." required />
-            </div>
-            <div class="form-group full-width">
-              <label for="blog-content">Nội dung <span class="req">*</span></label>
-              <textarea id="blog-content" rows="6" maxlength="10000" placeholder="Chia sẻ câu chuyện, kinh nghiệm hoặc cập nhật của bạn..." required></textarea>
-            </div>
-            <div class="form-group full-width">
-              <label for="blog-image">Ảnh bài viết (tuỳ chọn)</label>
-              <input type="file" id="blog-image" accept="image/*" />
-              <div id="blog-image-preview" class="blog-image-preview" hidden>
-                <img id="blog-image-preview-img" alt="Xem trước ảnh bài viết" />
-                <button type="button" class="btn btn-link" id="blog-image-clear-btn">Xoá ảnh đã chọn</button>
+          <section class="blog-center-rail">
+            <section class="blog-quick-create">
+              <div class="blog-quick-create-row">
+                <div class="blog-avatar" aria-hidden="true">🐄</div>
+                <button type="button" class="blog-mind-btn" id="blog-open-composer-btn">What's on your mind?</button>
+                <button type="button" class="btn btn-secondary" id="blog-refresh-btn">Tải lại feed</button>
+              </div>
+            </section>
+
+            <div class="blog-composer-modal" id="blog-composer-modal" hidden>
+              <div class="blog-workspace" id="blog-workspace" role="dialog" aria-modal="true" aria-labelledby="blog-compose-title">
+                <div class="blog-workspace-header">
+                  <h2 id="blog-compose-title">Create post</h2>
+                  <button type="button" class="blog-close-btn" id="blog-close-composer-btn" aria-label="Đóng popup">✕</button>
+                </div>
+                <section class="blog-composer">
+                <form id="blog-post-form" class="blog-form">
+                  <div class="form-group full-width">
+                    <label for="blog-title">Tiêu đề <span class="req">*</span></label>
+                    <input type="text" id="blog-title" maxlength="255" placeholder="Nhập tiêu đề bài viết..." required />
+                  </div>
+                  <div class="form-group full-width">
+                    <label for="blog-content">Nội dung <span class="req">*</span></label>
+                    <textarea id="blog-content" rows="10" maxlength="10000" placeholder="Chia sẻ câu chuyện, kinh nghiệm hoặc cập nhật của bạn..." required></textarea>
+                  </div>
+                  <div class="form-group full-width">
+                    <label for="blog-image">Ảnh bài viết (tuỳ chọn)</label>
+                    <input type="file" id="blog-image" accept="image/*" />
+                    <div id="blog-image-preview" class="blog-image-preview" hidden>
+                      <img id="blog-image-preview-img" alt="Xem trước ảnh bài viết" />
+                      <button type="button" class="btn btn-link" id="blog-image-clear-btn">Xoá ảnh đã chọn</button>
+                    </div>
+                  </div>
+                  <div class="blog-form-actions">
+                    <button type="submit" class="btn btn-primary" id="blog-submit-btn">Đăng bài</button>
+                    <button type="button" class="btn btn-secondary" id="blog-cancel-edit-btn" hidden>Huỷ chỉnh sửa</button>
+                  </div>
+                  <div id="blog-status" class="status-msg"></div>
+                </form>
+                </section>
+
+                <section class="blog-preview-pane">
+                  <h2>Xem trước bài viết</h2>
+                  <article class="blog-card blog-card-preview" id="blog-live-preview">
+                  <header class="blog-card-header">
+                    <div>
+                      <h3 id="blog-preview-title">Tiêu đề bài viết sẽ hiển thị ở đây</h3>
+                      <p>Bởi <strong>Bạn</strong> · <span id="blog-preview-time"></span></p>
+                    </div>
+                    <div class="blog-card-actions">
+                      <button class="btn btn-secondary" type="button" disabled>Like (0)</button>
+                    </div>
+                  </header>
+                  <div class="blog-card-content" id="blog-preview-content">Nội dung xem trước sẽ tự động cập nhật khi bạn nhập.</div>
+                  <div class="blog-post-images" id="blog-preview-images" hidden></div>
+                  <section class="blog-comments">
+                    <h4>Comment (0)</h4>
+                    <ul class="blog-comment-list">
+                      <li class="blog-comment-item blog-comment-empty">Comment sẽ hiển thị sau khi đăng bài.</li>
+                    </ul>
+                  </section>
+                  </article>
+                </section>
               </div>
             </div>
-            <div class="blog-form-actions">
-              <button type="submit" class="btn btn-primary" id="blog-submit-btn">Đăng bài</button>
-              <button type="button" class="btn btn-secondary" id="blog-cancel-edit-btn" hidden>Huỷ chỉnh sửa</button>
-              <button type="button" class="btn btn-secondary" id="blog-refresh-btn">Tải lại feed</button>
-            </div>
-            <div id="blog-status" class="status-msg"></div>
-          </form>
-        </section>
 
-        <section class="blog-feed-section">
-          <h2>Bài viết mới nhất</h2>
-          <div id="blog-feed" class="blog-feed"></div>
-        </section>
+            <section class="blog-feed-section">
+              <h2>Bài viết mới nhất</h2>
+              <div id="blog-feed" class="blog-feed"></div>
+            </section>
+          </section>
+
+          <aside class="blog-right-rail">
+            <div class="blog-rail-card">
+              <h3>Xu hướng</h3>
+              <ul class="blog-rail-list">
+                <li>#AICowMonitoring</li>
+                <li>#DatasetCollection</li>
+                <li>#FarmAutomation</li>
+              </ul>
+            </div>
+            <div class="blog-rail-card">
+              <h3>Gợi ý kết nối</h3>
+              <p>Theo dõi các thành viên hoạt động mạnh để cập nhật kiến thức nhanh hơn.</p>
+            </div>
+          </aside>
+        </div>
       </div>
     </div>
 

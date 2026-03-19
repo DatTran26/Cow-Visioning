@@ -1,18 +1,66 @@
 const Blog = (() => {
     let editingPostId = null;
     let selectedImageFile = null;
+    let selectedImagePreviewUrl = null;
+
+    function buildApiUrl(path) {
+        const base = typeof API_BASE === 'string' ? API_BASE.replace(/\/$/, '') : '';
+        return `${base}${path}`;
+    }
+
+    async function fetchJson(url, options) {
+        const response = await fetch(url, options);
+        const text = await response.text();
+        let payload = null;
+
+        try {
+            payload = text ? JSON.parse(text) : {};
+        } catch (_err) {
+            const snippet = text ? text.slice(0, 120) : 'empty response';
+            throw new Error(`Phan hoi khong hop le tu server: ${snippet}`);
+        }
+
+        if (!response.ok) {
+            throw new Error(payload.error || `Request failed (${response.status})`);
+        }
+
+        return payload;
+    }
 
     function init() {
         const postForm = document.getElementById('blog-post-form');
+        const composerModal = document.getElementById('blog-composer-modal');
         const refreshBtn = document.getElementById('blog-refresh-btn');
         const cancelBtn = document.getElementById('blog-cancel-edit-btn');
+        const openComposerBtn = document.getElementById('blog-open-composer-btn');
+        const closeComposerBtn = document.getElementById('blog-close-composer-btn');
         const imageInput = document.getElementById('blog-image');
+        const titleInput = document.getElementById('blog-title');
+        const contentInput = document.getElementById('blog-content');
         const clearImageBtn = document.getElementById('blog-image-clear-btn');
         if (postForm) postForm.addEventListener('submit', onSubmitPost);
         if (refreshBtn) refreshBtn.addEventListener('click', () => loadFeed());
         if (cancelBtn) cancelBtn.addEventListener('click', resetComposer);
+        if (openComposerBtn) openComposerBtn.addEventListener('click', openComposer);
+        if (closeComposerBtn) closeComposerBtn.addEventListener('click', closeComposer);
+        if (composerModal) {
+            composerModal.addEventListener('click', (event) => {
+                if (event.target === composerModal) {
+                    closeComposer();
+                }
+            });
+        }
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeComposer();
+            }
+        });
         if (imageInput) imageInput.addEventListener('change', onImageChanged);
+        if (titleInput) titleInput.addEventListener('input', renderComposerPreview);
+        if (contentInput) contentInput.addEventListener('input', renderComposerPreview);
         if (clearImageBtn) clearImageBtn.addEventListener('click', clearSelectedImage);
+        renderComposerPreview();
+        hydrateMindPrompt();
 
         const feed = document.getElementById('blog-feed');
         if (feed) {
@@ -37,6 +85,68 @@ const Blog = (() => {
         status.className = `status-msg ${type}`;
     }
 
+    function openComposer() {
+        const modal = document.getElementById('blog-composer-modal');
+        if (modal) modal.hidden = false;
+        document.body.classList.add('modal-open');
+        const title = document.getElementById('blog-title');
+        if (title) {
+            title.focus();
+        }
+    }
+
+    function closeComposer() {
+        const modal = document.getElementById('blog-composer-modal');
+        if (modal) modal.hidden = true;
+        document.body.classList.remove('modal-open');
+    }
+
+    async function hydrateMindPrompt() {
+        const promptBtn = document.getElementById('blog-open-composer-btn');
+        if (!promptBtn) return;
+        try {
+            const payload = await fetchJson(buildApiUrl('/auth/me'));
+            const username = payload?.user?.username;
+            if (username) {
+                promptBtn.textContent = `What's on your mind, ${username}?`;
+            }
+        } catch (_err) {
+            // Keep default copy when user profile is unavailable.
+        }
+    }
+
+    function renderComposerPreview() {
+        const titleInput = document.getElementById('blog-title');
+        const contentInput = document.getElementById('blog-content');
+        const titleTarget = document.getElementById('blog-preview-title');
+        const contentTarget = document.getElementById('blog-preview-content');
+        const timeTarget = document.getElementById('blog-preview-time');
+        const imagesTarget = document.getElementById('blog-preview-images');
+
+        const title = titleInput ? titleInput.value.trim() : '';
+        const content = contentInput ? contentInput.value.trim() : '';
+
+        if (titleTarget) {
+            titleTarget.textContent = title || 'Tiêu đề bài viết sẽ hiển thị ở đây';
+        }
+        if (contentTarget) {
+            contentTarget.innerHTML = escapeHtml(content || 'Nội dung xem trước sẽ tự động cập nhật khi bạn nhập.').replace(/\n/g, '<br>');
+        }
+        if (timeTarget) {
+            timeTarget.textContent = formatTime(new Date().toISOString());
+        }
+
+        if (imagesTarget) {
+            if (selectedImagePreviewUrl) {
+                imagesTarget.hidden = false;
+                imagesTarget.innerHTML = `<img class="blog-post-image" src="${escapeHtml(selectedImagePreviewUrl)}" alt="Anh bai viet xem truoc" />`;
+            } else {
+                imagesTarget.hidden = true;
+                imagesTarget.innerHTML = '';
+            }
+        }
+    }
+
     function resetComposer() {
         const title = document.getElementById('blog-title');
         const content = document.getElementById('blog-content');
@@ -48,6 +158,7 @@ const Blog = (() => {
         if (submit) submit.textContent = 'Dang bai';
         if (cancel) cancel.hidden = true;
         clearSelectedImage();
+        renderComposerPreview();
     }
 
     function onImageChanged(event) {
@@ -79,9 +190,13 @@ const Blog = (() => {
         if (!previewWrap || !previewImg) return;
 
         const objectUrl = URL.createObjectURL(file);
+        if (selectedImagePreviewUrl) {
+            URL.revokeObjectURL(selectedImagePreviewUrl);
+        }
+        selectedImagePreviewUrl = objectUrl;
         previewImg.src = objectUrl;
-        previewImg.onload = () => URL.revokeObjectURL(objectUrl);
         previewWrap.hidden = false;
+        renderComposerPreview();
     }
 
     function clearSelectedImage() {
@@ -89,22 +204,23 @@ const Blog = (() => {
         const input = document.getElementById('blog-image');
         const previewWrap = document.getElementById('blog-image-preview');
         const previewImg = document.getElementById('blog-image-preview-img');
+        if (selectedImagePreviewUrl) {
+            URL.revokeObjectURL(selectedImagePreviewUrl);
+            selectedImagePreviewUrl = null;
+        }
         if (input) input.value = '';
         if (previewImg) previewImg.src = '';
         if (previewWrap) previewWrap.hidden = true;
+        renderComposerPreview();
     }
 
     async function uploadPostImage(postId, file) {
         const fd = new FormData();
         fd.append('image', file);
-        const uploadResponse = await fetch(`/api/blog/posts/${postId}/images`, {
+        await fetchJson(buildApiUrl(`/api/blog/posts/${postId}/images`), {
             method: 'POST',
             body: fd,
         });
-        const uploadPayload = await uploadResponse.json();
-        if (!uploadResponse.ok) {
-            throw new Error(uploadPayload.error || 'Khong the tai anh bai viet');
-        }
     }
 
     function formatTime(value) {
@@ -134,13 +250,11 @@ const Blog = (() => {
         try {
             const endpoint = editingPostId ? `/api/blog/posts/${editingPostId}` : '/api/blog/posts';
             const method = editingPostId ? 'PUT' : 'POST';
-            const response = await fetch(endpoint, {
+            const payload = await fetchJson(buildApiUrl(endpoint), {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ title, content }),
             });
-            const payload = await response.json();
-            if (!response.ok) throw new Error(payload.error || 'Khong the luu bai viet');
 
             const savedPost = payload.data || payload.post || null;
             if (selectedImageFile && savedPost && savedPost.id) {
@@ -149,6 +263,7 @@ const Blog = (() => {
 
             setStatus(editingPostId ? 'Da cap nhat bai viet' : 'Dang bai thanh cong', 'success');
             resetComposer();
+            closeComposer();
             await loadFeed();
         } catch (err) {
             setStatus(`Loi: ${err.message}`, 'error');
@@ -203,13 +318,11 @@ const Blog = (() => {
         if (!content) return;
 
         try {
-            const response = await fetch(`/api/blog/posts/${postId}/comments`, {
+            await fetchJson(buildApiUrl(`/api/blog/posts/${postId}/comments`), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content }),
             });
-            const payload = await response.json();
-            if (!response.ok) throw new Error(payload.error || 'Khong the gui comment');
             input.value = '';
             await loadFeed();
         } catch (err) {
@@ -219,9 +332,7 @@ const Blog = (() => {
 
     async function toggleLike(postId) {
         try {
-            const response = await fetch(`/api/blog/posts/${postId}/likes`, { method: 'POST' });
-            const payload = await response.json();
-            if (!response.ok) throw new Error(payload.error || 'Khong the like bai viet');
+            await fetchJson(buildApiUrl(`/api/blog/posts/${postId}/likes`), { method: 'POST' });
             await loadFeed();
         } catch (err) {
             setStatus(`Loi like: ${err.message}`, 'error');
@@ -231,9 +342,7 @@ const Blog = (() => {
     async function deletePost(postId) {
         if (!window.confirm('Ban chac chan muon xoa bai viet nay?')) return;
         try {
-            const response = await fetch(`/api/blog/posts/${postId}`, { method: 'DELETE' });
-            const payload = await response.json();
-            if (!response.ok) throw new Error(payload.error || 'Khong the xoa bai viet');
+            await fetchJson(buildApiUrl(`/api/blog/posts/${postId}`), { method: 'DELETE' });
             setStatus('Da xoa bai viet', 'success');
             await loadFeed();
         } catch (err) {
@@ -244,9 +353,7 @@ const Blog = (() => {
     async function deleteComment(commentId) {
         if (!window.confirm('Ban chac chan muon xoa comment nay?')) return;
         try {
-            const response = await fetch(`/api/blog/comments/${commentId}`, { method: 'DELETE' });
-            const payload = await response.json();
-            if (!response.ok) throw new Error(payload.error || 'Khong the xoa comment');
+            await fetchJson(buildApiUrl(`/api/blog/comments/${commentId}`), { method: 'DELETE' });
             await loadFeed();
         } catch (err) {
             setStatus(`Loi xoa comment: ${err.message}`, 'error');
@@ -268,14 +375,14 @@ const Blog = (() => {
         contentEl.value = content;
         submit.textContent = 'Cap nhat bai viet';
         cancel.hidden = false;
+        openComposer();
         titleEl.focus();
+        renderComposerPreview();
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     async function fetchComments(postId) {
-        const response = await fetch(`/api/blog/posts/${postId}/comments`);
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || 'Khong the tai comment');
+        const payload = await fetchJson(buildApiUrl(`/api/blog/posts/${postId}/comments`));
         return payload.data || [];
     }
 
@@ -287,14 +394,10 @@ const Blog = (() => {
         feed.innerHTML = '';
 
         try {
-            const meRes = await fetch('/auth/me');
-            const mePayload = await meRes.json();
-            if (!meRes.ok) throw new Error(mePayload.error || 'Khong lay duoc user');
+            const mePayload = await fetchJson(buildApiUrl('/auth/me'));
             const me = mePayload.user;
 
-            const response = await fetch('/api/blog/posts?limit=30&offset=0');
-            const payload = await response.json();
-            if (!response.ok) throw new Error(payload.error || 'Khong tai duoc feed');
+            const payload = await fetchJson(buildApiUrl('/api/blog/posts?limit=30&offset=0'));
 
             const posts = payload.data || [];
             if (posts.length === 0) {

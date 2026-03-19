@@ -12,9 +12,11 @@ const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
 
 const { execSync } = require('child_process');
+const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+app.use(cors()); // Cho phép fetch từ các công cụ dev khác nhau
 
 // --- App version (git commit hash, set at startup) ---
 let APP_VERSION = Date.now().toString();
@@ -29,6 +31,7 @@ const pool = new Pool({
     database: process.env.DB_NAME || 'cow_visioning',
     user: process.env.DB_USER || 'cowapp',
     password: process.env.DB_PASSWORD || '',
+    connectionTimeoutMillis: 1000 // Thử kết nối trong 1s, nếu không được thì bỏ qua (Demo mode)
 });
 
 // --- Multer storage ---
@@ -449,3 +452,4 @@ app.post('/api/totp/reset', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Cow-Visioning server running at http://localhost:${PORT}`);
 });
+

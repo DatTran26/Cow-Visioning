@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="vi">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Cow Visioning - Dang ky</title>
+        <link rel="stylesheet" href="/css/auth.css" />
+    </head>
+    <body>
+        <div class="auth-container">
+            <div class="auth-card">
+                <div class="auth-logo">
+                    <span class="auth-logo-icon">🐄</span>
+                    <h1>Tao tai khoan</h1>
+                </div>
+                <p class="auth-subtitle">
+                    Dang ky de dang bai, comment va tuong tac trong Blog
+                </p>
+
+                <form id="auth-form" class="auth-form" data-mode="register">
+                    <div class="auth-field">
+                        <label for="auth-username">Username</label>
+                        <input
+                            type="text"
+                            id="auth-username"
+                            autocomplete="username"
+                            placeholder="vd: dattran26"
+                            required
+                        />
+                    </div>
+                    <div class="auth-field">
+                        <label for="auth-email">Email</label>
+                        <input
+                            type="email"
+                            id="auth-email"
+                            autocomplete="email"
+                            placeholder="you@example.com"
+                            required
+                        />
+                    </div>
+                    <div class="auth-field">
+                        <label for="auth-password">Mat khau</label>
+                        <input
+                            type="password"
+                            id="auth-password"
+                            autocomplete="new-password"
+                            placeholder="Toi thieu 8 ky tu"
+                            required
+                        />
+                    </div>
+                    <div class="auth-field">
+                        <label for="auth-password-confirm"
+                            >Xac nhan mat khau</label
+                        >
+                        <input
+                            type="password"
+                            id="auth-password-confirm"
+                            autocomplete="new-password"
+                            placeholder="Nhap lai mat khau"
+                            required
+                        />
+                    </div>
+                    <div id="auth-error" class="auth-error" hidden></div>
+                    <button type="submit" class="auth-btn" id="auth-submit">
+                        Dang ky
+                    </button>
+                </form>
+                <p class="auth-switch">
+                    Da co tai khoan? <a href="/auth/login">Dang nhap</a>
+                </p>
+            </div>
+        </div>
+
+        <script src="/js/auth.js"></script>
+    </body>
+</html>

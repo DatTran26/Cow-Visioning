@@ -1,24 +1,24 @@
 {
-  "name": "cow-visioning",
-  "version": "1.0.0",
-  "description": "Dataset nhận diện hành vi bò - Upload, camera, gallery & export",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
-  },
-  "dependencies": {
-    "connect-pg-simple": "^10.0.0",
-    "cors": "^2.8.6",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
-    "express-session": "^1.19.0",
-    "multer": "^1.4.5-lts.1",
-    "pg": "^8.13.1",
-    "qrcode": "^1.5.4",
-    "speakeasy": "^2.0.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.9"
-  }
+    "name": "cow-visioning",
+    "version": "1.0.0",
+    "description": "Dataset nhận diện hành vi bò - Upload, camera, gallery & export",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js",
+        "dev": "nodemon server.js"
+    },
+    "dependencies": {
+        "bcryptjs": "^2.4.3",
+        "connect-pg-simple": "^10.0.0",
+        "cors": "^2.8.6",
+        "dotenv": "^16.4.7",
+        "express": "^4.21.2",
+        "express-rate-limit": "^8.3.1",
+        "express-session": "^1.19.0",
+        "multer": "^1.4.5-lts.1",
+        "pg": "^8.13.1"
+    },
+    "devDependencies": {
+        "nodemon": "^3.1.9"
+    }
 }

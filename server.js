@@ -293,28 +293,13 @@ app.get('/api/version', (req, res) => {
     res.json({ version: APP_VERSION });
 });
 
-// --- Auth Middleware (BEFORE static files & API) ---
+// --- Auth Middleware (DISABLED for development) ---
 app.use((req, res, next) => {
-    // Allow auth-related paths
-    if (req.path.startsWith('/auth/') || req.path === '/css/auth.css' || req.path === '/js/auth.js' || req.path === '/api/version') {
-        return next();
-    }
-
-    // Check session
-    if (req.session && req.session.authenticated) {
-        return next();
-    }
-
-    // API requests get 401 JSON
-    if (req.path.startsWith('/api/')) {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    // All other requests redirect to login
-    res.redirect('/auth/login');
+    // Bypass authentication for development
+    return next();
 });
 
-// --- Static files (now protected by auth) ---
+// --- Static files ---
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.resolve(UPLOAD_DIR)));
 

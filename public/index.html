@@ -32,6 +32,8 @@
       <li class="topnav-item" data-tab="thu-thap">Thu thập ảnh</li>
       <span class="nav-sep"></span>
       <li class="topnav-item" data-tab="gallery">Thư viện</li>
+      <span class="nav-sep"></span>
+      <li class="topnav-item" data-tab="blog">Blog</li>
     </ul>
     <div class="topnav-right">
       <div class="topnav-time" id="topnav-clock">--:--:--</div>
@@ -512,6 +514,39 @@
       </div>
     </div>
 
+    <!-- ══ TAB: BLOG ══ -->
+    <div id="tab-blog" class="tab-panel app-panel">
+      <div class="app-inner">
+        <h1>Blog Cộng đồng</h1>
+        <p class="app-sub">Đăng bài, bình luận và tương tác như một mạng xã hội mini</p>
+
+        <section class="blog-composer">
+          <h2>Tạo bài viết mới</h2>
+          <form id="blog-post-form" class="blog-form">
+            <div class="form-group full-width">
+              <label for="blog-title">Tiêu đề <span class="req">*</span></label>
+              <input type="text" id="blog-title" maxlength="255" placeholder="Nhập tiêu đề bài viết..." required />
+            </div>
+            <div class="form-group full-width">
+              <label for="blog-content">Nội dung <span class="req">*</span></label>
+              <textarea id="blog-content" rows="6" maxlength="10000" placeholder="Chia sẻ câu chuyện, kinh nghiệm hoặc cập nhật của bạn..." required></textarea>
+            </div>
+            <div class="blog-form-actions">
+              <button type="submit" class="btn btn-primary" id="blog-submit-btn">Đăng bài</button>
+              <button type="button" class="btn btn-secondary" id="blog-cancel-edit-btn" hidden>Huỷ chỉnh sửa</button>
+              <button type="button" class="btn btn-secondary" id="blog-refresh-btn">Tải lại feed</button>
+            </div>
+            <div id="blog-status" class="status-msg"></div>
+          </form>
+        </section>
+
+        <section class="blog-feed-section">
+          <h2>Bài viết mới nhất</h2>
+          <div id="blog-feed" class="blog-feed"></div>
+        </section>
+      </div>
+    </div>
+
 
   </main><!-- /page-main -->
 
@@ -559,6 +594,7 @@
   <script src="js/upload.js"></script>
   <script src="js/camera.js"></script>
   <script src="js/gallery.js"></script>
+  <script src="js/blog.js"></script>
   <script src="js/export.js"></script>
   <script>
     // ── TAB SWITCHING ──
@@ -570,6 +606,7 @@
       const nav = document.querySelector('.topnav-item[data-tab="' + name + '"]');
       if (nav) nav.classList.add('active');
       if (name === 'gallery' && typeof Gallery !== 'undefined') Gallery.loadGallery();
+      if (name === 'blog' && typeof Blog !== 'undefined') Blog.loadFeed();
       if (name === 'thu-thap' && typeof Camera !== 'undefined') {
         // Only start camera if camera sub-tab is active
         const camPanel = document.getElementById('camera-panel');
@@ -608,8 +645,9 @@
 
     // ── PARALLAX HERO ──
     const heroBg = document.querySelector('.hero-bg');
+    const aboutTab = document.getElementById('tab-about');
     window.addEventListener('scroll', () => {
-      if (document.getElementById('tab-about').classList.contains('active'))
+      if (heroBg && aboutTab && aboutTab.classList.contains('active'))
         heroBg.style.transform = `translateY(${window.scrollY * 0.35}px)`;
     });
 
@@ -781,6 +819,7 @@
       if (typeof Upload !== 'undefined') Upload.init();
       if (typeof Camera !== 'undefined') Camera.init();
       if (typeof Gallery !== 'undefined') Gallery.init();
+      if (typeof Blog !== 'undefined') Blog.init();
       if (typeof Export !== 'undefined') Export.init();
     });
   </script>

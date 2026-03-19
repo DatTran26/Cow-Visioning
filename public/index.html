@@ -531,6 +531,14 @@
               <label for="blog-content">Nội dung <span class="req">*</span></label>
               <textarea id="blog-content" rows="6" maxlength="10000" placeholder="Chia sẻ câu chuyện, kinh nghiệm hoặc cập nhật của bạn..." required></textarea>
             </div>
+            <div class="form-group full-width">
+              <label for="blog-image">Ảnh bài viết (tuỳ chọn)</label>
+              <input type="file" id="blog-image" accept="image/*" />
+              <div id="blog-image-preview" class="blog-image-preview" hidden>
+                <img id="blog-image-preview-img" alt="Xem trước ảnh bài viết" />
+                <button type="button" class="btn btn-link" id="blog-image-clear-btn">Xoá ảnh đã chọn</button>
+              </div>
+            </div>
             <div class="blog-form-actions">
               <button type="submit" class="btn btn-primary" id="blog-submit-btn">Đăng bài</button>
               <button type="button" class="btn btn-secondary" id="blog-cancel-edit-btn" hidden>Huỷ chỉnh sửa</button>

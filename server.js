@@ -420,6 +420,7 @@ app.get('/api/blog/posts', authRequired, async (req, res) => {
                 u.username,
                 COALESCE(l.like_count, 0)::int AS like_count,
                 COALESCE(c.comment_count, 0)::int AS comment_count,
+                     COALESCE(pi.images, '[]'::json) AS images,
                 CASE WHEN ul.user_id IS NULL THEN false ELSE true END AS liked_by_me
              FROM blog_posts p
              INNER JOIN users u ON u.id = p.user_id
@@ -429,6 +430,22 @@ app.get('/api/blog/posts', authRequired, async (req, res) => {
              LEFT JOIN (
                 SELECT post_id, COUNT(*) AS comment_count FROM blog_comments GROUP BY post_id
              ) c ON c.post_id = p.id
+                 LEFT JOIN (
+                     SELECT
+                          post_id,
+                          json_agg(
+                                json_build_object(
+                                     'id', id,
+                                     'image_url', image_url,
+                                     'file_name', file_name,
+                                     'file_size', file_size,
+                                     'created_at', created_at
+                                )
+                                ORDER BY created_at DESC
+                          ) AS images
+                     FROM blog_post_images
+                     GROUP BY post_id
+                 ) pi ON pi.post_id = p.id
              LEFT JOIN blog_likes ul ON ul.post_id = p.id AND ul.user_id = $1
              ORDER BY p.created_at DESC
              LIMIT $2 OFFSET $3`,
@@ -529,6 +546,84 @@ app.delete('/api/blog/posts/:id', authRequired, postWriteLimiter, async (req, re
     } catch (err) {
         console.error('DELETE /api/blog/posts/:id error:', err);
         return res.status(500).json({ error: 'Khong the xoa bai viet' });
+    }
+});
+
+app.post('/api/blog/posts/:postId/images', authRequired, postWriteLimiter, upload.single('image'), async (req, res) => {
+    try {
+        const postId = parseInt(req.params.postId, 10);
+        if (!Number.isInteger(postId)) {
+            return res.status(400).json({ error: 'Post ID khong hop le' });
+        }
+        if (!req.file) {
+            return res.status(400).json({ error: 'Khong co file anh' });
+        }
+
+        const ownerCheck = await pool.query('SELECT user_id FROM blog_posts WHERE id = $1 LIMIT 1', [postId]);
+        if (ownerCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Khong tim thay bai viet' });
+        }
+        if (ownerCheck.rows[0].user_id !== req.session.userId) {
+            return res.status(403).json({ error: 'Ban khong co quyen them anh vao bai viet nay' });
+        }
+
+        const relativePath = path.relative(UPLOAD_DIR, req.file.path).replace(/\\/g, '/');
+        const imageUrl = `/uploads/${relativePath}`;
+
+        const inserted = await pool.query(
+            `INSERT INTO blog_post_images (post_id, user_id, image_url, file_name, file_size)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING id, post_id, user_id, image_url, file_name, file_size, created_at`,
+            [postId, req.session.userId, imageUrl, req.file.filename, req.file.size]
+        );
+
+        return res.status(201).json({ success: true, data: inserted.rows[0] });
+    } catch (err) {
+        console.error('POST /api/blog/posts/:postId/images error:', err);
+        return res.status(500).json({ error: 'Khong the tai anh len bai viet' });
+    }
+});
+
+app.delete('/api/blog/images/:id', authRequired, postWriteLimiter, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        if (!Number.isInteger(id)) {
+            return res.status(400).json({ error: 'Image ID khong hop le' });
+        }
+
+        const record = await pool.query(
+            `SELECT i.id, i.user_id, i.image_url
+             FROM blog_post_images i
+             WHERE i.id = $1
+             LIMIT 1`,
+            [id]
+        );
+        if (record.rows.length === 0) {
+            return res.status(404).json({ error: 'Khong tim thay anh bai viet' });
+        }
+        if (record.rows[0].user_id !== req.session.userId) {
+            return res.status(403).json({ error: 'Ban khong co quyen xoa anh nay' });
+        }
+
+        const imageUrl = record.rows[0].image_url;
+        const uploadRoot = path.resolve(UPLOAD_DIR);
+        const relativeFromUpload = String(imageUrl || '').replace(/^\/uploads\/?/, '');
+        const filePath = path.resolve(uploadRoot, relativeFromUpload);
+        const insideUploadRoot = filePath === uploadRoot || filePath.startsWith(`${uploadRoot}${path.sep}`);
+        if (!insideUploadRoot) {
+            return res.status(400).json({ error: 'Duong dan file khong hop le' });
+        }
+        try {
+            fs.unlinkSync(filePath);
+        } catch (fsErr) {
+            console.warn('Blog image delete warning:', fsErr.message);
+        }
+
+        await pool.query('DELETE FROM blog_post_images WHERE id = $1', [id]);
+        return res.json({ success: true });
+    } catch (err) {
+        console.error('DELETE /api/blog/images/:id error:', err);
+        return res.status(500).json({ error: 'Khong the xoa anh bai viet' });
     }
 });
 

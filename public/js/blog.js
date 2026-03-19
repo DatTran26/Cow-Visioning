@@ -1,13 +1,18 @@
 const Blog = (() => {
     let editingPostId = null;
+    let selectedImageFile = null;
 
     function init() {
         const postForm = document.getElementById('blog-post-form');
         const refreshBtn = document.getElementById('blog-refresh-btn');
         const cancelBtn = document.getElementById('blog-cancel-edit-btn');
+        const imageInput = document.getElementById('blog-image');
+        const clearImageBtn = document.getElementById('blog-image-clear-btn');
         if (postForm) postForm.addEventListener('submit', onSubmitPost);
         if (refreshBtn) refreshBtn.addEventListener('click', () => loadFeed());
         if (cancelBtn) cancelBtn.addEventListener('click', resetComposer);
+        if (imageInput) imageInput.addEventListener('change', onImageChanged);
+        if (clearImageBtn) clearImageBtn.addEventListener('click', clearSelectedImage);
 
         const feed = document.getElementById('blog-feed');
         if (feed) {
@@ -42,6 +47,64 @@ const Blog = (() => {
         if (content) content.value = '';
         if (submit) submit.textContent = 'Dang bai';
         if (cancel) cancel.hidden = true;
+        clearSelectedImage();
+    }
+
+    function onImageChanged(event) {
+        const input = event.target;
+        if (!(input instanceof HTMLInputElement) || !input.files || input.files.length === 0) {
+            clearSelectedImage();
+            return;
+        }
+
+        const file = input.files[0];
+        if (!file.type.startsWith('image/')) {
+            clearSelectedImage();
+            setStatus('Chi chap nhan file anh', 'error');
+            return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            clearSelectedImage();
+            setStatus('Anh toi da 10MB', 'error');
+            return;
+        }
+
+        selectedImageFile = file;
+        showImagePreview(file);
+    }
+
+    function showImagePreview(file) {
+        const previewWrap = document.getElementById('blog-image-preview');
+        const previewImg = document.getElementById('blog-image-preview-img');
+        if (!previewWrap || !previewImg) return;
+
+        const objectUrl = URL.createObjectURL(file);
+        previewImg.src = objectUrl;
+        previewImg.onload = () => URL.revokeObjectURL(objectUrl);
+        previewWrap.hidden = false;
+    }
+
+    function clearSelectedImage() {
+        selectedImageFile = null;
+        const input = document.getElementById('blog-image');
+        const previewWrap = document.getElementById('blog-image-preview');
+        const previewImg = document.getElementById('blog-image-preview-img');
+        if (input) input.value = '';
+        if (previewImg) previewImg.src = '';
+        if (previewWrap) previewWrap.hidden = true;
+    }
+
+    async function uploadPostImage(postId, file) {
+        const fd = new FormData();
+        fd.append('image', file);
+        const uploadResponse = await fetch(`/api/blog/posts/${postId}/images`, {
+            method: 'POST',
+            body: fd,
+        });
+        const uploadPayload = await uploadResponse.json();
+        if (!uploadResponse.ok) {
+            throw new Error(uploadPayload.error || 'Khong the tai anh bai viet');
+        }
     }
 
     function formatTime(value) {
@@ -78,6 +141,12 @@ const Blog = (() => {
             });
             const payload = await response.json();
             if (!response.ok) throw new Error(payload.error || 'Khong the luu bai viet');
+
+            const savedPost = payload.data || payload.post || null;
+            if (selectedImageFile && savedPost && savedPost.id) {
+                await uploadPostImage(savedPost.id, selectedImageFile);
+            }
+
             setStatus(editingPostId ? 'Da cap nhat bai viet' : 'Dang bai thanh cong', 'success');
             resetComposer();
             await loadFeed();
@@ -247,12 +316,20 @@ const Blog = (() => {
 
     function createPostCard(post, comments, currentUserId) {
         const canManagePost = Number(post.user_id) === Number(currentUserId);
+        const images = Array.isArray(post.images) ? post.images : [];
 
         const card = document.createElement('article');
         card.className = 'blog-card';
         card.dataset.postId = String(post.id);
         card.dataset.postTitle = post.title || '';
         card.dataset.postContent = post.content || '';
+
+        const imagesHtml = images
+            .map(
+                (img) =>
+                    `<img class="blog-post-image" src="${escapeHtml(img.image_url)}" alt="Anh bai viet" loading="lazy" />`
+            )
+            .join('');
 
         const commentsHtml = comments
             .map((c) => {
@@ -285,6 +362,7 @@ const Blog = (() => {
                 </div>
             </header>
             <div class="blog-card-content">${escapeHtml(post.content).replace(/\n/g, '<br>')}</div>
+            ${imagesHtml ? `<div class="blog-post-images">${imagesHtml}</div>` : ''}
             <section class="blog-comments">
                 <h4>Comment (${comments.length})</h4>
                 <ul class="blog-comment-list">${commentsHtml || '<li class="blog-comment-item blog-comment-empty">Chua co comment</li>'}</ul>

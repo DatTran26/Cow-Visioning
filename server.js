@@ -109,6 +109,25 @@ function requireAuthPage(req, res, next) {
     return next();
 }
 
+function requireAdmin(req, res, next) {
+    if (!req.session || !req.session.userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    if (req.session.role !== 'admin') {
+        return res.status(403).json({ error: 'Khong co quyen admin' });
+    }
+    return next();
+}
+
+// Runtime AI settings (loaded from env, changeable by admin)
+const aiSettings = {
+    AI_DEVICE: process.env.AI_DEVICE || 'cpu',
+    AI_CONF_THRESHOLD: parseFloat(process.env.AI_CONF_THRESHOLD || '0.25'),
+    AI_IOU_THRESHOLD: parseFloat(process.env.AI_IOU_THRESHOLD || '0.45'),
+    AI_MAX_DET: parseInt(process.env.AI_MAX_DET || '50', 10),
+    AI_ENABLED: process.env.AI_ENABLED !== 'false',
+};
+
 function normalizeText(input, maxLen) {
     if (typeof input !== 'string') return '';
     return input.replace(/[\u0000-\u001F\u007F]/g, '').trim().slice(0, maxLen);
@@ -963,6 +982,138 @@ app.post('/api/blog/posts/:postId/likes', authRequired, likeLimiter, async (req,
     } catch (err) {
         console.error('POST /api/blog/posts/:postId/likes error:', err);
         return res.status(500).json({ error: 'Khong the xu ly like' });
+    }
+});
+
+// ═══ ADMIN ROUTES ═══
+
+app.get('/admin/users', requireAdmin, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT u.id, u.username, u.email, u.role, u.created_at, u.updated_at,
+                    COALESCE(img.image_count, 0)::int AS image_count,
+                    COALESCE(bp.post_count, 0)::int AS post_count
+             FROM users u
+             LEFT JOIN (SELECT user_id, COUNT(*) AS image_count FROM cow_images GROUP BY user_id) img ON img.user_id = u.id
+             LEFT JOIN (SELECT user_id, COUNT(*) AS post_count FROM blog_posts GROUP BY user_id) bp ON bp.user_id = u.id
+             ORDER BY u.created_at DESC`
+        );
+        return res.json({ data: result.rows });
+    } catch (err) {
+        console.error('GET /admin/users error:', err);
+        return res.status(500).json({ error: 'Khong the tai danh sach user' });
+    }
+});
+
+app.put('/admin/users/:id/role', requireAdmin, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID khong hop le' });
+
+        const newRole = normalizeText(req.body.role, 20);
+        if (!['admin', 'user'].includes(newRole)) {
+            return res.status(400).json({ error: 'Role khong hop le. Chi chap nhan: admin, user' });
+        }
+
+        if (id === req.session.userId && newRole !== 'admin') {
+            return res.status(400).json({ error: 'Khong the tu ha quyen cua chinh minh' });
+        }
+
+        const updated = await pool.query(
+            `UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2
+             RETURNING id, username, email, role, updated_at`,
+            [newRole, id]
+        );
+        if (updated.rows.length === 0) {
+            return res.status(404).json({ error: 'Khong tim thay user' });
+        }
+
+        return res.json({ success: true, data: updated.rows[0] });
+    } catch (err) {
+        console.error('PUT /admin/users/:id/role error:', err);
+        return res.status(500).json({ error: 'Khong the cap nhat role' });
+    }
+});
+
+app.delete('/admin/users/:id', requireAdmin, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID khong hop le' });
+
+        if (id === req.session.userId) {
+            return res.status(400).json({ error: 'Khong the tu xoa chinh minh' });
+        }
+
+        const check = await pool.query('SELECT id, username FROM users WHERE id = $1', [id]);
+        if (check.rows.length === 0) {
+            return res.status(404).json({ error: 'Khong tim thay user' });
+        }
+
+        await pool.query('DELETE FROM users WHERE id = $1', [id]);
+        return res.json({ success: true, deleted: check.rows[0].username });
+    } catch (err) {
+        console.error('DELETE /admin/users/:id error:', err);
+        return res.status(500).json({ error: 'Khong the xoa user' });
+    }
+});
+
+// Public read-only AI settings (for user-facing display)
+app.get('/api/ai-settings', authRequired, (_req, res) => {
+    return res.json({
+        data: {
+            AI_CONF_THRESHOLD: aiSettings.AI_CONF_THRESHOLD,
+            AI_IOU_THRESHOLD: aiSettings.AI_IOU_THRESHOLD,
+            AI_MAX_DET: aiSettings.AI_MAX_DET,
+            AI_DEVICE: aiSettings.AI_DEVICE,
+            AI_ENABLED: aiSettings.AI_ENABLED,
+        }
+    });
+});
+
+app.get('/admin/ai-settings', requireAdmin, (_req, res) => {
+    return res.json({ data: aiSettings });
+});
+
+app.put('/admin/ai-settings', requireAdmin, (req, res) => {
+    try {
+        if (typeof req.body.AI_DEVICE === 'string') {
+            const d = req.body.AI_DEVICE.trim();
+            if (['cpu', '0', '1', 'cuda', 'cuda:0', 'cuda:1'].includes(d)) aiSettings.AI_DEVICE = d;
+        }
+        if (typeof req.body.AI_CONF_THRESHOLD === 'number') {
+            aiSettings.AI_CONF_THRESHOLD = Math.max(0, Math.min(1, req.body.AI_CONF_THRESHOLD));
+        }
+        if (typeof req.body.AI_IOU_THRESHOLD === 'number') {
+            aiSettings.AI_IOU_THRESHOLD = Math.max(0, Math.min(1, req.body.AI_IOU_THRESHOLD));
+        }
+        if (typeof req.body.AI_MAX_DET === 'number') {
+            aiSettings.AI_MAX_DET = Math.max(1, Math.min(1000, Math.floor(req.body.AI_MAX_DET)));
+        }
+        if (typeof req.body.AI_ENABLED === 'boolean') {
+            aiSettings.AI_ENABLED = req.body.AI_ENABLED;
+        }
+        return res.json({ success: true, data: aiSettings });
+    } catch (err) {
+        console.error('PUT /admin/ai-settings error:', err);
+        return res.status(500).json({ error: 'Khong the cap nhat AI settings' });
+    }
+});
+
+app.get('/admin/stats', requireAdmin, async (req, res) => {
+    try {
+        const [users, images, posts] = await Promise.all([
+            pool.query('SELECT COUNT(*)::int AS count FROM users'),
+            pool.query('SELECT COUNT(*)::int AS count FROM cow_images'),
+            pool.query('SELECT COUNT(*)::int AS count FROM blog_posts'),
+        ]);
+        return res.json({
+            total_users: users.rows[0].count,
+            total_images: images.rows[0].count,
+            total_posts: posts.rows[0].count,
+        });
+    } catch (err) {
+        console.error('GET /admin/stats error:', err);
+        return res.status(500).json({ error: 'Khong the tai thong ke' });
     }
 });
 

@@ -369,11 +369,11 @@ See [DEPLOYMENT.md - TODO section](./DEPLOYMENT.md#tính-năng-chưa-làm-todo) 
 
 ## 📄 License
 
-[Add your license here]
+
 
 ## 👥 Author
 
-[Your Team/Name]
+Tran Tan Dat
 
 ---
 

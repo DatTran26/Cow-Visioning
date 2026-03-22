@@ -450,22 +450,25 @@ app.post('/api/images', authRequired, postWriteLimiter, datasetUpload.single('im
             return res.status(500).json({ error: 'Khong the luu duong dan anh goc' });
         }
 
-        let prediction;
-        try {
-            prediction = await requestAiPrediction({
-                imagePath: req.file.path,
-                outputDir: getAnnotatedOutputDir(req.file.path),
-                requestId: path.parse(req.file.filename).name || crypto.randomUUID(),
-            });
-        } catch (aiErr) {
-            console.error('POST /api/images AI error:', aiErr);
-            return res.status(502).json({
-                error: 'AI phan tich that bai',
-                details: aiErr.message,
-                original_image_url: originalImageUrl,
-                ai_status: 'failed',
-            });
+        // Try AI prediction, fallback to saving without AI if it fails
+        let prediction = null;
+        let aiStatus = 'skipped';
+        if (aiSettings.AI_ENABLED) {
+            try {
+                prediction = await requestAiPrediction({
+                    imagePath: req.file.path,
+                    outputDir: getAnnotatedOutputDir(req.file.path),
+                    requestId: path.parse(req.file.filename).name || crypto.randomUUID(),
+                });
+                aiStatus = 'completed';
+            } catch (aiErr) {
+                console.error('POST /api/images AI error (fallback to save without AI):', aiErr.message);
+                aiStatus = 'failed';
+            }
         }
+
+        const behaviorValue = prediction ? prediction.predicted_behavior : (req.body.behavior || 'standing');
+        const annotatedUrl = prediction ? prediction.annotated_image_url : null;
 
         const result = await pool.query(
             `INSERT INTO cow_images (
@@ -513,22 +516,22 @@ app.post('/api/images', authRequired, postWriteLimiter, datasetUpload.single('im
             [
                 req.session.userId,
                 cowId,
-                prediction.predicted_behavior,
+                behaviorValue,
                 barnArea || null,
                 capturedAt.toISOString(),
                 notes || null,
-                prediction.annotated_image_url,
+                annotatedUrl || originalImageUrl,
                 originalImageUrl,
-                prediction.annotated_image_url,
+                annotatedUrl,
                 req.file.filename,
                 req.file.size,
-                typeof prediction.confidence === 'number' ? prediction.confidence : null,
-                prediction.primary_bbox || null,
-                Number.isInteger(prediction.detection_count) ? prediction.detection_count : 0,
-                prediction,
-                normalizeText(prediction.model_name || process.env.AI_MODEL_NAME || '', 255) || null,
-                typeof prediction.inference_ms === 'number' ? prediction.inference_ms : null,
-                'completed',
+                prediction && typeof prediction.confidence === 'number' ? prediction.confidence : null,
+                prediction ? (prediction.primary_bbox || null) : null,
+                prediction && Number.isInteger(prediction.detection_count) ? prediction.detection_count : 0,
+                prediction || null,
+                prediction ? (normalizeText(prediction.model_name || process.env.AI_MODEL_NAME || '', 255) || null) : null,
+                prediction && typeof prediction.inference_ms === 'number' ? prediction.inference_ms : null,
+                aiStatus,
             ]
         );
 
@@ -556,7 +559,8 @@ app.get('/api/images', authRequired, async (req, res) => {
         const cowId = normalizeText(req.query.cow_id || '', 100);
         const behavior = normalizeText(req.query.behavior || '', 50);
         const barnArea = normalizeText(req.query.barn_area || '', 200);
-        const conditions = ['user_id = $1'];
+        // Show user's own images + legacy images (user_id IS NULL)
+        const conditions = ['(user_id = $1 OR user_id IS NULL)'];
         const params = [req.session.userId];
         let idx = 2;
 
@@ -601,8 +605,8 @@ app.get('/api/images', authRequired, async (req, res) => {
         const result = await pool.query(sql, params);
         return res.json({ data: result.rows.map(normalizeImageRecord) });
     } catch (err) {
-        console.error('GET /api/images error:', err);
-        return res.status(500).json({ error: 'Khong the tai danh sach anh' });
+        console.error('GET /api/images error:', err.message);
+        return res.status(500).json({ error: 'Khong the tai danh sach anh', details: err.message });
     }
 });
 
@@ -1000,8 +1004,8 @@ app.get('/admin/users', requireAdmin, async (req, res) => {
         );
         return res.json({ data: result.rows });
     } catch (err) {
-        console.error('GET /admin/users error:', err);
-        return res.status(500).json({ error: 'Khong the tai danh sach user' });
+        console.error('GET /admin/users error:', err.message);
+        return res.status(500).json({ error: 'Khong the tai danh sach user', details: err.message });
     }
 });
 

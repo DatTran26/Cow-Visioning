@@ -32,6 +32,8 @@
       <li class="topnav-item" data-tab="thu-thap">Thu thập ảnh</li>
       <span class="nav-sep"></span>
       <li class="topnav-item" data-tab="gallery">Thư viện</li>
+      <span class="nav-sep"></span>
+      <li class="topnav-item" data-tab="blog">Blog</li>
     </ul>
     <div class="topnav-right">
       <div class="topnav-time" id="topnav-clock">--:--:--</div>
@@ -362,7 +364,7 @@
     <div id="tab-thu-thap" class="tab-panel app-panel">
       <div class="app-inner">
         <h1>Thu thập ảnh</h1>
-        <p class="app-sub">Tải lên hoặc chụp trực tiếp — gán nhãn hành vi để tạo dataset AI</p>
+        <p class="app-sub">Tai len hoac chup truc tiep - AI se tu dong phan tich hanh vi va ve bounding box</p>
 
         <!-- Sub tabs -->
         <div class="sub-tabs">
@@ -375,17 +377,6 @@
           <form id="upload-form" class="form-grid">
             <div class="form-group"><label for="cow-id">Mã con bò <span class="req">*</span></label><input type="text"
                 id="cow-id" placeholder="VD: BO-001" required /></div>
-            <div class="form-group"><label for="behavior">Hành vi <span class="req">*</span></label>
-              <select id="behavior" required>
-                <option value="">-- Chọn hành vi --</option>
-                <option value="standing">Đứng</option>
-                <option value="lying">Nằm</option>
-                <option value="eating">Ăn</option>
-                <option value="drinking">Uống nước</option>
-                <option value="walking">Đi lại</option>
-                <option value="abnormal">Bất thường</option>
-              </select>
-            </div>
             <div class="form-group"><label for="barn-area">Khu vực chuồng</label><input type="text" id="barn-area"
                 placeholder="VD: Chuồng A1" /></div>
             <div class="form-group"><label for="captured-at">Thời gian chụp</label><input type="datetime-local"
@@ -408,6 +399,17 @@
               <div class="progress-fill"></div>
             </div>
             <div id="upload-status" class="status-msg"></div>
+            <div id="upload-ai-result" class="ai-result-card" hidden>
+              <div class="ai-result-media">
+                <img id="upload-ai-image" alt="AI annotated result" />
+              </div>
+              <div class="ai-result-body">
+                <p class="ai-result-eyebrow">Ket qua AI moi nhat</p>
+                <h3 id="upload-ai-behavior">Dang cho phan tich</h3>
+                <p id="upload-ai-meta" class="ai-result-meta"></p>
+                <a id="upload-ai-original-link" class="ai-result-link" href="#" target="_blank" rel="noopener" hidden>Xem anh goc</a>
+              </div>
+            </div>
           </form>
         </div><!-- /upload-panel -->
 
@@ -422,17 +424,6 @@
               <div class="cam-settings-form">
                 <div class="form-group"><label for="cam-cow-id">Mã con bò</label><input type="text" id="cam-cow-id"
                     placeholder="VD: BO-001" /></div>
-                <div class="form-group"><label for="cam-behavior">Hành vi</label>
-                  <select id="cam-behavior">
-                    <option value="">-- Chọn --</option>
-                    <option value="standing">Đứng</option>
-                    <option value="lying">Nằm</option>
-                    <option value="eating">Ăn</option>
-                    <option value="drinking">Uống nước</option>
-                    <option value="walking">Đi lại</option>
-                    <option value="abnormal">Bất thường</option>
-                  </select>
-                </div>
                 <div class="form-group"><label for="cam-barn-area">Khu vực chuồng</label><input type="text"
                     id="cam-barn-area" placeholder="VD: Chuồng A1" /></div>
                 <div class="form-group"><label for="cam-notes">Ghi chú</label><input type="text" id="cam-notes"
@@ -442,6 +433,17 @@
               <h3>Ảnh đã chụp <span id="cam-saved-count" class="cam-saved-badge">0</span></h3>
               <div id="captured-strip" class="captured-strip"></div>
               <div id="cam-upload-status" class="status-msg"></div>
+              <div id="cam-ai-result" class="ai-result-card ai-result-card-compact" hidden>
+                <div class="ai-result-media">
+                  <img id="cam-ai-image" alt="Camera AI result" />
+                </div>
+                <div class="ai-result-body">
+                  <p class="ai-result-eyebrow">Anh vua xu ly</p>
+                  <h3 id="cam-ai-behavior">Dang cho phan tich</h3>
+                  <p id="cam-ai-meta" class="ai-result-meta"></p>
+                  <a id="cam-ai-original-link" class="ai-result-link" href="#" target="_blank" rel="noopener" hidden>Xem anh goc</a>
+                </div>
+              </div>
             </aside>
             <div class="cam-live-area">
               <div class="cam-toolbar">
@@ -512,6 +514,115 @@
       </div>
     </div>
 
+    <!-- ══ TAB: BLOG ══ -->
+    <div id="tab-blog" class="tab-panel app-panel">
+      <div class="app-inner blog-layout">
+        <div class="blog-page-grid">
+          <aside class="blog-left-rail">
+            <div class="blog-rail-card">
+              <h3>Trang của bạn</h3>
+              <p>Quản lý nội dung, tương tác và theo dõi bài viết mới nhất trong cộng đồng.</p>
+            </div>
+            <div class="blog-rail-card">
+              <h3>Lối tắt</h3>
+              <ul class="blog-rail-list">
+                <li>Bài đã lưu</li>
+                <li>Bài của tôi</li>
+                <li>Chủ đề theo dõi</li>
+              </ul>
+            </div>
+          </aside>
+
+          <section class="blog-center-rail">
+            <section class="blog-quick-create">
+              <div class="blog-quick-create-row">
+                <div class="blog-avatar" aria-hidden="true">🐄</div>
+                <button type="button" class="blog-mind-btn" id="blog-open-composer-btn">What's on your mind?</button>
+                <button type="button" class="btn btn-secondary" id="blog-refresh-btn">Tải lại feed</button>
+              </div>
+            </section>
+
+            <div class="blog-composer-modal" id="blog-composer-modal" hidden>
+              <div class="blog-workspace" id="blog-workspace" role="dialog" aria-modal="true" aria-labelledby="blog-compose-title">
+                <div class="blog-workspace-header">
+                  <h2 id="blog-compose-title">Create post</h2>
+                  <button type="button" class="blog-close-btn" id="blog-close-composer-btn" aria-label="Đóng popup">✕</button>
+                </div>
+                <section class="blog-composer">
+                <form id="blog-post-form" class="blog-form">
+                  <div class="form-group full-width">
+                    <label for="blog-title">Tiêu đề <span class="req">*</span></label>
+                    <input type="text" id="blog-title" maxlength="255" placeholder="Nhập tiêu đề bài viết..." required />
+                  </div>
+                  <div class="form-group full-width">
+                    <label for="blog-content">Nội dung <span class="req">*</span></label>
+                    <textarea id="blog-content" rows="10" maxlength="10000" placeholder="Chia sẻ câu chuyện, kinh nghiệm hoặc cập nhật của bạn..." required></textarea>
+                  </div>
+                  <div class="form-group full-width">
+                    <label for="blog-image">Ảnh bài viết (tuỳ chọn)</label>
+                    <input type="file" id="blog-image" accept="image/*" />
+                    <div id="blog-image-preview" class="blog-image-preview" hidden>
+                      <img id="blog-image-preview-img" alt="Xem trước ảnh bài viết" />
+                      <button type="button" class="btn btn-link" id="blog-image-clear-btn">Xoá ảnh đã chọn</button>
+                    </div>
+                  </div>
+                  <div class="blog-form-actions">
+                    <button type="submit" class="btn btn-primary" id="blog-submit-btn">Đăng bài</button>
+                    <button type="button" class="btn btn-secondary" id="blog-cancel-edit-btn" hidden>Huỷ chỉnh sửa</button>
+                  </div>
+                  <div id="blog-status" class="status-msg"></div>
+                </form>
+                </section>
+
+                <section class="blog-preview-pane">
+                  <h2>Xem trước bài viết</h2>
+                  <article class="blog-card blog-card-preview" id="blog-live-preview">
+                  <header class="blog-card-header">
+                    <div>
+                      <h3 id="blog-preview-title">Tiêu đề bài viết sẽ hiển thị ở đây</h3>
+                      <p>Bởi <strong>Bạn</strong> · <span id="blog-preview-time"></span></p>
+                    </div>
+                    <div class="blog-card-actions">
+                      <button class="btn btn-secondary" type="button" disabled>Like (0)</button>
+                    </div>
+                  </header>
+                  <div class="blog-card-content" id="blog-preview-content">Nội dung xem trước sẽ tự động cập nhật khi bạn nhập.</div>
+                  <div class="blog-post-images" id="blog-preview-images" hidden></div>
+                  <section class="blog-comments">
+                    <h4>Comment (0)</h4>
+                    <ul class="blog-comment-list">
+                      <li class="blog-comment-item blog-comment-empty">Comment sẽ hiển thị sau khi đăng bài.</li>
+                    </ul>
+                  </section>
+                  </article>
+                </section>
+              </div>
+            </div>
+
+            <section class="blog-feed-section">
+              <h2>Bài viết mới nhất</h2>
+              <div id="blog-feed" class="blog-feed"></div>
+            </section>
+          </section>
+
+          <aside class="blog-right-rail">
+            <div class="blog-rail-card">
+              <h3>Xu hướng</h3>
+              <ul class="blog-rail-list">
+                <li>#AICowMonitoring</li>
+                <li>#DatasetCollection</li>
+                <li>#FarmAutomation</li>
+              </ul>
+            </div>
+            <div class="blog-rail-card">
+              <h3>Gợi ý kết nối</h3>
+              <p>Theo dõi các thành viên hoạt động mạnh để cập nhật kiến thức nhanh hơn.</p>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+
 
   </main><!-- /page-main -->
 
@@ -559,6 +670,7 @@
   <script src="js/upload.js"></script>
   <script src="js/camera.js"></script>
   <script src="js/gallery.js"></script>
+  <script src="js/blog.js"></script>
   <script src="js/export.js"></script>
   <script>
     // ── TAB SWITCHING ──
@@ -570,6 +682,7 @@
       const nav = document.querySelector('.topnav-item[data-tab="' + name + '"]');
       if (nav) nav.classList.add('active');
       if (name === 'gallery' && typeof Gallery !== 'undefined') Gallery.loadGallery();
+      if (name === 'blog' && typeof Blog !== 'undefined') Blog.loadFeed();
       if (name === 'thu-thap' && typeof Camera !== 'undefined') {
         // Only start camera if camera sub-tab is active
         const camPanel = document.getElementById('camera-panel');
@@ -608,8 +721,9 @@
 
     // ── PARALLAX HERO ──
     const heroBg = document.querySelector('.hero-bg');
+    const aboutTab = document.getElementById('tab-about');
     window.addEventListener('scroll', () => {
-      if (document.getElementById('tab-about').classList.contains('active'))
+      if (heroBg && aboutTab && aboutTab.classList.contains('active'))
         heroBg.style.transform = `translateY(${window.scrollY * 0.35}px)`;
     });
 
@@ -776,11 +890,45 @@
       }, 1000);
     }
 
+    // ── VERSION CHECK ──
+    (function() {
+      let currentVersion = null;
+      const CHECK_INTERVAL = 30000; // 30 giây
+
+      async function checkVersion() {
+        try {
+          const res = await fetch('/api/version');
+          const data = await res.json();
+          if (currentVersion === null) {
+            currentVersion = data.version;
+          } else if (data.version !== currentVersion) {
+            showUpdateBanner();
+          }
+        } catch (e) {}
+      }
+
+      function showUpdateBanner() {
+        if (document.getElementById('version-banner')) return;
+        const banner = document.createElement('div');
+        banner.id = 'version-banner';
+        banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#1a1a2e;color:#fff;display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 20px;font-size:14px;box-shadow:0 2px 12px rgba(0,0,0,0.3);animation:slideDown .3s ease';
+        banner.innerHTML = '<span>🔄 Phiên bản mới đã sẵn sàng!</span><button onclick="location.reload()" style="background:#4edc96;color:#1a1a2e;border:none;padding:6px 16px;border-radius:6px;font-weight:700;cursor:pointer">Cập nhật ngay</button><button onclick="this.parentElement.remove()" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:18px">✕</button>';
+        document.body.prepend(banner);
+        const style = document.createElement('style');
+        style.textContent = '@keyframes slideDown{from{transform:translateY(-100%)}to{transform:translateY(0)}}';
+        document.head.appendChild(style);
+      }
+
+      checkVersion();
+      setInterval(checkVersion, CHECK_INTERVAL);
+    })();
+
     // ── INIT APP MODULES ──
     document.addEventListener('DOMContentLoaded', () => {
       if (typeof Upload !== 'undefined') Upload.init();
       if (typeof Camera !== 'undefined') Camera.init();
       if (typeof Gallery !== 'undefined') Gallery.init();
+      if (typeof Blog !== 'undefined') Blog.init();
       if (typeof Export !== 'undefined') Export.init();
     });
   </script>

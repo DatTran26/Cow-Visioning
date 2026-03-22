@@ -1,0 +1,19 @@
+{
+  "standing": "standing",
+  "stand": "standing",
+  "cow_standing": "standing",
+  "lying": "lying",
+  "lie": "lying",
+  "cow_lying": "lying",
+  "eating": "eating",
+  "eat": "eating",
+  "cow_eating": "eating",
+  "drinking": "drinking",
+  "drink": "drinking",
+  "cow_drinking": "drinking",
+  "walking": "walking",
+  "walk": "walking",
+  "cow_walking": "walking",
+  "abnormal": "abnormal",
+  "cow_abnormal": "abnormal"
+}

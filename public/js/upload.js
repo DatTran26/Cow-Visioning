@@ -6,16 +6,13 @@ const Upload = (() => {
         const fileInput = document.getElementById('file-input');
         const form = document.getElementById('upload-form');
 
-        // Click to select
         dropzone.addEventListener('click', () => fileInput.click());
 
-        // File input change
         fileInput.addEventListener('change', (e) => {
             addFiles(Array.from(e.target.files));
             fileInput.value = '';
         });
 
-        // Drag & drop
         dropzone.addEventListener('dragover', (e) => {
             e.preventDefault();
             dropzone.classList.add('dragover');
@@ -26,14 +23,12 @@ const Upload = (() => {
         dropzone.addEventListener('drop', (e) => {
             e.preventDefault();
             dropzone.classList.remove('dragover');
-            const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+            const files = Array.from(e.dataTransfer.files).filter((file) => file.type.startsWith('image/'));
             addFiles(files);
         });
 
-        // Submit
         form.addEventListener('submit', handleUpload);
 
-        // Set default datetime
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
         document.getElementById('captured-at').value = now.toISOString().slice(0, 16);
@@ -52,15 +47,22 @@ const Upload = (() => {
     function renderPreviews() {
         const container = document.getElementById('file-preview');
         container.innerHTML = '';
-        selectedFiles.forEach((file, i) => {
+
+        selectedFiles.forEach((file, index) => {
             const thumb = document.createElement('div');
             thumb.className = 'file-thumb';
+
             const img = document.createElement('img');
             img.src = URL.createObjectURL(file);
+
             const btn = document.createElement('button');
             btn.className = 'remove-file';
-            btn.textContent = '✕';
-            btn.onclick = (e) => { e.stopPropagation(); removeFile(i); };
+            btn.textContent = 'x';
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                removeFile(index);
+            };
+
             thumb.append(img, btn);
             container.appendChild(thumb);
         });
@@ -68,27 +70,34 @@ const Upload = (() => {
 
     async function handleUpload(e) {
         e.preventDefault();
+
         const status = document.getElementById('upload-status');
         const progress = document.getElementById('upload-progress');
         const progressFill = progress.querySelector('.progress-fill');
+        const uploadBtn = document.getElementById('upload-btn');
 
         const cowId = document.getElementById('cow-id').value.trim();
-        const behavior = document.getElementById('behavior').value;
         const barnArea = document.getElementById('barn-area').value.trim();
         const capturedAt = document.getElementById('captured-at').value;
         const notes = document.getElementById('notes').value.trim();
 
-        // Validate
-        if (!cowId) { showStatus(status, 'Vui lòng nhập mã con bò', 'error'); return; }
-        if (!behavior) { showStatus(status, 'Vui lòng chọn hành vi', 'error'); return; }
-        if (selectedFiles.length === 0) { showStatus(status, 'Vui lòng chọn ít nhất 1 ảnh', 'error'); return; }
+        if (!cowId) {
+            showStatus(status, 'Vui long nhap ma con bo', 'error');
+            return;
+        }
+        if (selectedFiles.length === 0) {
+            showStatus(status, 'Vui long chon it nhat 1 anh', 'error');
+            return;
+        }
 
-        const uploadBtn = document.getElementById('upload-btn');
         uploadBtn.disabled = true;
         progress.hidden = false;
-        showStatus(status, 'Đang tải lên...', 'info');
+        showStatus(status, 'Dang tai len va phan tich AI...', 'info');
 
         let uploaded = 0;
+        let processed = 0;
+        let lastSuccessfulRecord = null;
+        const failures = [];
         const total = selectedFiles.length;
 
         for (const file of selectedFiles) {
@@ -96,7 +105,6 @@ const Upload = (() => {
                 const formData = new FormData();
                 formData.append('image', file);
                 formData.append('cow_id', cowId);
-                formData.append('behavior', behavior);
                 formData.append('barn_area', barnArea);
                 formData.append('captured_at', capturedAt || new Date().toISOString());
                 formData.append('notes', notes);
@@ -107,30 +115,98 @@ const Upload = (() => {
                 });
 
                 const result = await res.json();
-                if (!res.ok) throw new Error(result.error || 'Upload that bai');
+                if (!res.ok) {
+                    throw new Error(result.details || result.error || 'Upload that bai');
+                }
 
                 uploaded++;
+                lastSuccessfulRecord = result.data || null;
+                if (lastSuccessfulRecord) {
+                    renderAiResult(lastSuccessfulRecord);
+                }
             } catch (err) {
                 console.error('Upload error:', err);
+                failures.push(err.message || 'Upload that bai');
+            } finally {
+                processed++;
+                progressFill.style.width = `${(processed / total) * 100}%`;
             }
-
-            progressFill.style.width = `${(uploaded / total) * 100}%`;
         }
 
         uploadBtn.disabled = false;
 
-        if (uploaded === total) {
-            showStatus(status, `Đã tải lên thành công ${uploaded} ảnh!`, 'success');
+        if (uploaded === total && lastSuccessfulRecord) {
+            showStatus(
+                status,
+                `Da tai len thanh cong ${uploaded} anh. ${buildAiSummary(lastSuccessfulRecord)}`,
+                'success'
+            );
             selectedFiles = [];
             document.getElementById('file-preview').innerHTML = '';
+        } else if (uploaded > 0 && lastSuccessfulRecord) {
+            showStatus(
+                status,
+                `Da xu ly ${uploaded}/${total} anh. Loi: ${failures[0] || 'khong xac dinh'}`,
+                'error'
+            );
         } else {
-            showStatus(status, `Tải lên ${uploaded}/${total} ảnh (một số bị lỗi)`, 'error');
+            showStatus(status, `AI xu ly that bai: ${failures[0] || 'khong xac dinh'}`, 'error');
         }
 
         setTimeout(() => {
             progress.hidden = true;
             progressFill.style.width = '0%';
-        }, 2000);
+        }, 2500);
+    }
+
+    function renderAiResult(record) {
+        const card = document.getElementById('upload-ai-result');
+        const image = document.getElementById('upload-ai-image');
+        const behavior = document.getElementById('upload-ai-behavior');
+        const meta = document.getElementById('upload-ai-meta');
+        const originalLink = document.getElementById('upload-ai-original-link');
+
+        if (!card || !record) {
+            return;
+        }
+
+        image.src = record.annotated_image_url || record.image_url || record.original_image_url || '';
+        behavior.textContent = BEHAVIOR_MAP[record.behavior] || record.behavior || 'Khong xac dinh';
+        meta.textContent = buildAiMeta(record);
+
+        if (record.original_image_url) {
+            originalLink.href = record.original_image_url;
+            originalLink.hidden = false;
+        } else {
+            originalLink.hidden = true;
+        }
+
+        card.hidden = false;
+    }
+
+    function buildAiSummary(record) {
+        const label = BEHAVIOR_MAP[record.behavior] || record.behavior || 'khong xac dinh';
+        const conf = formatConfidence(record.ai_confidence);
+        return conf ? `AI: ${label} (${conf})` : `AI: ${label}`;
+    }
+
+    function buildAiMeta(record) {
+        const parts = [];
+        const conf = formatConfidence(record.ai_confidence);
+        if (conf) {
+            parts.push(`Do tin cay: ${conf}`);
+        }
+        if (typeof record.detection_count === 'number') {
+            parts.push(`So bbox: ${record.detection_count}`);
+        }
+        if (typeof record.ai_inference_ms === 'number') {
+            parts.push(`Thoi gian: ${Math.round(record.ai_inference_ms)} ms`);
+        }
+        return parts.join(' | ');
+    }
+
+    function formatConfidence(value) {
+        return typeof value === 'number' ? `${(value * 100).toFixed(1)}%` : '';
     }
 
     function showStatus(el, msg, type) {

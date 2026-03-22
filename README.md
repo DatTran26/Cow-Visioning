@@ -4,13 +4,32 @@ A web application for managing cow image datasets for AI training. Capture, uplo
 
 ## ✨ Features
 
-- **About Page**: Project introduction with feature overview and behavior classification
-- **Upload Images**: Drag-drop or form-based upload with metadata
+### Core Features
+- **About Page**: Project introduction with animated hero, feature overview, statistics, and behavior classification
+- **Upload Images**: Drag-drop or form-based upload with metadata and AI analysis
 - **Camera Integration**: Real-time webcam capture with Burst Mode (continuous shooting)
-- **Image Gallery**: Browse, search, filter, and delete images
+- **Image Gallery**: Browse, search, filter, and delete images with AI annotations
 - **Export Dataset**: Export as CSV or JSON for AI training
-- **Local Database**: PostgreSQL storage for metadata
-- **Auto-Deploy**: GitHub Actions → VPS auto-deployment with auto database migration
+- **Blog / Community**: Create posts, comment, like, attach images
+- **Version Notification**: Auto-detect new deployment and prompt users to refresh
+
+### AI Features
+- **YOLO Object Detection**: Automatic cow detection with bounding boxes
+- **Behavior Classification**: AI-predicted behavior labels (standing, lying, eating, drinking, walking, abnormal)
+- **Confidence Scoring**: Per-detection confidence percentage
+- **Annotated Images**: Auto-generated images with bounding box overlays
+
+### Security & Auth
+- **User Authentication**: Register/login with session management
+- **Password Hashing**: bcryptjs with cost factor 10
+- **Rate Limiting**: Per-endpoint rate limits on all write operations
+- **Session Storage**: PostgreSQL-backed sessions (7-day TTL)
+
+### DevOps
+- **Auto-Deploy**: GitHub Actions → VPS with SSH deployment
+- **Auto-Migrate**: Database schema runs on each deploy (safe with `IF NOT EXISTS`)
+- **PM2 Process Manager**: Auto-restart, log management
+- **Nginx Reverse Proxy**: SSL/HTTPS with Let's Encrypt
 - **Responsive UI**: Works on desktop and mobile
 
 ## 🏗️ Architecture
@@ -20,8 +39,7 @@ A web application for managing cow image datasets for AI training. Capture, uplo
 │   Web Browser    │
 │  (HTML/CSS/JS)   │
 └────────┬─────────┘
-         │
-         │ HTTP/HTTPS
+         │ HTTPS
          ▼
 ┌──────────────────┐
 │  Nginx Reverse   │
@@ -30,22 +48,19 @@ A web application for managing cow image datasets for AI training. Capture, uplo
 └────────┬─────────┘
          │
          ▼
-┌──────────────────┐
-│   Express.js     │
-│   API Server     │
-│   (:3000)        │
-├──────────────────┤
-│ • POST /images   │ (Multer)
-│ • GET /images    │ (Filter/Search)
-│ • DELETE /images │
-└────────┬─────────┘
+┌──────────────────┐     ┌──────────────────┐
+│   Express.js     │────▶│  AI Service      │
+│   API Server     │     │  (FastAPI/YOLO)  │
+│   (:3000)        │     │  (:8001)         │
+└────────┬─────────┘     └──────────────────┘
          │
     ┌────┴──────┐
     ▼           ▼
 ┌────────┐  ┌──────────────┐
 │uploads/│  │ PostgreSQL   │
-│ YYYY/MM│  │ (cow_images) │
-└────────┘  └──────────────┘
+│ YYYY/MM│  │ (cow_images, │
+└────────┘  │  users, blog)│
+            └──────────────┘
 ```
 
 **Stack:**
@@ -53,9 +68,10 @@ A web application for managing cow image datasets for AI training. Capture, uplo
 |-----------|------------|
 | Frontend | HTML/CSS/JavaScript (vanilla) |
 | Backend | Node.js + Express |
+| AI Service | Python + FastAPI + YOLOv8 |
 | Database | PostgreSQL |
 | File Upload | Multer (local storage) |
-| Web Server | Nginx (reverse proxy) |
+| Web Server | Nginx (reverse proxy + SSL) |
 | Process Manager | PM2 |
 | Deployment | GitHub Actions → VPS Ubuntu |
 
@@ -66,13 +82,13 @@ A web application for managing cow image datasets for AI training. Capture, uplo
 **Prerequisites:**
 - Node.js 16+
 - PostgreSQL 12+
-- npm or yarn
+- Python 3.8+ (optional, for AI service)
 
 **Setup:**
 ```bash
 # Clone and install
-git clone <repo-url>
-cd cow-visioning
+git clone https://github.com/DatTran26/Cow-Visioning.git
+cd Cow-Visioning
 npm install
 
 # Setup database
@@ -88,284 +104,229 @@ npm start
 # Visit http://localhost:3000
 ```
 
+**AI Service (optional):**
+```bash
+pip install -r ai_service/requirements.txt
+npm run start:ai
+# AI runs at http://127.0.0.1:8001
+```
+
 ### VPS Deployment
 
-**👉 For VPS beginners:** Start with [VPS_QUICKSTART.md](./VPS_QUICKSTART.md) - detailed step-by-step guide from SSH to production.
+**👉 For VPS beginners:** Start with [VPS_QUICKSTART.md](./VPS_QUICKSTART.md)
 
-For comprehensive documentation, see [DEPLOYMENT.md](./DEPLOYMENT.md) which includes:
-- PostgreSQL setup on Ubuntu
-- PM2 process management
-- Nginx reverse proxy configuration
-- SSL/Let's Encrypt setup
-- GitHub Actions auto-deployment
-- Production checklist
-
-**Quick summary:**
-```bash
-# On VPS (Ubuntu):
-ssh user@your_vps_ip
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt-get install -y nodejs postgresql nginx
-sudo npm install -g pm2
-
-# Clone repo and follow DEPLOYMENT.md steps
-```
+For comprehensive documentation, see [DEPLOYMENT.md](./DEPLOYMENT.md)
 
 ## 📁 Project Structure
 
 ```
 cow-visioning/
 ├── public/                    # Frontend (served by Express)
-│   ├── index.html            # Main app
+│   ├── index.html            # Main app (all tabs)
 │   ├── css/
-│   │   └── style.css         # Styling
+│   │   ├── main.css          # Primary styles
+│   │   ├── auth.css          # Login/register styles
+│   │   └── style.css         # Additional styles
 │   ├── js/
-│   │   ├── api-config.js     # Config constants
-│   │   ├── app.js            # Tab navigation
-│   │   ├── upload.js         # Upload form
+│   │   ├── api-config.js     # Config & behavior map
+│   │   ├── upload.js         # Upload form + drag-drop
 │   │   ├── camera.js         # Camera + Burst Mode
-│   │   ├── gallery.js        # Gallery + delete
-│   │   └── export.js         # CSV/JSON export
-│   └── uploads/              # Image files (YYYY/MM/uuid.jpg)
+│   │   ├── gallery.js        # Gallery + search + delete
+│   │   ├── export.js         # CSV/JSON export
+│   │   └── blog.js           # Blog posts, comments, likes
+│   └── images/               # Static images
+│
+├── ai_service/               # Python AI service
+│   ├── app.py               # FastAPI server
+│   ├── models/              # YOLO model weights (.pt)
+│   ├── behavior_map.json    # Class → behavior mapping
+│   └── requirements.txt     # Python dependencies
 │
 ├── server.js                 # Express server (REST API)
-├── schema.sql                # PostgreSQL DDL
-├── package.json              # Dependencies
+├── schema.sql                # PostgreSQL DDL + migrations
+├── package.json              # Node.js dependencies
 ├── .env.example              # Config template
-├── .env                      # Config (local, in .gitignore)
 │
-├── ecosystem.config.js       # PM2 process manager config
-├── nginx-cow-visioning.conf  # Nginx reverse proxy config
+├── ecosystem.config.js       # PM2 config
+├── nginx-cow-visioning.conf  # Nginx config
 ├── .github/workflows/
 │   └── deploy.yml            # GitHub Actions CI/CD
 │
-├── DEPLOYMENT.md             # Detailed deployment guide
-├── VPS_QUICKSTART.md         # Step-by-step VPS setup guide
+├── DEPLOYMENT.md             # Deployment guide
+├── VPS_QUICKSTART.md         # Beginner VPS setup
 └── README.md                 # This file
 ```
 
-## 🔌 API Endpoints
+## 🔌 API Endpoints (22 routes)
 
-Base URL: `http://localhost:3000` (or your VPS domain)
+### Authentication
+| Method | Endpoint | Description | Rate Limit |
+|--------|----------|-------------|------------|
+| GET | `/auth/login` | Login page | - |
+| GET | `/auth/register` | Register page | - |
+| POST | `/auth/register` | Create account | 20/15min |
+| POST | `/auth/login` | Authenticate | 20/15min |
+| GET | `/auth/me` | Current user info | - |
+| POST | `/auth/logout` | Logout | - |
 
-### POST /api/images
-**Upload image + metadata**
+### Images / Dataset
+| Method | Endpoint | Description | Rate Limit |
+|--------|----------|-------------|------------|
+| POST | `/api/images` | Upload image + metadata + AI | 50/15min |
+| GET | `/api/images` | List/filter images | - |
+| DELETE | `/api/images/:id` | Delete image + file | - |
+| GET | `/api/version` | App version (git hash) | - |
 
-```bash
-curl -X POST http://localhost:3000/api/images \
-  -F "image=@photo.jpg" \
-  -F "cow_id=BO-001" \
-  -F "behavior=standing" \
-  -F "barn_area=Chuồng A1" \
-  -F "captured_at=2026-03-18T09:30:00Z" \
-  -F "notes=Test image"
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 5,
-    "cow_id": "BO-001",
-    "behavior": "standing",
-    "image_url": "/uploads/2026/03/abc123.jpg",
-    "created_at": "2026-03-18T09:35:22.000Z"
-  }
-}
-```
-
-### GET /api/images
-**List/filter images**
-
-```bash
-curl "http://localhost:3000/api/images?cow_id=BO&behavior=standing&barn_area=A1"
-```
-
-**Query Parameters (optional):**
-- `cow_id`: Partial match (ILIKE %query%)
-- `behavior`: Exact match
-- `barn_area`: Partial match (ILIKE %query%)
-
-**Response:**
-```json
-{
-  "data": [
-    {
-      "id": 5,
-      "cow_id": "BO-001",
-      "behavior": "standing",
-      "barn_area": "Chuồng A1",
-      "image_url": "/uploads/2026/03/abc123.jpg",
-      "captured_at": "2026-03-18T09:30:00.000Z",
-      "created_at": "2026-03-18T09:35:22.000Z"
-    }
-  ]
-}
-```
-
-### DELETE /api/images/:id
-**Delete image + file**
-
-```bash
-curl -X DELETE http://localhost:3000/api/images/5
-```
-
-**Response:**
-```json
-{ "success": true }
-```
+### Blog
+| Method | Endpoint | Description | Rate Limit |
+|--------|----------|-------------|------------|
+| GET | `/api/blog/posts` | List all posts | - |
+| POST | `/api/blog/posts` | Create post | 50/15min |
+| PUT | `/api/blog/posts/:id` | Edit post (author only) | 50/15min |
+| DELETE | `/api/blog/posts/:id` | Delete post (author only) | 50/15min |
+| POST | `/api/blog/posts/:postId/images` | Attach image | 50/15min |
+| DELETE | `/api/blog/images/:id` | Remove image | 50/15min |
+| GET | `/api/blog/posts/:postId/comments` | List comments | - |
+| POST | `/api/blog/posts/:postId/comments` | Add comment | 40/10min |
+| DELETE | `/api/blog/comments/:id` | Delete comment | 40/10min |
+| POST | `/api/blog/posts/:postId/likes` | Toggle like | 120/5min |
 
 ## 🐄 Behavior Types
 
-Supported cow behaviors (used in form and filter):
-- `standing` - Cow is standing
-- `lying` - Cow is lying down
-- `eating` - Cow is eating
-- `drinking` - Cow is drinking water
-- `walking` - Cow is walking
-- `abnormal` - Unusual/abnormal behavior
-
-## 📸 Camera Features
-
-**Single Shot:**
-- Click capture button → saves 1 image immediately
-
-**Burst Mode:**
-- Long press or hold capture button → continuous shots (~1 per 500ms)
-- Release button to stop
-- All images in burst saved with same metadata
-- UI shows count of images captured in session
+| Value | Vietnamese | Description |
+|-------|-----------|-------------|
+| `standing` | Đứng | Cow is standing |
+| `lying` | Nằm | Cow is lying down |
+| `eating` | Ăn | Cow is eating |
+| `drinking` | Uống nước | Cow is drinking water |
+| `walking` | Đi lại | Cow is walking |
+| `abnormal` | Bất thường | Unusual/abnormal behavior |
 
 ## 💾 Database Schema
 
-```sql
-CREATE TABLE cow_images (
-  id SERIAL PRIMARY KEY,
-  cow_id VARCHAR(100) NOT NULL,         -- Cow identifier
-  behavior VARCHAR(50) NOT NULL,         -- standing|lying|eating|...
-  barn_area VARCHAR(200),                -- Physical location
-  captured_at TIMESTAMP,                 -- When photo was taken
-  notes TEXT,                            -- Additional notes
-  image_url VARCHAR(500),                -- /uploads/YYYY/MM/uuid.jpg
-  file_name VARCHAR(255),                -- uuid.jpg
-  file_size INTEGER,                     -- Bytes
-  created_at TIMESTAMP DEFAULT NOW()
-);
+### Tables
+| Table | Purpose |
+|-------|---------|
+| `cow_images` | Image metadata, AI results, bounding boxes |
+| `users` | User accounts (username, email, password hash, role) |
+| `blog_posts` | Blog posts (title, content, timestamps) |
+| `blog_comments` | Comments on posts |
+| `blog_likes` | Like/unlike (unique per user per post) |
+| `blog_post_images` | Images attached to blog posts |
+| `app_config` | App configuration (TOTP secrets, etc.) |
+| `session` | Express session storage (connect-pg-simple) |
 
-CREATE INDEX idx_cow_images_cow_id ON cow_images (cow_id);
-CREATE INDEX idx_cow_images_behavior ON cow_images (behavior);
-CREATE INDEX idx_cow_images_created_at ON cow_images (created_at DESC);
+## 📸 Camera Features
+
+**Single Shot:** Click capture button → saves 1 image immediately
+
+**Burst Mode:** Long press/hold capture button → continuous shots (~1 per 500ms). Release to stop.
+
+**Auto-save:** Toggle on → images upload automatically without manual form submission
+
+## 🤖 AI Integration
+
+When `AI_ENABLED=true`, uploaded images are sent to the YOLO AI service for detection:
+
+1. User uploads image → saved to disk
+2. Server sends image path to AI service (`POST /predict`)
+3. YOLO model runs inference → detects cows, classifies behavior
+4. Annotated image with bounding boxes saved
+5. Results stored in DB: confidence, detection count, bbox coordinates
+
+**Configuration (.env):**
+```env
+AI_ENABLED=true
+AI_SERVICE_URL=http://127.0.0.1:8001
+AI_TIMEOUT_MS=20000
+AI_MODEL_PATH=./ai_service/models/boudding_catllte_v1_22es.pt
+AI_DEVICE=cpu
+AI_CONF_THRESHOLD=0.25
 ```
 
-## 🔧 Development
-
-### Running Locally
-
-```bash
-# Start in dev mode (auto-reload on file changes)
-npm run dev
-
-# Or production mode
-npm start
-
-# Check Node process
-npm ls
-```
-
-### File Upload Limits
-- **Max size**: 10MB (configurable in server.js)
-- **Format**: JPG, PNG, WebP (all images accepted)
-- **Storage**: Local folder `uploads/YYYY/MM/uuid.ext`
-
-### Environment Variables
+## 🔧 Environment Variables
 
 ```env
-PORT=3000                              # Express server port
-DB_HOST=localhost                      # PostgreSQL host
-DB_PORT=5432                          # PostgreSQL port
-DB_NAME=cow_visioning                 # Database name
-DB_USER=cowapp                        # Database user
-DB_PASSWORD=your_secure_password      # Database password
-UPLOAD_DIR=./uploads                  # Image storage directory
+# Server
+PORT=3000
+
+# Database
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=cow_visioning
+DB_USER=cowapp
+DB_PASSWORD=your_secure_password
+
+# Storage
+UPLOAD_DIR=./uploads
+
+# Auth
+SESSION_SECRET=your_random_64_char_secret_here
+TOTP_APP_NAME=Cow-Visioning
+
+# AI Service (optional)
+AI_ENABLED=true
+AI_SERVICE_URL=http://127.0.0.1:8001
+AI_TIMEOUT_MS=20000
+AI_MODEL_PATH=./ai_service/models/boudding_catllte_v1_22es.pt
+AI_DEVICE=cpu
+AI_CONF_THRESHOLD=0.25
+AI_IOU_THRESHOLD=0.45
+AI_MAX_DET=50
 ```
 
 ## 🚢 Deployment
 
-### Automated Deployment (GitHub Actions)
+### Automated (GitHub Actions)
 
-1. **Setup VPS:**
-   - Follow [DEPLOYMENT.md](./DEPLOYMENT.md) prerequisites section
-   - Create application user (`cowapp`)
-   - Install Node.js, PostgreSQL, Nginx, PM2
+1. **Setup VPS:** Follow [DEPLOYMENT.md](./DEPLOYMENT.md)
+2. **Add GitHub Secrets:** `DEPLOY_KEY`, `VPS_HOST`, `VPS_USER`
+3. **Deploy:** `git push origin main` → auto-deploys to VPS
+4. **Monitor:** Check Actions tab or `pm2 logs cow-visioning`
 
-2. **Add GitHub Secrets:**
-   - Go to repo → Settings → Secrets and variables → Actions
-   - Add: `DEPLOY_KEY`, `VPS_HOST`, `VPS_USER`
-
-3. **Deploy:**
-   ```bash
-   git push origin main
-   ```
-   → Automatically triggers GitHub Actions → Deploys to VPS
-   → Auto-runs `schema.sql` for database migrations (safe with `IF NOT EXISTS`)
-
-4. **Monitor:**
-   - Check Actions tab in GitHub for deployment logs
-   - SSH into VPS: `pm2 logs cow-visioning`
-
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed setup and troubleshooting.
+### CI/CD Pipeline
+```
+git push main → GitHub Actions → SSH to VPS → git pull → npm install
+             → psql -f schema.sql (auto-migrate) → pm2 restart
+```
 
 ## 📋 Common Commands
 
-**Server Management (VPS):**
+**Server:**
 ```bash
-pm2 restart cow-visioning      # Restart server
+pm2 restart cow-visioning      # Restart
 pm2 logs cow-visioning         # View logs
-pm2 stop cow-visioning         # Stop server
-pm2 list                       # Show all processes
+pm2 status                     # All processes
 ```
 
 **Database:**
 ```bash
-# Backup
-pg_dump -U cowapp cow_visioning | gzip > backup.sql.gz
-
-# Restore
-gunzip < backup.sql.gz | psql -U cowapp cow_visioning
+pg_dump -U cowapp cow_visioning | gzip > backup.sql.gz    # Backup
+gunzip < backup.sql.gz | psql -U cowapp cow_visioning     # Restore
+psql -U cowapp -d cow_visioning -f schema.sql             # Migrate
 ```
 
 **Nginx:**
 ```bash
 sudo nginx -t                  # Test config
 sudo systemctl reload nginx    # Reload
-sudo systemctl restart nginx   # Restart
 ```
 
 ## 🐛 Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
-| **Port 3000 already in use** | `lsof -i :3000` then `kill -9 <PID>` or `pm2 restart cow-visioning` |
-| **PostgreSQL connection error** | Check `.env` credentials, verify `sudo systemctl status postgresql` |
-| **Nginx 502 Bad Gateway** | Check `pm2 logs`, verify Express is running |
-| **Permission denied (uploads)** | `sudo chown -R cowapp:cowapp uploads/` |
-
-Full troubleshooting guide in [DEPLOYMENT.md](./DEPLOYMENT.md#troubleshooting)
+| Port 3000 in use | `lsof -i :3000` then `kill -9 <PID>` |
+| PostgreSQL error | Check `.env` credentials, `systemctl status postgresql` |
+| Nginx 502 | Check `pm2 logs`, verify Express is running |
+| Permission denied (uploads) | `chown -R cowapp:cowapp uploads/` |
+| CI/CD SSH error | Verify `DEPLOY_KEY` secret, check `~/.ssh/authorized_keys` |
+| AI service error | Check `AI_ENABLED`, verify model file exists |
 
 ## 📚 Documentation
 
-- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Complete deployment guide (setup, VPS, GitHub Actions, SSL, backups, monitoring)
-- **[Tech.md](./Tech.md)** - Original technical requirements and project notes
-
-## 🔮 Future Features (TODO)
-
-See [DEPLOYMENT.md - TODO section](./DEPLOYMENT.md#tính-năng-chưa-làm-todo) for:
-- Automatic backup to Windows laptop
-- Monitoring & logging (ELK stack or PM2 Plus)
-- Rate limiting & security (helmet, CORS, validation)
-- Pagination for large galleries
-- Admin dashboard with statistics
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Complete VPS deployment guide
+- **[VPS_QUICKSTART.md](./VPS_QUICKSTART.md)** - Step-by-step beginner guide
 
 ## 📄 License
 
@@ -373,9 +334,9 @@ See [DEPLOYMENT.md - TODO section](./DEPLOYMENT.md#tính-năng-chưa-làm-todo) 
 
 ## 👥 Author
 
-[Your Team/Name]
+DatTran26
 
 ---
 
-**Last Updated:** 2026-03-18
-**Version:** 1.0.0 (Self-hosted with auto-deploy)
+**Last Updated:** 2026-03-23
+**Version:** 1.0.0 (Self-hosted with auto-deploy + AI)

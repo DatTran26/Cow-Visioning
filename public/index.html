@@ -364,7 +364,7 @@
     <div id="tab-thu-thap" class="tab-panel app-panel">
       <div class="app-inner">
         <h1>Thu thập ảnh</h1>
-        <p class="app-sub">Tải lên hoặc chụp trực tiếp — gán nhãn hành vi để tạo dataset AI</p>
+        <p class="app-sub">Tai len hoac chup truc tiep - AI se tu dong phan tich hanh vi va ve bounding box</p>
 
         <!-- Sub tabs -->
         <div class="sub-tabs">
@@ -377,17 +377,6 @@
           <form id="upload-form" class="form-grid">
             <div class="form-group"><label for="cow-id">Mã con bò <span class="req">*</span></label><input type="text"
                 id="cow-id" placeholder="VD: BO-001" required /></div>
-            <div class="form-group"><label for="behavior">Hành vi <span class="req">*</span></label>
-              <select id="behavior" required>
-                <option value="">-- Chọn hành vi --</option>
-                <option value="standing">Đứng</option>
-                <option value="lying">Nằm</option>
-                <option value="eating">Ăn</option>
-                <option value="drinking">Uống nước</option>
-                <option value="walking">Đi lại</option>
-                <option value="abnormal">Bất thường</option>
-              </select>
-            </div>
             <div class="form-group"><label for="barn-area">Khu vực chuồng</label><input type="text" id="barn-area"
                 placeholder="VD: Chuồng A1" /></div>
             <div class="form-group"><label for="captured-at">Thời gian chụp</label><input type="datetime-local"
@@ -410,6 +399,17 @@
               <div class="progress-fill"></div>
             </div>
             <div id="upload-status" class="status-msg"></div>
+            <div id="upload-ai-result" class="ai-result-card" hidden>
+              <div class="ai-result-media">
+                <img id="upload-ai-image" alt="AI annotated result" />
+              </div>
+              <div class="ai-result-body">
+                <p class="ai-result-eyebrow">Ket qua AI moi nhat</p>
+                <h3 id="upload-ai-behavior">Dang cho phan tich</h3>
+                <p id="upload-ai-meta" class="ai-result-meta"></p>
+                <a id="upload-ai-original-link" class="ai-result-link" href="#" target="_blank" rel="noopener" hidden>Xem anh goc</a>
+              </div>
+            </div>
           </form>
         </div><!-- /upload-panel -->
 
@@ -424,17 +424,6 @@
               <div class="cam-settings-form">
                 <div class="form-group"><label for="cam-cow-id">Mã con bò</label><input type="text" id="cam-cow-id"
                     placeholder="VD: BO-001" /></div>
-                <div class="form-group"><label for="cam-behavior">Hành vi</label>
-                  <select id="cam-behavior">
-                    <option value="">-- Chọn --</option>
-                    <option value="standing">Đứng</option>
-                    <option value="lying">Nằm</option>
-                    <option value="eating">Ăn</option>
-                    <option value="drinking">Uống nước</option>
-                    <option value="walking">Đi lại</option>
-                    <option value="abnormal">Bất thường</option>
-                  </select>
-                </div>
                 <div class="form-group"><label for="cam-barn-area">Khu vực chuồng</label><input type="text"
                     id="cam-barn-area" placeholder="VD: Chuồng A1" /></div>
                 <div class="form-group"><label for="cam-notes">Ghi chú</label><input type="text" id="cam-notes"
@@ -444,6 +433,17 @@
               <h3>Ảnh đã chụp <span id="cam-saved-count" class="cam-saved-badge">0</span></h3>
               <div id="captured-strip" class="captured-strip"></div>
               <div id="cam-upload-status" class="status-msg"></div>
+              <div id="cam-ai-result" class="ai-result-card ai-result-card-compact" hidden>
+                <div class="ai-result-media">
+                  <img id="cam-ai-image" alt="Camera AI result" />
+                </div>
+                <div class="ai-result-body">
+                  <p class="ai-result-eyebrow">Anh vua xu ly</p>
+                  <h3 id="cam-ai-behavior">Dang cho phan tich</h3>
+                  <p id="cam-ai-meta" class="ai-result-meta"></p>
+                  <a id="cam-ai-original-link" class="ai-result-link" href="#" target="_blank" rel="noopener" hidden>Xem anh goc</a>
+                </div>
+              </div>
             </aside>
             <div class="cam-live-area">
               <div class="cam-toolbar">
@@ -889,6 +889,39 @@
         document.getElementById('register-form').reset();
       }, 1000);
     }
+
+    // ── VERSION CHECK ──
+    (function() {
+      let currentVersion = null;
+      const CHECK_INTERVAL = 30000; // 30 giây
+
+      async function checkVersion() {
+        try {
+          const res = await fetch('/api/version');
+          const data = await res.json();
+          if (currentVersion === null) {
+            currentVersion = data.version;
+          } else if (data.version !== currentVersion) {
+            showUpdateBanner();
+          }
+        } catch (e) {}
+      }
+
+      function showUpdateBanner() {
+        if (document.getElementById('version-banner')) return;
+        const banner = document.createElement('div');
+        banner.id = 'version-banner';
+        banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#1a1a2e;color:#fff;display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 20px;font-size:14px;box-shadow:0 2px 12px rgba(0,0,0,0.3);animation:slideDown .3s ease';
+        banner.innerHTML = '<span>🔄 Phiên bản mới đã sẵn sàng!</span><button onclick="location.reload()" style="background:#4edc96;color:#1a1a2e;border:none;padding:6px 16px;border-radius:6px;font-weight:700;cursor:pointer">Cập nhật ngay</button><button onclick="this.parentElement.remove()" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:18px">✕</button>';
+        document.body.prepend(banner);
+        const style = document.createElement('style');
+        style.textContent = '@keyframes slideDown{from{transform:translateY(-100%)}to{transform:translateY(0)}}';
+        document.head.appendChild(style);
+      }
+
+      checkVersion();
+      setInterval(checkVersion, CHECK_INTERVAL);
+    })();
 
     // ── INIT APP MODULES ──
     document.addEventListener('DOMContentLoaded', () => {

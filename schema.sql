@@ -15,6 +15,21 @@ CREATE TABLE IF NOT EXISTS cow_images (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
+ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS original_image_url VARCHAR(500);
+ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS annotated_image_url VARCHAR(500);
+ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS ai_confidence DOUBLE PRECISION;
+ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS primary_bbox JSONB;
+ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS detection_count INTEGER;
+ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS ai_raw_result JSONB;
+ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS ai_model_name VARCHAR(255);
+ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS ai_inference_ms DOUBLE PRECISION;
+ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS ai_status VARCHAR(50);
+
+UPDATE cow_images
+SET original_image_url = image_url
+WHERE original_image_url IS NULL
+  AND image_url IS NOT NULL;
+
 CREATE INDEX IF NOT EXISTS idx_cow_images_cow_id ON cow_images (cow_id);
 CREATE INDEX IF NOT EXISTS idx_cow_images_behavior ON cow_images (behavior);
 CREATE INDEX IF NOT EXISTS idx_cow_images_created_at ON cow_images (created_at DESC);

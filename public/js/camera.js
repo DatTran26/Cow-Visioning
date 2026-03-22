@@ -250,7 +250,6 @@ const Camera = (() => {
 
         // Read settings
         const cowId = document.getElementById('cam-cow-id').value.trim();
-        const behavior = document.getElementById('cam-behavior').value;
         const barnArea = document.getElementById('cam-barn-area').value.trim();
         const notes = document.getElementById('cam-notes').value.trim();
         const status = document.getElementById('cam-upload-status');
@@ -324,14 +323,13 @@ const Camera = (() => {
             lastThumb.innerHTML = `<img src="${thumbUrl}">`;
             lastThumb.classList.add('has-img');
 
-            if (!autoSaveEnabled && (!cowId || !behavior || !barnArea)) {
-                cameraStatus.textContent = 'Che do tu luu dang tat. Vui long dien Ma bo, Hanh vi va Khu vuc de luu.';
+            if (!autoSaveEnabled && !cowId) {
+                cameraStatus.textContent = 'Che do tu luu dang tat. Vui long dien Ma bo truoc khi luu.';
                 cameraStatus.className = 'status-msg error';
                 return;
             }
 
             const cowIdToSave = cowId || generateAutoCowId();
-            const behaviorToSave = behavior || 'abnormal';
             const barnAreaToSave = barnArea || 'Chua xac dinh';
             const notesToSave = notes || 'Auto-captured (khong thiet lap truoc)';
 
@@ -348,7 +346,6 @@ const Camera = (() => {
                 const formData = new FormData();
                 formData.append('image', blob, uniqueName);
                 formData.append('cow_id', cowIdToSave);
-                formData.append('behavior', behaviorToSave);
                 formData.append('barn_area', barnAreaToSave);
                 formData.append('captured_at', new Date().toISOString());
                 formData.append('notes', notesToSave);
@@ -359,10 +356,15 @@ const Camera = (() => {
                 });
 
                 const result = await res.json();
-                if (!res.ok) throw new Error(result.error || 'Luu anh that bai');
+                if (!res.ok) throw new Error(result.details || result.error || 'Luu anh that bai');
 
-                cameraStatus.textContent = autoSaveEnabled
-                    ? 'Da chup va tu dong luu anh len he thong'
+                const savedRecord = result.data || null;
+                if (savedRecord) {
+                    renderAiResult(savedRecord);
+                }
+
+                cameraStatus.textContent = savedRecord
+                    ? `Da luu anh. ${buildAiSummary(savedRecord)}`
                     : 'Da chup va luu anh len he thong';
                 cameraStatus.className = 'status-msg success';
             } catch (err) {
@@ -418,6 +420,63 @@ const Camera = (() => {
             `;
             strip.appendChild(thumb);
         });
+    }
+
+    function renderAiResult(record) {
+        const resultCard = document.getElementById('cam-ai-result');
+        const imageEl = document.getElementById('cam-ai-image');
+        const behaviorEl = document.getElementById('cam-ai-behavior');
+        const metaEl = document.getElementById('cam-ai-meta');
+        const originalLink = document.getElementById('cam-ai-original-link');
+        const lastThumb = document.getElementById('cam-last-thumb');
+
+        if (!resultCard || !record) {
+            return;
+        }
+
+        const displayUrl = record.annotated_image_url || record.image_url || record.original_image_url || '';
+        imageEl.src = displayUrl;
+        behaviorEl.textContent = BEHAVIOR_MAP[record.behavior] || record.behavior || 'Khong xac dinh';
+        metaEl.textContent = buildAiMeta(record);
+
+        if (record.original_image_url) {
+            originalLink.href = record.original_image_url;
+            originalLink.hidden = false;
+        } else {
+            originalLink.hidden = true;
+        }
+
+        if (displayUrl) {
+            lastThumb.innerHTML = `<img src="${displayUrl}" alt="AI result">`;
+            lastThumb.classList.add('has-img');
+        }
+
+        resultCard.hidden = false;
+    }
+
+    function buildAiSummary(record) {
+        const label = BEHAVIOR_MAP[record.behavior] || record.behavior || 'khong xac dinh';
+        const confidence = formatConfidence(record.ai_confidence);
+        return confidence ? `AI nhan dien ${label} (${confidence})` : `AI nhan dien ${label}`;
+    }
+
+    function buildAiMeta(record) {
+        const parts = [];
+        const confidence = formatConfidence(record.ai_confidence);
+        if (confidence) {
+            parts.push(`Do tin cay: ${confidence}`);
+        }
+        if (typeof record.detection_count === 'number') {
+            parts.push(`So bbox: ${record.detection_count}`);
+        }
+        if (typeof record.ai_inference_ms === 'number') {
+            parts.push(`Thoi gian: ${Math.round(record.ai_inference_ms)} ms`);
+        }
+        return parts.join(' | ');
+    }
+
+    function formatConfidence(value) {
+        return typeof value === 'number' ? `${(value * 100).toFixed(1)}%` : '';
     }
 
     return { init, startCamera, stopCamera };

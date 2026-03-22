@@ -5,3 +5,6 @@ node_modules/
 dist/
 uploads/
 logs/
+models/*.pt
+ai_service/.venv/
+ai_service/__pycache__/

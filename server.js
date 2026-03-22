@@ -32,33 +32,47 @@ const pool = new Pool({
 });
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || './uploads';
+const UPLOAD_ROOT = path.resolve(UPLOAD_DIR);
+const AI_ENABLED = process.env.AI_ENABLED !== 'false';
+const AI_SERVICE_URL = (process.env.AI_SERVICE_URL || 'http://127.0.0.1:8001').replace(/\/+$/, '');
+const AI_TIMEOUT_MS = parseInt(process.env.AI_TIMEOUT_MS || '20000', 10);
 
-const storage = multer.diskStorage({
-    destination: (_req, _file, cb) => {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const dir = path.join(UPLOAD_DIR, String(year), month);
-        fs.mkdirSync(dir, { recursive: true });
-        cb(null, dir);
-    },
-    filename: (_req, file, cb) => {
-        const ext = path.extname(file.originalname) || '.jpg';
-        cb(null, `${crypto.randomUUID()}${ext}`);
-    },
-});
+function ensureDir(dirPath) {
+    fs.mkdirSync(dirPath, { recursive: true });
+    return dirPath;
+}
 
-const upload = multer({
-    storage,
-    limits: { fileSize: 10 * 1024 * 1024 },
-    fileFilter: (_req, file, cb) => {
-        if (file.mimetype.startsWith('image/')) {
-            cb(null, true);
-        } else {
-            cb(new Error('Chi chap nhan file anh'));
-        }
-    },
-});
+function buildDatedUploadDir(bucket) {
+    const now = new Date();
+    const year = String(now.getFullYear());
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return ensureDir(path.join(UPLOAD_ROOT, bucket, year, month));
+}
+
+function createImageUpload(bucket) {
+    return multer({
+        storage: multer.diskStorage({
+            destination: (_req, _file, cb) => {
+                cb(null, buildDatedUploadDir(bucket));
+            },
+            filename: (_req, file, cb) => {
+                const ext = path.extname(file.originalname) || '.jpg';
+                cb(null, `${crypto.randomUUID()}${ext}`);
+            },
+        }),
+        limits: { fileSize: 10 * 1024 * 1024 },
+        fileFilter: (_req, file, cb) => {
+            if (file.mimetype.startsWith('image/')) {
+                cb(null, true);
+            } else {
+                cb(new Error('Chi chap nhan file anh'));
+            }
+        },
+    });
+}
+
+const datasetUpload = createImageUpload('original');
+const blogUpload = createImageUpload('blog');
 
 app.use(express.json());
 
@@ -112,6 +126,117 @@ const allowedBehaviors = new Set([
     'walking',
     'abnormal',
 ]);
+
+ensureDir(UPLOAD_ROOT);
+
+function toUploadUrl(filePath) {
+    const resolved = path.resolve(filePath);
+    const insideUploadRoot =
+        resolved === UPLOAD_ROOT || resolved.startsWith(`${UPLOAD_ROOT}${path.sep}`);
+    if (!insideUploadRoot) {
+        return null;
+    }
+    return `/uploads/${path.relative(UPLOAD_ROOT, resolved).replace(/\\/g, '/')}`;
+}
+
+function toUploadAbsolutePath(uploadUrl) {
+    const relativeFromUpload = String(uploadUrl || '').replace(/^\/uploads\/?/, '');
+    if (!relativeFromUpload) {
+        return null;
+    }
+    const filePath = path.resolve(UPLOAD_ROOT, relativeFromUpload);
+    const insideUploadRoot =
+        filePath === UPLOAD_ROOT || filePath.startsWith(`${UPLOAD_ROOT}${path.sep}`);
+    return insideUploadRoot ? filePath : null;
+}
+
+function getAnnotatedOutputDir(originalFilePath) {
+    const relativePathParts = path.relative(UPLOAD_ROOT, path.resolve(originalFilePath)).split(path.sep);
+    const [, year = String(new Date().getFullYear()), month = String(new Date().getMonth() + 1).padStart(2, '0')] =
+        relativePathParts;
+    return ensureDir(path.join(UPLOAD_ROOT, 'annotated', year, month));
+}
+
+function deleteUploadFile(uploadUrl, warningPrefix) {
+    const filePath = toUploadAbsolutePath(uploadUrl);
+    if (!filePath) {
+        return;
+    }
+    try {
+        fs.unlinkSync(filePath);
+    } catch (fsErr) {
+        if (fsErr.code !== 'ENOENT') {
+            console.warn(`${warningPrefix}:`, fsErr.message);
+        }
+    }
+}
+
+function normalizeImageRecord(record) {
+    const displayImageUrl = record.annotated_image_url || record.image_url || record.original_image_url || null;
+    return {
+        ...record,
+        image_url: displayImageUrl,
+        original_image_url: record.original_image_url || record.image_url || null,
+        annotated_image_url: record.annotated_image_url || null,
+    };
+}
+
+async function requestAiPrediction({ imagePath, outputDir, requestId }) {
+    if (!AI_ENABLED) {
+        throw new Error('AI service is disabled');
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+
+    try {
+        const response = await fetch(`${AI_SERVICE_URL}/predict`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                image_path: imagePath,
+                output_dir: outputDir,
+                request_id: requestId,
+            }),
+            signal: controller.signal,
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(payload.error || `AI service returned HTTP ${response.status}`);
+        }
+        if (payload.status !== 'ok') {
+            throw new Error(payload.error || 'AI service could not analyze the image');
+        }
+
+        const behavior = normalizeText(payload.predicted_behavior || '', 50).toLowerCase();
+        if (!allowedBehaviors.has(behavior)) {
+            throw new Error(`AI service returned unsupported behavior: ${payload.predicted_behavior || 'empty'}`);
+        }
+
+        if (!payload.annotated_image_path) {
+            throw new Error('AI service did not return an annotated image path');
+        }
+
+        const annotatedImageUrl = toUploadUrl(payload.annotated_image_path);
+        if (!annotatedImageUrl) {
+            throw new Error('Annotated image path is outside the uploads directory');
+        }
+
+        return {
+            ...payload,
+            predicted_behavior: behavior,
+            annotated_image_url: annotatedImageUrl,
+        };
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            throw new Error(`AI service timed out after ${AI_TIMEOUT_MS}ms`);
+        }
+        throw err;
+    } finally {
+        clearTimeout(timeout);
+    }
+}
 
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -283,49 +408,124 @@ app.get('/api/version', (_req, res) => {
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.resolve(UPLOAD_DIR)));
 
-app.post('/api/images', authRequired, postWriteLimiter, upload.single('image'), async (req, res) => {
+app.post('/api/images', authRequired, postWriteLimiter, datasetUpload.single('image'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'Khong co file anh' });
         }
 
         const cowId = normalizeText(req.body.cow_id, 100);
-        const behavior = normalizeText(req.body.behavior, 50);
         const barnArea = normalizeText(req.body.barn_area, 200);
         const notes = normalizeText(req.body.notes, 4000);
         const capturedAt = req.body.captured_at ? new Date(req.body.captured_at) : new Date();
 
-        if (!cowId || !behavior) {
-            return res.status(400).json({ error: 'Thieu cow_id hoac behavior' });
-        }
-        if (!allowedBehaviors.has(behavior)) {
-            return res.status(400).json({ error: 'Behavior khong hop le' });
+        if (!cowId) {
+            return res.status(400).json({ error: 'Thieu cow_id' });
         }
         if (!Number.isFinite(capturedAt.getTime())) {
             return res.status(400).json({ error: 'captured_at khong hop le' });
         }
 
-        const relativePath = path.relative(UPLOAD_DIR, req.file.path).replace(/\\/g, '/');
-        const imageUrl = `/uploads/${relativePath}`;
+        const originalImageUrl = toUploadUrl(req.file.path);
+        if (!originalImageUrl) {
+            return res.status(500).json({ error: 'Khong the luu duong dan anh goc' });
+        }
+
+        let prediction;
+        try {
+            prediction = await requestAiPrediction({
+                imagePath: req.file.path,
+                outputDir: getAnnotatedOutputDir(req.file.path),
+                requestId: path.parse(req.file.filename).name || crypto.randomUUID(),
+            });
+        } catch (aiErr) {
+            console.error('POST /api/images AI error:', aiErr);
+            return res.status(502).json({
+                error: 'AI phan tich that bai',
+                details: aiErr.message,
+                original_image_url: originalImageUrl,
+                ai_status: 'failed',
+            });
+        }
 
         const result = await pool.query(
-            `INSERT INTO cow_images (user_id, cow_id, behavior, barn_area, captured_at, notes, image_url, file_name, file_size)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-             RETURNING *`,
+            `INSERT INTO cow_images (
+                user_id,
+                cow_id,
+                behavior,
+                barn_area,
+                captured_at,
+                notes,
+                image_url,
+                original_image_url,
+                annotated_image_url,
+                file_name,
+                file_size,
+                ai_confidence,
+                primary_bbox,
+                detection_count,
+                ai_raw_result,
+                ai_model_name,
+                ai_inference_ms,
+                ai_status
+            )
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+             RETURNING
+                id,
+                user_id,
+                cow_id,
+                behavior,
+                barn_area,
+                captured_at,
+                notes,
+                image_url,
+                original_image_url,
+                annotated_image_url,
+                file_name,
+                file_size,
+                created_at,
+                ai_confidence,
+                primary_bbox,
+                detection_count,
+                ai_raw_result,
+                ai_model_name,
+                ai_inference_ms,
+                ai_status`,
             [
                 req.session.userId,
                 cowId,
-                behavior,
+                prediction.predicted_behavior,
                 barnArea || null,
                 capturedAt.toISOString(),
                 notes || null,
-                imageUrl,
+                prediction.annotated_image_url,
+                originalImageUrl,
+                prediction.annotated_image_url,
                 req.file.filename,
                 req.file.size,
+                typeof prediction.confidence === 'number' ? prediction.confidence : null,
+                prediction.primary_bbox || null,
+                Number.isInteger(prediction.detection_count) ? prediction.detection_count : 0,
+                prediction,
+                normalizeText(prediction.model_name || process.env.AI_MODEL_NAME || '', 255) || null,
+                typeof prediction.inference_ms === 'number' ? prediction.inference_ms : null,
+                'completed',
             ]
         );
 
-        return res.json({ success: true, data: result.rows[0] });
+        const data = normalizeImageRecord(result.rows[0]);
+        return res.json({
+            success: true,
+            data,
+            ai: {
+                predicted_behavior: data.behavior,
+                confidence: data.ai_confidence,
+                status: data.ai_status,
+                inference_ms: data.ai_inference_ms,
+                detection_count: data.detection_count,
+                primary_bbox: data.primary_bbox,
+            },
+        });
     } catch (err) {
         console.error('POST /api/images error:', err);
         return res.status(500).json({ error: 'Upload that bai' });
@@ -354,9 +554,33 @@ app.get('/api/images', authRequired, async (req, res) => {
             params.push(`%${barnArea}%`);
         }
 
-        const sql = `SELECT * FROM cow_images WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC`;
+        const sql = `
+            SELECT
+                id,
+                user_id,
+                cow_id,
+                behavior,
+                barn_area,
+                captured_at,
+                notes,
+                COALESCE(annotated_image_url, image_url, original_image_url) AS image_url,
+                original_image_url,
+                annotated_image_url,
+                file_name,
+                file_size,
+                created_at,
+                ai_confidence,
+                primary_bbox,
+                detection_count,
+                ai_raw_result,
+                ai_model_name,
+                ai_inference_ms,
+                ai_status
+            FROM cow_images
+            WHERE ${conditions.join(' AND ')}
+            ORDER BY created_at DESC`;
         const result = await pool.query(sql, params);
-        return res.json({ data: result.rows });
+        return res.json({ data: result.rows.map(normalizeImageRecord) });
     } catch (err) {
         console.error('GET /api/images error:', err);
         return res.status(500).json({ error: 'Khong the tai danh sach anh' });
@@ -371,7 +595,10 @@ app.delete('/api/images/:id', authRequired, async (req, res) => {
         }
 
         const record = await pool.query(
-            'SELECT image_url, user_id FROM cow_images WHERE id = $1 LIMIT 1',
+            `SELECT image_url, original_image_url, annotated_image_url, user_id
+             FROM cow_images
+             WHERE id = $1
+             LIMIT 1`,
             [id]
         );
         if (record.rows.length === 0) {
@@ -381,18 +608,17 @@ app.delete('/api/images/:id', authRequired, async (req, res) => {
             return res.status(403).json({ error: 'Ban khong co quyen xoa anh nay' });
         }
 
-        const imageUrl = record.rows[0].image_url;
-        const uploadRoot = path.resolve(UPLOAD_DIR);
-        const relativeFromUpload = String(imageUrl || '').replace(/^\/uploads\/?/, '');
-        const filePath = path.resolve(uploadRoot, relativeFromUpload);
-        const insideUploadRoot = filePath === uploadRoot || filePath.startsWith(`${uploadRoot}${path.sep}`);
-        if (!insideUploadRoot) {
-            return res.status(400).json({ error: 'Duong dan file khong hop le' });
-        }
-        try {
-            fs.unlinkSync(filePath);
-        } catch (fsErr) {
-            console.warn('File delete warning:', fsErr.message);
+        const fileUrls = [
+            record.rows[0].image_url,
+            record.rows[0].original_image_url,
+            record.rows[0].annotated_image_url,
+        ];
+
+        for (const uploadUrl of [...new Set(fileUrls.filter(Boolean))]) {
+            if (!toUploadAbsolutePath(uploadUrl)) {
+                return res.status(400).json({ error: 'Duong dan file khong hop le' });
+            }
+            deleteUploadFile(uploadUrl, 'File delete warning');
         }
 
         await pool.query('DELETE FROM cow_images WHERE id = $1', [id]);
@@ -549,7 +775,7 @@ app.delete('/api/blog/posts/:id', authRequired, postWriteLimiter, async (req, re
     }
 });
 
-app.post('/api/blog/posts/:postId/images', authRequired, postWriteLimiter, upload.single('image'), async (req, res) => {
+app.post('/api/blog/posts/:postId/images', authRequired, postWriteLimiter, blogUpload.single('image'), async (req, res) => {
     try {
         const postId = parseInt(req.params.postId, 10);
         if (!Number.isInteger(postId)) {
@@ -567,8 +793,10 @@ app.post('/api/blog/posts/:postId/images', authRequired, postWriteLimiter, uploa
             return res.status(403).json({ error: 'Ban khong co quyen them anh vao bai viet nay' });
         }
 
-        const relativePath = path.relative(UPLOAD_DIR, req.file.path).replace(/\\/g, '/');
-        const imageUrl = `/uploads/${relativePath}`;
+        const imageUrl = toUploadUrl(req.file.path);
+        if (!imageUrl) {
+            return res.status(500).json({ error: 'Khong the luu duong dan anh bai viet' });
+        }
 
         const inserted = await pool.query(
             `INSERT INTO blog_post_images (post_id, user_id, image_url, file_name, file_size)
@@ -606,18 +834,10 @@ app.delete('/api/blog/images/:id', authRequired, postWriteLimiter, async (req, r
         }
 
         const imageUrl = record.rows[0].image_url;
-        const uploadRoot = path.resolve(UPLOAD_DIR);
-        const relativeFromUpload = String(imageUrl || '').replace(/^\/uploads\/?/, '');
-        const filePath = path.resolve(uploadRoot, relativeFromUpload);
-        const insideUploadRoot = filePath === uploadRoot || filePath.startsWith(`${uploadRoot}${path.sep}`);
-        if (!insideUploadRoot) {
+        if (!toUploadAbsolutePath(imageUrl)) {
             return res.status(400).json({ error: 'Duong dan file khong hop le' });
         }
-        try {
-            fs.unlinkSync(filePath);
-        } catch (fsErr) {
-            console.warn('Blog image delete warning:', fsErr.message);
-        }
+        deleteUploadFile(imageUrl, 'Blog image delete warning');
 
         await pool.query('DELETE FROM blog_post_images WHERE id = $1', [id]);
         return res.json({ success: true });

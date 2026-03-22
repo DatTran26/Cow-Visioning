@@ -116,3 +116,18 @@ CREATE TABLE IF NOT EXISTS "session" (
     PRIMARY KEY ("sid")
 );
 CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+
+-- ═══ Seed default accounts ═══
+-- Admin: admin / admin123456
+-- User:  user  / user123456
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM users WHERE username = 'admin') THEN
+        INSERT INTO users (username, email, password_hash, role)
+        VALUES ('admin', 'admin@cowvisioning.local', '$2a$10$d/Ihm2x67gbpansehAlSKeo46R6gcmfwflEBhGT42xERgWQNBvDPu', 'admin');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM users WHERE username = 'user') THEN
+        INSERT INTO users (username, email, password_hash, role)
+        VALUES ('user', 'user@cowvisioning.local', '$2a$10$8Kqllk0otezmpKtNJpd2w.nyY1CRv4t9TjACIkkpVO3GsRVLRqLGe', 'user');
+    END IF;
+END $$;

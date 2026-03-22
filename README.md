@@ -330,7 +330,7 @@ sudo systemctl reload nginx    # Reload
 
 ## 📄 License
 
-[Add your license here]
+
 
 ## 👥 Author
 

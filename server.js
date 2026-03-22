@@ -109,6 +109,25 @@ function requireAuthPage(req, res, next) {
     return next();
 }
 
+function requireAdmin(req, res, next) {
+    if (!req.session || !req.session.userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    if (req.session.role !== 'admin') {
+        return res.status(403).json({ error: 'Khong co quyen admin' });
+    }
+    return next();
+}
+
+// Runtime AI settings (loaded from env, changeable by admin)
+const aiSettings = {
+    AI_DEVICE: process.env.AI_DEVICE || 'cpu',
+    AI_CONF_THRESHOLD: parseFloat(process.env.AI_CONF_THRESHOLD || '0.25'),
+    AI_IOU_THRESHOLD: parseFloat(process.env.AI_IOU_THRESHOLD || '0.45'),
+    AI_MAX_DET: parseInt(process.env.AI_MAX_DET || '50', 10),
+    AI_ENABLED: process.env.AI_ENABLED !== 'false',
+};
+
 function normalizeText(input, maxLen) {
     if (typeof input !== 'string') return '';
     return input.replace(/[\u0000-\u001F\u007F]/g, '').trim().slice(0, maxLen);
@@ -625,11 +644,479 @@ app.delete('/api/images/:id', authRequired, async (req, res) => {
         return res.json({ success: true });
     } catch (err) {
         console.error('DELETE /api/images/:id error:', err);
-        res.status(500).json({ error: err.message });
+        return res.status(500).json({ error: 'Xoa that bai' });
     }
 });
 
-// --- Start server ---
+app.get('/api/blog/posts', authRequired, async (req, res) => {
+    try {
+        const limit = Math.max(1, Math.min(parseInt(req.query.limit || '20', 10), 100));
+        const offset = Math.max(0, parseInt(req.query.offset || '0', 10));
+
+        const totalResult = await pool.query('SELECT COUNT(*)::int AS total FROM blog_posts');
+        const postsResult = await pool.query(
+            `SELECT
+                p.id,
+                p.user_id,
+                p.title,
+                p.content,
+                p.created_at,
+                p.updated_at,
+                u.username,
+                COALESCE(l.like_count, 0)::int AS like_count,
+                COALESCE(c.comment_count, 0)::int AS comment_count,
+                     COALESCE(pi.images, '[]'::json) AS images,
+                CASE WHEN ul.user_id IS NULL THEN false ELSE true END AS liked_by_me
+             FROM blog_posts p
+             INNER JOIN users u ON u.id = p.user_id
+             LEFT JOIN (
+                SELECT post_id, COUNT(*) AS like_count FROM blog_likes GROUP BY post_id
+             ) l ON l.post_id = p.id
+             LEFT JOIN (
+                SELECT post_id, COUNT(*) AS comment_count FROM blog_comments GROUP BY post_id
+             ) c ON c.post_id = p.id
+                 LEFT JOIN (
+                     SELECT
+                          post_id,
+                          json_agg(
+                                json_build_object(
+                                     'id', id,
+                                     'image_url', image_url,
+                                     'file_name', file_name,
+                                     'file_size', file_size,
+                                     'created_at', created_at
+                                )
+                                ORDER BY created_at DESC
+                          ) AS images
+                     FROM blog_post_images
+                     GROUP BY post_id
+                 ) pi ON pi.post_id = p.id
+             LEFT JOIN blog_likes ul ON ul.post_id = p.id AND ul.user_id = $1
+             ORDER BY p.created_at DESC
+             LIMIT $2 OFFSET $3`,
+            [req.session.userId, limit, offset]
+        );
+
+        return res.json({
+            data: postsResult.rows,
+            meta: { total: totalResult.rows[0].total, limit, offset },
+        });
+    } catch (err) {
+        console.error('GET /api/blog/posts error:', err);
+        return res.status(500).json({ error: 'Khong the tai bai viet' });
+    }
+});
+
+app.post('/api/blog/posts', authRequired, postWriteLimiter, async (req, res) => {
+    try {
+        const title = normalizeText(req.body.title, 255);
+        const content = normalizeText(req.body.content, 10000);
+        if (!title || !content) {
+            return res.status(400).json({ error: 'Title va content la bat buoc' });
+        }
+        if (title.length < 3 || content.length < 10) {
+            return res.status(400).json({ error: 'Noi dung bai viet qua ngan' });
+        }
+
+        const created = await pool.query(
+            `INSERT INTO blog_posts (user_id, title, content)
+             VALUES ($1, $2, $3)
+             RETURNING id, user_id, title, content, created_at, updated_at`,
+            [req.session.userId, title, content]
+        );
+
+        return res.status(201).json({ success: true, data: created.rows[0] });
+    } catch (err) {
+        console.error('POST /api/blog/posts error:', err);
+        return res.status(500).json({ error: 'Khong the tao bai viet' });
+    }
+});
+
+app.put('/api/blog/posts/:id', authRequired, postWriteLimiter, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        if (!Number.isInteger(id)) {
+            return res.status(400).json({ error: 'ID khong hop le' });
+        }
+
+        const title = normalizeText(req.body.title, 255);
+        const content = normalizeText(req.body.content, 10000);
+        if (!title || !content) {
+            return res.status(400).json({ error: 'Title va content la bat buoc' });
+        }
+        if (title.length < 3 || content.length < 10) {
+            return res.status(400).json({ error: 'Noi dung bai viet qua ngan' });
+        }
+
+        const ownerCheck = await pool.query('SELECT user_id FROM blog_posts WHERE id = $1', [id]);
+        if (ownerCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Khong tim thay bai viet' });
+        }
+        if (ownerCheck.rows[0].user_id !== req.session.userId) {
+            return res.status(403).json({ error: 'Ban khong co quyen sua bai viet nay' });
+        }
+
+        const updated = await pool.query(
+            `UPDATE blog_posts
+             SET title = $1, content = $2, updated_at = NOW()
+             WHERE id = $3
+             RETURNING id, user_id, title, content, created_at, updated_at`,
+            [title, content, id]
+        );
+
+        return res.json({ success: true, data: updated.rows[0] });
+    } catch (err) {
+        console.error('PUT /api/blog/posts/:id error:', err);
+        return res.status(500).json({ error: 'Khong the cap nhat bai viet' });
+    }
+});
+
+app.delete('/api/blog/posts/:id', authRequired, postWriteLimiter, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        if (!Number.isInteger(id)) {
+            return res.status(400).json({ error: 'ID khong hop le' });
+        }
+
+        const ownerCheck = await pool.query('SELECT user_id FROM blog_posts WHERE id = $1', [id]);
+        if (ownerCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Khong tim thay bai viet' });
+        }
+        if (ownerCheck.rows[0].user_id !== req.session.userId) {
+            return res.status(403).json({ error: 'Ban khong co quyen xoa bai viet nay' });
+        }
+
+        await pool.query('DELETE FROM blog_posts WHERE id = $1', [id]);
+        return res.json({ success: true });
+    } catch (err) {
+        console.error('DELETE /api/blog/posts/:id error:', err);
+        return res.status(500).json({ error: 'Khong the xoa bai viet' });
+    }
+});
+
+app.post('/api/blog/posts/:postId/images', authRequired, postWriteLimiter, blogUpload.single('image'), async (req, res) => {
+    try {
+        const postId = parseInt(req.params.postId, 10);
+        if (!Number.isInteger(postId)) {
+            return res.status(400).json({ error: 'Post ID khong hop le' });
+        }
+        if (!req.file) {
+            return res.status(400).json({ error: 'Khong co file anh' });
+        }
+
+        const ownerCheck = await pool.query('SELECT user_id FROM blog_posts WHERE id = $1 LIMIT 1', [postId]);
+        if (ownerCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Khong tim thay bai viet' });
+        }
+        if (ownerCheck.rows[0].user_id !== req.session.userId) {
+            return res.status(403).json({ error: 'Ban khong co quyen them anh vao bai viet nay' });
+        }
+
+        const imageUrl = toUploadUrl(req.file.path);
+        if (!imageUrl) {
+            return res.status(500).json({ error: 'Khong the luu duong dan anh bai viet' });
+        }
+
+        const inserted = await pool.query(
+            `INSERT INTO blog_post_images (post_id, user_id, image_url, file_name, file_size)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING id, post_id, user_id, image_url, file_name, file_size, created_at`,
+            [postId, req.session.userId, imageUrl, req.file.filename, req.file.size]
+        );
+
+        return res.status(201).json({ success: true, data: inserted.rows[0] });
+    } catch (err) {
+        console.error('POST /api/blog/posts/:postId/images error:', err);
+        return res.status(500).json({ error: 'Khong the tai anh len bai viet' });
+    }
+});
+
+app.delete('/api/blog/images/:id', authRequired, postWriteLimiter, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        if (!Number.isInteger(id)) {
+            return res.status(400).json({ error: 'Image ID khong hop le' });
+        }
+
+        const record = await pool.query(
+            `SELECT i.id, i.user_id, i.image_url
+             FROM blog_post_images i
+             WHERE i.id = $1
+             LIMIT 1`,
+            [id]
+        );
+        if (record.rows.length === 0) {
+            return res.status(404).json({ error: 'Khong tim thay anh bai viet' });
+        }
+        if (record.rows[0].user_id !== req.session.userId) {
+            return res.status(403).json({ error: 'Ban khong co quyen xoa anh nay' });
+        }
+
+        const imageUrl = record.rows[0].image_url;
+        if (!toUploadAbsolutePath(imageUrl)) {
+            return res.status(400).json({ error: 'Duong dan file khong hop le' });
+        }
+        deleteUploadFile(imageUrl, 'Blog image delete warning');
+
+        await pool.query('DELETE FROM blog_post_images WHERE id = $1', [id]);
+        return res.json({ success: true });
+    } catch (err) {
+        console.error('DELETE /api/blog/images/:id error:', err);
+        return res.status(500).json({ error: 'Khong the xoa anh bai viet' });
+    }
+});
+
+app.get('/api/blog/posts/:postId/comments', authRequired, async (req, res) => {
+    try {
+        const postId = parseInt(req.params.postId, 10);
+        if (!Number.isInteger(postId)) {
+            return res.status(400).json({ error: 'Post ID khong hop le' });
+        }
+
+        const comments = await pool.query(
+            `SELECT c.id, c.post_id, c.user_id, c.content, c.created_at, u.username
+             FROM blog_comments c
+             INNER JOIN users u ON u.id = c.user_id
+             WHERE c.post_id = $1
+             ORDER BY c.created_at ASC`,
+            [postId]
+        );
+        return res.json({ data: comments.rows });
+    } catch (err) {
+        console.error('GET /api/blog/posts/:postId/comments error:', err);
+        return res.status(500).json({ error: 'Khong the tai comment' });
+    }
+});
+
+app.post('/api/blog/posts/:postId/comments', authRequired, commentWriteLimiter, async (req, res) => {
+    try {
+        const postId = parseInt(req.params.postId, 10);
+        if (!Number.isInteger(postId)) {
+            return res.status(400).json({ error: 'Post ID khong hop le' });
+        }
+
+        const content = normalizeText(req.body.content, 2000);
+        if (!content) {
+            return res.status(400).json({ error: 'Comment khong duoc de trong' });
+        }
+        if (content.length < 2) {
+            return res.status(400).json({ error: 'Comment qua ngan' });
+        }
+
+        const exists = await pool.query('SELECT id FROM blog_posts WHERE id = $1', [postId]);
+        if (exists.rows.length === 0) {
+            return res.status(404).json({ error: 'Khong tim thay bai viet' });
+        }
+
+        const inserted = await pool.query(
+            `INSERT INTO blog_comments (post_id, user_id, content)
+             VALUES ($1, $2, $3)
+             RETURNING id, post_id, user_id, content, created_at`,
+            [postId, req.session.userId, content]
+        );
+
+        return res.status(201).json({ success: true, data: inserted.rows[0] });
+    } catch (err) {
+        console.error('POST /api/blog/posts/:postId/comments error:', err);
+        return res.status(500).json({ error: 'Khong the them comment' });
+    }
+});
+
+app.delete('/api/blog/comments/:id', authRequired, commentWriteLimiter, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        if (!Number.isInteger(id)) {
+            return res.status(400).json({ error: 'Comment ID khong hop le' });
+        }
+
+        const ownerCheck = await pool.query('SELECT user_id FROM blog_comments WHERE id = $1', [id]);
+        if (ownerCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Khong tim thay comment' });
+        }
+        if (ownerCheck.rows[0].user_id !== req.session.userId) {
+            return res.status(403).json({ error: 'Ban khong co quyen xoa comment nay' });
+        }
+
+        await pool.query('DELETE FROM blog_comments WHERE id = $1', [id]);
+        return res.json({ success: true });
+    } catch (err) {
+        console.error('DELETE /api/blog/comments/:id error:', err);
+        return res.status(500).json({ error: 'Khong the xoa comment' });
+    }
+});
+
+app.post('/api/blog/posts/:postId/likes', authRequired, likeLimiter, async (req, res) => {
+    try {
+        const postId = parseInt(req.params.postId, 10);
+        if (!Number.isInteger(postId)) {
+            return res.status(400).json({ error: 'Post ID khong hop le' });
+        }
+
+        const postExists = await pool.query('SELECT id FROM blog_posts WHERE id = $1 LIMIT 1', [postId]);
+        if (postExists.rows.length === 0) {
+            return res.status(404).json({ error: 'Khong tim thay bai viet' });
+        }
+
+        const existing = await pool.query(
+            'SELECT id FROM blog_likes WHERE post_id = $1 AND user_id = $2 LIMIT 1',
+            [postId, req.session.userId]
+        );
+
+        let liked = false;
+        if (existing.rows.length > 0) {
+            await pool.query('DELETE FROM blog_likes WHERE id = $1', [existing.rows[0].id]);
+            liked = false;
+        } else {
+            await pool.query('INSERT INTO blog_likes (post_id, user_id) VALUES ($1, $2)', [
+                postId,
+                req.session.userId,
+            ]);
+            liked = true;
+        }
+
+        const countResult = await pool.query(
+            'SELECT COUNT(*)::int AS count FROM blog_likes WHERE post_id = $1',
+            [postId]
+        );
+        return res.json({ success: true, liked, like_count: countResult.rows[0].count });
+    } catch (err) {
+        console.error('POST /api/blog/posts/:postId/likes error:', err);
+        return res.status(500).json({ error: 'Khong the xu ly like' });
+    }
+});
+
+// ═══ ADMIN ROUTES ═══
+
+app.get('/admin/users', requireAdmin, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT u.id, u.username, u.email, u.role, u.created_at, u.updated_at,
+                    COALESCE(img.image_count, 0)::int AS image_count,
+                    COALESCE(bp.post_count, 0)::int AS post_count
+             FROM users u
+             LEFT JOIN (SELECT user_id, COUNT(*) AS image_count FROM cow_images GROUP BY user_id) img ON img.user_id = u.id
+             LEFT JOIN (SELECT user_id, COUNT(*) AS post_count FROM blog_posts GROUP BY user_id) bp ON bp.user_id = u.id
+             ORDER BY u.created_at DESC`
+        );
+        return res.json({ data: result.rows });
+    } catch (err) {
+        console.error('GET /admin/users error:', err);
+        return res.status(500).json({ error: 'Khong the tai danh sach user' });
+    }
+});
+
+app.put('/admin/users/:id/role', requireAdmin, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID khong hop le' });
+
+        const newRole = normalizeText(req.body.role, 20);
+        if (!['admin', 'user'].includes(newRole)) {
+            return res.status(400).json({ error: 'Role khong hop le. Chi chap nhan: admin, user' });
+        }
+
+        if (id === req.session.userId && newRole !== 'admin') {
+            return res.status(400).json({ error: 'Khong the tu ha quyen cua chinh minh' });
+        }
+
+        const updated = await pool.query(
+            `UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2
+             RETURNING id, username, email, role, updated_at`,
+            [newRole, id]
+        );
+        if (updated.rows.length === 0) {
+            return res.status(404).json({ error: 'Khong tim thay user' });
+        }
+
+        return res.json({ success: true, data: updated.rows[0] });
+    } catch (err) {
+        console.error('PUT /admin/users/:id/role error:', err);
+        return res.status(500).json({ error: 'Khong the cap nhat role' });
+    }
+});
+
+app.delete('/admin/users/:id', requireAdmin, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID khong hop le' });
+
+        if (id === req.session.userId) {
+            return res.status(400).json({ error: 'Khong the tu xoa chinh minh' });
+        }
+
+        const check = await pool.query('SELECT id, username FROM users WHERE id = $1', [id]);
+        if (check.rows.length === 0) {
+            return res.status(404).json({ error: 'Khong tim thay user' });
+        }
+
+        await pool.query('DELETE FROM users WHERE id = $1', [id]);
+        return res.json({ success: true, deleted: check.rows[0].username });
+    } catch (err) {
+        console.error('DELETE /admin/users/:id error:', err);
+        return res.status(500).json({ error: 'Khong the xoa user' });
+    }
+});
+
+// Public read-only AI settings (for user-facing display)
+app.get('/api/ai-settings', authRequired, (_req, res) => {
+    return res.json({
+        data: {
+            AI_CONF_THRESHOLD: aiSettings.AI_CONF_THRESHOLD,
+            AI_IOU_THRESHOLD: aiSettings.AI_IOU_THRESHOLD,
+            AI_MAX_DET: aiSettings.AI_MAX_DET,
+            AI_DEVICE: aiSettings.AI_DEVICE,
+            AI_ENABLED: aiSettings.AI_ENABLED,
+        }
+    });
+});
+
+app.get('/admin/ai-settings', requireAdmin, (_req, res) => {
+    return res.json({ data: aiSettings });
+});
+
+app.put('/admin/ai-settings', requireAdmin, (req, res) => {
+    try {
+        if (typeof req.body.AI_DEVICE === 'string') {
+            const d = req.body.AI_DEVICE.trim();
+            if (['cpu', '0', '1', 'cuda', 'cuda:0', 'cuda:1'].includes(d)) aiSettings.AI_DEVICE = d;
+        }
+        if (typeof req.body.AI_CONF_THRESHOLD === 'number') {
+            aiSettings.AI_CONF_THRESHOLD = Math.max(0, Math.min(1, req.body.AI_CONF_THRESHOLD));
+        }
+        if (typeof req.body.AI_IOU_THRESHOLD === 'number') {
+            aiSettings.AI_IOU_THRESHOLD = Math.max(0, Math.min(1, req.body.AI_IOU_THRESHOLD));
+        }
+        if (typeof req.body.AI_MAX_DET === 'number') {
+            aiSettings.AI_MAX_DET = Math.max(1, Math.min(1000, Math.floor(req.body.AI_MAX_DET)));
+        }
+        if (typeof req.body.AI_ENABLED === 'boolean') {
+            aiSettings.AI_ENABLED = req.body.AI_ENABLED;
+        }
+        return res.json({ success: true, data: aiSettings });
+    } catch (err) {
+        console.error('PUT /admin/ai-settings error:', err);
+        return res.status(500).json({ error: 'Khong the cap nhat AI settings' });
+    }
+});
+
+app.get('/admin/stats', requireAdmin, async (req, res) => {
+    try {
+        const [users, images, posts] = await Promise.all([
+            pool.query('SELECT COUNT(*)::int AS count FROM users'),
+            pool.query('SELECT COUNT(*)::int AS count FROM cow_images'),
+            pool.query('SELECT COUNT(*)::int AS count FROM blog_posts'),
+        ]);
+        return res.json({
+            total_users: users.rows[0].count,
+            total_images: images.rows[0].count,
+            total_posts: posts.rows[0].count,
+        });
+    } catch (err) {
+        console.error('GET /admin/stats error:', err);
+        return res.status(500).json({ error: 'Khong the tai thong ke' });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`Cow-Visioning server running at http://localhost:${PORT}`);
 });

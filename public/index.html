@@ -34,6 +34,8 @@
       <li class="topnav-item" data-tab="gallery">Thư viện</li>
       <span class="nav-sep"></span>
       <li class="topnav-item" data-tab="blog">Blog</li>
+      <span class="nav-sep" id="admin-nav-sep" style="display:none"></span>
+      <li class="topnav-item" data-tab="admin" id="admin-nav" style="display:none">Admin</li>
     </ul>
     <div class="topnav-right">
       <div class="topnav-time" id="topnav-clock">--:--:--</div>
@@ -366,6 +368,20 @@
         <h1>Thu thập ảnh</h1>
         <p class="app-sub">Tai len hoac chup truc tiep - AI se tu dong phan tich hanh vi va ve bounding box</p>
 
+        <!-- AI Status Bar (user-facing, read-only) -->
+        <div class="ai-status-bar" id="ai-status-bar">
+          <div class="ai-status-indicator">
+            <span class="ai-status-dot" id="ai-status-dot"></span>
+            <span id="ai-status-text">AI: Dang tai...</span>
+          </div>
+          <div class="ai-status-params" id="ai-status-params">
+            <span class="ai-param" title="Confidence Threshold">Conf: <strong id="ai-user-conf">--</strong></span>
+            <span class="ai-param" title="IOU Threshold">IOU: <strong id="ai-user-iou">--</strong></span>
+            <span class="ai-param" title="Max Detections">Max: <strong id="ai-user-maxdet">--</strong></span>
+            <span class="ai-param" title="Device">Device: <strong id="ai-user-device">--</strong></span>
+          </div>
+        </div>
+
         <!-- Sub tabs -->
         <div class="sub-tabs">
           <button class="sub-tab active" data-sub="upload-panel">Tải ảnh lên</button>
@@ -624,6 +640,90 @@
     </div>
 
 
+    <!-- ══ TAB: ADMIN ══ -->
+    <div id="tab-admin" class="tab-panel app-panel">
+      <div class="app-inner">
+        <h1>Admin Panel</h1>
+        <p class="app-sub">Quan ly nguoi dung va cau hinh AI</p>
+
+        <!-- Stats -->
+        <div id="admin-stats" class="admin-stats-grid"></div>
+
+        <!-- AI Settings Section -->
+        <div class="admin-section">
+          <h2 class="admin-section-title">Cau hinh AI Detection</h2>
+          <div class="admin-ai-grid">
+            <div class="admin-ai-card">
+              <label class="admin-label">AI Enabled</label>
+              <label class="admin-toggle">
+                <input type="checkbox" id="admin-ai-enabled" checked />
+                <span class="admin-toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="admin-ai-card">
+              <label class="admin-label">Device</label>
+              <select id="admin-ai-device" class="admin-select">
+                <option value="cpu">CPU</option>
+                <option value="0">GPU 0</option>
+                <option value="1">GPU 1</option>
+                <option value="cuda">CUDA</option>
+              </select>
+            </div>
+
+            <div class="admin-ai-card">
+              <label class="admin-label">Confidence Threshold</label>
+              <div class="admin-slider-row">
+                <input type="range" id="admin-conf-threshold" min="0" max="1" step="0.01" value="0.25" class="admin-slider" />
+                <span id="admin-conf-value" class="admin-slider-value">0.25</span>
+              </div>
+            </div>
+
+            <div class="admin-ai-card">
+              <label class="admin-label">IOU Threshold</label>
+              <div class="admin-slider-row">
+                <input type="range" id="admin-iou-threshold" min="0" max="1" step="0.01" value="0.45" class="admin-slider" />
+                <span id="admin-iou-value" class="admin-slider-value">0.45</span>
+              </div>
+            </div>
+
+            <div class="admin-ai-card">
+              <label class="admin-label">Max Detections</label>
+              <input type="number" id="admin-max-det" min="1" max="1000" value="50" class="admin-input" />
+            </div>
+          </div>
+          <div class="admin-ai-actions">
+            <button class="btn btn-primary" id="admin-save-ai">Luu thay doi</button>
+            <span id="admin-ai-status" class="status-msg"></span>
+          </div>
+        </div>
+
+        <!-- User Management Section -->
+        <div class="admin-section">
+          <h2 class="admin-section-title">Quan ly nguoi dung</h2>
+          <button class="btn btn-secondary" id="admin-load-users">Tai danh sach</button>
+          <div id="admin-users-status" class="status-msg"></div>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Username</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Anh</th>
+                  <th>Bai viet</th>
+                  <th>Ngay tao</th>
+                  <th>Thao tac</th>
+                </tr>
+              </thead>
+              <tbody id="admin-users-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </main><!-- /page-main -->
 
   <!-- MODAL XOÁ -->
@@ -672,6 +772,7 @@
   <script src="js/gallery.js"></script>
   <script src="js/blog.js"></script>
   <script src="js/export.js"></script>
+  <script src="js/admin.js"></script>
   <script>
     // ── TAB SWITCHING ──
     function switchTab(name) {
@@ -683,6 +784,7 @@
       if (nav) nav.classList.add('active');
       if (name === 'gallery' && typeof Gallery !== 'undefined') Gallery.loadGallery();
       if (name === 'blog' && typeof Blog !== 'undefined') Blog.loadFeed();
+      if (name === 'admin' && typeof Admin !== 'undefined') Admin.loadPanel();
       if (name === 'thu-thap' && typeof Camera !== 'undefined') {
         // Only start camera if camera sub-tab is active
         const camPanel = document.getElementById('camera-panel');
@@ -923,6 +1025,37 @@
       setInterval(checkVersion, CHECK_INTERVAL);
     })();
 
+    // ── USER-FACING AI STATUS ──
+    (function() {
+      async function loadAiStatus() {
+        try {
+          const res = await fetch('/api/ai-settings');
+          const result = await res.json();
+          if (!res.ok) throw new Error(result.error);
+          const s = result.data;
+          const dot = document.getElementById('ai-status-dot');
+          const txt = document.getElementById('ai-status-text');
+          if (s.AI_ENABLED) {
+            dot.classList.add('active');
+            txt.textContent = 'AI: Dang hoat dong';
+          } else {
+            dot.classList.add('inactive');
+            txt.textContent = 'AI: Da tat';
+          }
+          document.getElementById('ai-user-conf').textContent = s.AI_CONF_THRESHOLD.toFixed(2);
+          document.getElementById('ai-user-iou').textContent = s.AI_IOU_THRESHOLD.toFixed(2);
+          document.getElementById('ai-user-maxdet').textContent = s.AI_MAX_DET;
+          document.getElementById('ai-user-device').textContent = s.AI_DEVICE.toUpperCase();
+        } catch (e) {
+          const txt = document.getElementById('ai-status-text');
+          if (txt) txt.textContent = 'AI: Khong the tai cau hinh';
+        }
+      }
+      loadAiStatus();
+      // Refresh every 60s
+      setInterval(loadAiStatus, 60000);
+    })();
+
     // ── INIT APP MODULES ──
     document.addEventListener('DOMContentLoaded', () => {
       if (typeof Upload !== 'undefined') Upload.init();
@@ -930,6 +1063,7 @@
       if (typeof Gallery !== 'undefined') Gallery.init();
       if (typeof Blog !== 'undefined') Blog.init();
       if (typeof Export !== 'undefined') Export.init();
+      if (typeof Admin !== 'undefined') Admin.init();
     });
   </script>
 </body>

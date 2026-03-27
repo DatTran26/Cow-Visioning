@@ -19,9 +19,11 @@ const isLocalDev = process.platform === 'win32';
 const dbHost = process.env.DB_HOST || 'localhost';
 const isRemoteDb = dbHost !== 'localhost' && dbHost !== '127.0.0.1';
 
-// Auto-detect VPS URL if we are working from Local (Windows) to a Remote DB
+// Determine the base URL for images
+// On production VPS: Use empty string to support Relative Paths (Auto Domain/IP)
+// On Local Dev with Remote DB: Use VPS_URL or fallback to http://dbHost (no port 3000 as per Nginx config)
 const IMAGE_BASE_URL = (isLocalDev && isRemoteDb)
-    ? (process.env.VPS_URL || `http://${dbHost}:${PORT}`).replace(/\/+$/, '')
+    ? (process.env.VPS_URL || `http://${dbHost}`).replace(/\/+$/, '')
     : (process.env.VPS_URL || '').replace(/\/+$/, '');
 
 app.use(cors());
@@ -443,7 +445,7 @@ app.post('/auth/logout', (req, res) => {
     });
 });
 
-app.get('/', (_req, res) => {
+app.get(['/', '/dashboard', '/quan-li-iot', '/ai-models', '/dataset-cow', '/tai-khoan', '/cai-dat'], (_req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 

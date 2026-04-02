@@ -624,7 +624,8 @@ app.get('/api/version', (_req, res) => {
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.resolve(UPLOAD_DIR)));
+// Bảo vệ thư mục uploads - Chỉ người đã đăng nhập mới xem được link ảnh trực tiếp
+app.use('/uploads', authRequired, express.static(path.resolve(UPLOAD_DIR)));
 
 app.post('/api/images', authRequired, postWriteLimiter, datasetUpload.single('image'), async (req, res) => {
     try {

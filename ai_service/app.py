@@ -2,32 +2,25 @@ from __future__ import annotations
 
 import base64
 import binascii
-import json
-import os
 import tempfile
-import time
-from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 import cv2
 from fastapi import FastAPI
-from dotenv import load_dotenv
 from pydantic import BaseModel, Field
-from ultralytics import YOLO
 
-
-ROOT_DIR = Path(__file__).resolve().parent.parent
-AI_SERVICE_DIR = Path(__file__).resolve().parent
-SUPPORTED_MODEL_EXTENSIONS = (".pt", ".onnx")
-DEFAULT_MODEL_CANDIDATES = tuple(
-    AI_SERVICE_DIR / "models" / f"boudding_catllte_v1_22es{extension}"
-    for extension in SUPPORTED_MODEL_EXTENSIONS
+from ai_service.config import (
+    get_confidence_threshold,
+    get_device,
+    get_iou_threshold,
+    get_max_det,
+    get_model_format,
+    get_model_name,
+    get_model_path,
 )
-DEFAULT_BEHAVIOR_MAP_PATH = Path(__file__).resolve().with_name("behavior_map.json")
-ALLOWED_BEHAVIORS = {"standing", "lying", "eating", "drinking", "walking", "abnormal"}
-
-load_dotenv(ROOT_DIR / ".env")
+from ai_service.predictor import load_behavior_map, load_predictor, map_behavior
+from ai_service.types import RuntimeOptions
 
 
 class PredictRequest(BaseModel):
@@ -53,64 +46,6 @@ class HealthResponse(BaseModel):
 app = FastAPI(title="Cow Visioning AI Service", version="1.0.0")
 
 
-def resolve_repo_path(configured_path: str) -> Path:
-    path = Path(configured_path).expanduser()
-    if not path.is_absolute():
-        path = ROOT_DIR / path
-    return path.resolve()
-
-
-def get_default_model_path() -> Path:
-    for candidate in DEFAULT_MODEL_CANDIDATES:
-        if candidate.exists():
-            return candidate
-    return DEFAULT_MODEL_CANDIDATES[0]
-
-
-def get_configured_model_path() -> Path:
-    configured = os.getenv("AI_MODEL_PATH")
-    return resolve_repo_path(configured) if configured else get_default_model_path()
-
-
-def get_model_path() -> Path:
-    model_path = get_configured_model_path()
-    if model_path.suffix.lower() not in SUPPORTED_MODEL_EXTENSIONS:
-        supported = ", ".join(SUPPORTED_MODEL_EXTENSIONS)
-        raise ValueError(
-            f"Unsupported model format for {model_path}. Supported formats: {supported}."
-        )
-    return model_path
-
-
-def get_behavior_map_path() -> Path:
-    configured = os.getenv("AI_BEHAVIOR_MAP_PATH", str(DEFAULT_BEHAVIOR_MAP_PATH))
-    return resolve_repo_path(configured)
-
-
-def get_model_name() -> str:
-    return os.getenv("AI_MODEL_NAME", get_configured_model_path().name)
-
-
-def get_model_format() -> str:
-    return get_configured_model_path().suffix.lower().lstrip(".") or "unknown"
-
-
-def get_device() -> str:
-    return os.getenv("AI_DEVICE", "cpu")
-
-
-def get_confidence_threshold() -> float:
-    return float(os.getenv("AI_CONF_THRESHOLD", "0.25"))
-
-
-def get_iou_threshold() -> float:
-    return float(os.getenv("AI_IOU_THRESHOLD", "0.45"))
-
-
-def get_max_det() -> int:
-    return int(os.getenv("AI_MAX_DET", "50"))
-
-
 def resolve_device(payload: PredictRequest) -> str:
     return payload.device.strip() if isinstance(payload.device, str) and payload.device.strip() else get_device()
 
@@ -127,43 +62,13 @@ def resolve_max_det(payload: PredictRequest) -> int:
     return int(payload.max_det) if payload.max_det is not None else get_max_det()
 
 
-@lru_cache(maxsize=1)
-def load_behavior_map() -> dict[str, str]:
-    map_path = get_behavior_map_path()
-    if not map_path.exists():
-        raise FileNotFoundError(f"Behavior map file not found: {map_path}")
-
-    raw = json.loads(map_path.read_text(encoding="utf-8"))
-    mapped: dict[str, str] = {}
-    for key, value in raw.items():
-        normalized_value = str(value).strip().lower()
-        if normalized_value not in ALLOWED_BEHAVIORS:
-            raise ValueError(f"Unsupported mapped behavior: {value}")
-        mapped[str(key).strip().lower()] = normalized_value
-    return mapped
-
-
-@lru_cache(maxsize=1)
-def load_model() -> YOLO:
-    model_path = get_model_path()
-    if not model_path.exists():
-        raise FileNotFoundError(
-            f"Model file not found: {model_path}. Set AI_MODEL_PATH to the correct .pt or .onnx file."
-        )
-    return YOLO(str(model_path))
-
-
-def normalize_label(label: Any) -> str:
-    return str(label).strip().lower().replace(" ", "_")
-
-
-def map_behavior(raw_label: str, behavior_map: dict[str, str]) -> str | None:
-    normalized = normalize_label(raw_label)
-    if normalized in behavior_map:
-        return behavior_map[normalized]
-    if normalized in ALLOWED_BEHAVIORS:
-        return normalized
-    return None
+def build_runtime_options(payload: PredictRequest) -> RuntimeOptions:
+    return RuntimeOptions(
+        device=resolve_device(payload),
+        conf_threshold=resolve_confidence_threshold(payload),
+        iou_threshold=resolve_iou_threshold(payload),
+        max_det=resolve_max_det(payload),
+    )
 
 
 def build_output_path(output_dir: Path, request_id: str, image_path: Path) -> Path:
@@ -198,66 +103,30 @@ def resolve_source_image(payload: PredictRequest) -> tuple[Path, Path | None]:
     raise ValueError("Either image_path or image_base64 is required.")
 
 
-def serialize_box(box: Any) -> dict[str, Any]:
-    x1, y1, x2, y2 = map(float, box.xyxy[0].tolist())
-    confidence = float(box.conf[0])
-    class_id = int(box.cls[0])
-    track_id = int(box.id[0]) if box.id is not None else None
-    return {
-        "x1": round(x1, 2),
-        "y1": round(y1, 2),
-        "x2": round(x2, 2),
-        "y2": round(y2, 2),
-        "width": round(max(0.0, x2 - x1), 2),
-        "height": round(max(0.0, y2 - y1), 2),
-        "confidence": round(confidence, 6),
-        "class_id": class_id,
-        "track_id": track_id,
-    }
+def load_image(image_path: Path) -> Any:
+    image = cv2.imread(str(image_path))
+    if image is None:
+        raise RuntimeError(f"Failed to read image: {image_path}")
+    return image
 
 
 def predict_image(payload: PredictRequest) -> dict[str, Any]:
     image_path, temp_image_path = resolve_source_image(payload)
 
     try:
-        model = load_model()
+        predictor = load_predictor()
         behavior_map = load_behavior_map()
+        prediction = predictor.predict(load_image(image_path), build_runtime_options(payload))
 
-        start = time.perf_counter()
-        results = model.predict(
-            source=str(image_path),
-            conf=resolve_confidence_threshold(payload),
-            iou=resolve_iou_threshold(payload),
-            max_det=resolve_max_det(payload),
-            device=resolve_device(payload),
-            verbose=False,
-        )
-        inference_ms = round((time.perf_counter() - start) * 1000, 2)
-
-        if not results:
-            raise RuntimeError("Model did not return any results.")
-
-        result = results[0]
-        boxes = list(result.boxes) if result.boxes is not None else []
-        if not boxes:
-            raise RuntimeError("No detections found in the image.")
-
-        class_names = result.names or getattr(model, "names", {}) or {}
         detections: list[dict[str, Any]] = []
         mapped_detections: list[dict[str, Any]] = []
 
-        for box in boxes:
-            box_data = serialize_box(box)
-            raw_label = class_names.get(box_data["class_id"], str(box_data["class_id"]))
-            mapped_behavior = map_behavior(raw_label, behavior_map)
-            detection = {
-                **box_data,
-                "raw_label": str(raw_label),
-                "mapped_behavior": mapped_behavior,
-            }
-            detections.append(detection)
+        for detection in prediction.detections:
+            mapped_behavior = map_behavior(detection.raw_label, behavior_map)
+            payload_detection = detection.to_api_dict(mapped_behavior)
+            detections.append(payload_detection)
             if mapped_behavior:
-                mapped_detections.append(detection)
+                mapped_detections.append(payload_detection)
 
         if not mapped_detections:
             raise RuntimeError(
@@ -265,14 +134,14 @@ def predict_image(payload: PredictRequest) -> dict[str, Any]:
             )
 
         primary = max(mapped_detections, key=lambda item: item["confidence"])
-        plotted = result.plot()
+        annotated_image = prediction.annotated_image
 
         annotated_image_path: str | None = None
         annotated_image_base64: str | None = None
         annotated_image_ext: str | None = None
 
         if payload.return_annotated_image_base64:
-            ok, encoded = cv2.imencode(".jpg", plotted)
+            ok, encoded = cv2.imencode(".jpg", annotated_image)
             if not ok:
                 raise RuntimeError("Failed to encode annotated image")
             annotated_image_base64 = base64.b64encode(encoded.tobytes()).decode("ascii")
@@ -282,7 +151,7 @@ def predict_image(payload: PredictRequest) -> dict[str, Any]:
                 raise ValueError("output_dir is required when returning a file path")
             output_dir = Path(payload.output_dir).expanduser().resolve()
             annotated_path = build_output_path(output_dir, payload.request_id, image_path)
-            if not cv2.imwrite(str(annotated_path), plotted):
+            if not cv2.imwrite(str(annotated_path), annotated_image):
                 raise RuntimeError(f"Failed to write annotated image: {annotated_path}")
             annotated_image_path = str(annotated_path)
             annotated_image_ext = annotated_path.suffix or ".jpg"
@@ -306,7 +175,7 @@ def predict_image(payload: PredictRequest) -> dict[str, Any]:
             "detections": detections,
             "model_name": get_model_name(),
             "model_format": get_model_format(),
-            "inference_ms": inference_ms,
+            "inference_ms": prediction.inference_ms,
             "error": None,
         }
     finally:

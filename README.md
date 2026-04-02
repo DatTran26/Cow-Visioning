@@ -68,7 +68,7 @@ A web application for managing cow image datasets for AI training. Capture, uplo
 |-----------|------------|
 | Frontend | HTML/CSS/JavaScript (vanilla) |
 | Backend | Node.js + Express |
-| AI Service | Python + FastAPI + YOLOv8 (.pt/.onnx) |
+| AI Service | Python + FastAPI + selectable `.pt` / `.onnx` inference backends |
 | Database | PostgreSQL |
 | File Upload | Multer (local storage) |
 | Web Server | Nginx (reverse proxy + SSL) |
@@ -239,7 +239,9 @@ When `AI_ENABLED=true`, uploaded images are sent to the YOLO AI service for dete
 AI_ENABLED=true
 AI_SERVICE_URL=http://127.0.0.1:8001
 AI_TIMEOUT_MS=20000
+AI_MODEL_BACKEND=auto
 AI_MODEL_PATH=./ai_service/models/boudding_catllte_v1_22es.pt  # or .onnx
+# AI_CLASS_NAMES_PATH=./ai_service/class_names.json  # Optional for ONNX without embedded metadata
 AI_DEVICE=cpu
 AI_CONF_THRESHOLD=0.25
 ```
@@ -268,7 +270,9 @@ TOTP_APP_NAME=Cow-Visioning
 AI_ENABLED=true
 AI_SERVICE_URL=http://127.0.0.1:8001
 AI_TIMEOUT_MS=20000
+AI_MODEL_BACKEND=auto
 AI_MODEL_PATH=./ai_service/models/boudding_catllte_v1_22es.pt  # or .onnx
+# AI_CLASS_NAMES_PATH=./ai_service/class_names.json  # Optional for ONNX without embedded metadata
 AI_DEVICE=cpu
 AI_CONF_THRESHOLD=0.25
 AI_IOU_THRESHOLD=0.45

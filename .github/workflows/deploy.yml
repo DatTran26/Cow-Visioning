@@ -22,20 +22,57 @@ jobs:
           ssh -i ~/.ssh/deploy_key ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
           set -e
 
-          echo "=== Pulling latest code ==="
-          cd /home/${{ secrets.VPS_USER }}/myapp
-          git fetch origin main
-          git reset --hard origin/main
+          APP_DIR="/home/${{ secrets.VPS_USER }}/myapp"
+          STAGING_DIR="/home/${{ secrets.VPS_USER }}/myapp_staging"
+          BACKUP_DIR="/home/${{ secrets.VPS_USER }}/myapp_backup_$(date +%Y%m%d_%H%M%S)"
+
+          echo "=== Pulling latest code into staging ==="
+          rm -rf "$STAGING_DIR"
+          git clone --branch main --depth 1 git@github.com:DatTran26/Cow-Visioning.git "$STAGING_DIR"
+
+          echo "=== Preserving runtime data ==="
+          if [ -d "$APP_DIR" ]; then
+            mv "$APP_DIR" "$BACKUP_DIR"
+          fi
+
+          mv "$STAGING_DIR" "$APP_DIR"
+          mkdir -p "$APP_DIR/uploads" "$APP_DIR/logs"
+
+          if [ -f "$BACKUP_DIR/.env" ]; then
+            cp "$BACKUP_DIR/.env" "$APP_DIR/.env"
+          fi
+          if [ -d "$BACKUP_DIR/uploads" ]; then
+            rm -rf "$APP_DIR/uploads"
+            mv "$BACKUP_DIR/uploads" "$APP_DIR/uploads"
+          fi
+          if [ -d "$BACKUP_DIR/logs" ]; then
+            rm -rf "$APP_DIR/logs"
+            mv "$BACKUP_DIR/logs" "$APP_DIR/logs"
+          fi
+          if [ -d "$BACKUP_DIR/.venv" ]; then
+            rm -rf "$APP_DIR/.venv"
+            mv "$BACKUP_DIR/.venv" "$APP_DIR/.venv"
+          fi
+
+          cd "$APP_DIR"
 
           echo "=== Installing dependencies ==="
           npm install --production
 
-          echo "=== Running database migrations ==="
-          export $(grep -E '^DB_PASSWORD=' /home/${{ secrets.VPS_USER }}/myapp/.env)
-          PGPASSWORD=$DB_PASSWORD psql -U cowapp -d cow_visioning -f /home/${{ secrets.VPS_USER }}/myapp/schema.sql
+          echo "=== Installing AI service dependencies ==="
+          [ -d .venv ] || python3 -m venv .venv
+          ./.venv/bin/pip install --upgrade pip
+          ./.venv/bin/pip install -r ai_service/requirements.txt
 
-          echo "=== Restarting server ==="
-          pm2 restart cow-visioning || pm2 start ecosystem.config.js
+          echo "=== Running database migrations ==="
+          export $(grep -E '^DB_PASSWORD=' "$APP_DIR/.env")
+          PGPASSWORD=$DB_PASSWORD psql -U cowapp -d cow_visioning -f "$APP_DIR/schema.sql"
+
+          echo "=== Restarting services ==="
+          pm2 startOrReload ecosystem.config.js --update-env
+
+          echo "=== Cleaning old backups (best effort) ==="
+          ls -dt /home/${{ secrets.VPS_USER }}/myapp_backup_* 2>/dev/null | tail -n +3 | xargs -r rm -rf
 
           echo "=== Deployment successful ==="
           pm2 status

@@ -111,6 +111,18 @@ npm run start:ai
 # AI runs at http://127.0.0.1:8001
 ```
 
+**Frontend-only local test against VPS:**
+```bash
+cp .env.local-vps-test.example .env
+# Edit PUBLIC_API_BASE_URL to your VPS origin
+npm run start:frontend
+# Visit http://localhost:3000
+```
+
+This mode only serves the local HTML/CSS/JS bundle. API, auth, upload, and gallery
+requests go to the VPS defined by `PUBLIC_API_BASE_URL`, so real users, images, and
+gallery data stay centralized on the VPS.
+
 ### VPS Deployment
 
 **👉 For VPS beginners:** Start with [VPS_QUICKSTART.md](./VPS_QUICKSTART.md)
@@ -261,9 +273,11 @@ DB_PASSWORD=your_secure_password
 
 # Storage
 UPLOAD_DIR=./uploads
+IMAGE_BASE_URL=
 
 # Auth
 SESSION_SECRET=your_random_64_char_secret_here
+FRONTEND_PORT=3000
 PUBLIC_API_BASE_URL=
 CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 SESSION_COOKIE_SAMESITE=none
@@ -289,13 +303,22 @@ If you want a local frontend to always send uploads to the VPS API, set:
 PUBLIC_API_BASE_URL=https://your-vps-domain
 ```
 
-on the frontend server, and allow that frontend origin on the VPS:
+on the frontend server, run:
+
+```bash
+npm run start:frontend
+```
+
+and allow that frontend origin on the VPS:
 
 ```env
 CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 SESSION_COOKIE_SAMESITE=none
 SESSION_COOKIE_SECURE=true
 ```
+
+Also set `IMAGE_BASE_URL` on the VPS so gallery images returned by the API resolve
+back to the VPS instead of the local frontend origin.
 
 ## 🚢 Deployment
 

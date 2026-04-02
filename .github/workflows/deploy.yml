@@ -24,7 +24,6 @@ jobs:
 
           APP_DIR="/home/${{ secrets.VPS_USER }}/myapp"
           STAGING_DIR="/home/${{ secrets.VPS_USER }}/myapp_staging"
-          BACKUP_DIR="/home/${{ secrets.VPS_USER }}/myapp_backup_$(date +%Y%m%d_%H%M%S)"
           VENV_DIR="/home/${{ secrets.VPS_USER }}/.venvs/cow-visioning"
           export HOME="/home/${{ secrets.VPS_USER }}"
           export PM2_HOME="$HOME/.pm2"
@@ -35,29 +34,31 @@ jobs:
 
           echo "=== Preserving runtime data ==="
           if [ -d "$APP_DIR" ]; then
-            mv "$APP_DIR" "$BACKUP_DIR"
+            if [ -f "$APP_DIR/.env" ]; then
+              cp "$APP_DIR/.env" "$STAGING_DIR/.env"
+            fi
+            if [ -d "$APP_DIR/uploads" ]; then
+              rm -rf "$STAGING_DIR/uploads"
+              cp -a "$APP_DIR/uploads" "$STAGING_DIR/uploads"
+            fi
+            if [ -d "$APP_DIR/logs" ]; then
+              rm -rf "$STAGING_DIR/logs"
+              cp -a "$APP_DIR/logs" "$STAGING_DIR/logs"
+            fi
+            mkdir -p "$(dirname "$VENV_DIR")"
+            if [ -d "$APP_DIR/.venv" ] && [ ! -L "$APP_DIR/.venv" ] && [ ! -e "$VENV_DIR" ]; then
+              mv "$APP_DIR/.venv" "$VENV_DIR"
+            fi
+            rm -rf "$APP_DIR"
           fi
 
           mv "$STAGING_DIR" "$APP_DIR"
           mkdir -p "$APP_DIR/uploads" "$APP_DIR/logs"
 
-          if [ -f "$BACKUP_DIR/.env" ]; then
-            cp "$BACKUP_DIR/.env" "$APP_DIR/.env"
-          fi
-          if [ -d "$BACKUP_DIR/uploads" ]; then
-            rm -rf "$APP_DIR/uploads"
-            mv "$BACKUP_DIR/uploads" "$APP_DIR/uploads"
-          fi
-          if [ -d "$BACKUP_DIR/logs" ]; then
-            rm -rf "$APP_DIR/logs"
-            mv "$BACKUP_DIR/logs" "$APP_DIR/logs"
-          fi
-          mkdir -p "$(dirname "$VENV_DIR")"
-          if [ -d "$BACKUP_DIR/.venv" ] && [ ! -e "$VENV_DIR" ]; then
-            mv "$BACKUP_DIR/.venv" "$VENV_DIR"
-          fi
-
           cd "$APP_DIR"
+
+          echo "=== Cleaning legacy backups (best effort) ==="
+          rm -rf /home/${{ secrets.VPS_USER }}/myapp_backup_*
 
           echo "=== Installing dependencies ==="
           npm install --production
@@ -95,9 +96,6 @@ jobs:
 
           echo "=== Restarting services ==="
           pm2 startOrReload ecosystem.config.js --update-env
-
-          echo "=== Cleaning old backups (best effort) ==="
-          ls -dt /home/${{ secrets.VPS_USER }}/myapp_backup_* 2>/dev/null | tail -n +3 | xargs -r rm -rf
 
           echo "=== Deployment successful ==="
           pm2 status

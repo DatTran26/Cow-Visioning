@@ -8,3 +8,5 @@ logs/
 models/*.pt
 ai_service/.venv/
 ai_service/__pycache__/
+__pycache__/
+*.py[cod]

@@ -6,6 +6,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["server.js"],
       "port": 3000
+    },
+    {
+      "name": "static-preview",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["-e", "require('child_process').execSync('npx serve public -l 3001', {stdio:'inherit'})"],
+      "port": 3001
     }
   ]
 }

@@ -15,6 +15,17 @@ const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const isLocalDev = process.platform === 'win32';
+const dbHost = process.env.DB_HOST || 'localhost';
+const isRemoteDb = dbHost !== 'localhost' && dbHost !== '127.0.0.1';
+
+// Determine the base URL for images
+// On production VPS: Use empty string to support Relative Paths (Auto Domain/IP)
+// On Local Dev with Remote DB: Use VPS_URL or fallback to http://dbHost (no port 3000 as per Nginx config)
+const IMAGE_BASE_URL = (isLocalDev && isRemoteDb)
+    ? (process.env.VPS_URL || `http://${dbHost}`).replace(/\/+$/, '')
+    : (process.env.VPS_URL || '').replace(/\/+$/, '');
+
 app.use(cors());
 
 let APP_VERSION = Date.now().toString();
@@ -28,13 +39,26 @@ const pool = new Pool({
     database: process.env.DB_NAME || 'cow_visioning',
     user: process.env.DB_USER || 'cowapp',
     password: process.env.DB_PASSWORD || '',
-    connectionTimeoutMillis: 1000,
+    connectionTimeoutMillis: 10000, // Tăng lên 10 giây cho kết nối từ xa
+    idleTimeoutMillis: 30000,
+    max: 10,
+});
+
+// Kiểm tra kết nối khi khởi động
+pool.query('SELECT NOW()', (err, res) => {
+    if (err) {
+        console.error('❌ LỖI KẾT NỐI DATABASE:', err.message);
+        console.log('👉 Hãy kiểm tra IP:', process.env.DB_HOST, 'và Firewall của VPS.');
+    } else {
+        console.log('✅ Đã kết nối Database trên VPS thành công lúc:', res.rows[0].now);
+    }
 });
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || './uploads';
 const UPLOAD_ROOT = path.resolve(UPLOAD_DIR);
 const AI_ENABLED = process.env.AI_ENABLED !== 'false';
-const AI_SERVICE_URL = (process.env.AI_SERVICE_URL || 'http://127.0.0.1:8001').replace(/\/+$/, '');
+const AI_DEFAULT_URL = (isLocalDev && isRemoteDb) ? `http://${dbHost}:8001` : 'http://127.0.0.1:8001';
+const AI_SERVICE_URL = (process.env.AI_SERVICE_URL || AI_DEFAULT_URL).replace(/\/+$/, '');
 const AI_TIMEOUT_MS = parseInt(process.env.AI_TIMEOUT_MS || '20000', 10);
 
 function ensureDir(dirPath) {
@@ -190,13 +214,18 @@ function deleteUploadFile(uploadUrl, warningPrefix) {
     }
 }
 
+function toFullUrl(url) {
+    if (!url || url.startsWith('http') || !IMAGE_BASE_URL) return url;
+    return `${IMAGE_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
 function normalizeImageRecord(record) {
     const displayImageUrl = record.annotated_image_url || record.image_url || record.original_image_url || null;
     return {
         ...record,
-        image_url: displayImageUrl,
-        original_image_url: record.original_image_url || record.image_url || null,
-        annotated_image_url: record.annotated_image_url || null,
+        image_url: toFullUrl(displayImageUrl),
+        original_image_url: toFullUrl(record.original_image_url || record.image_url || null),
+        annotated_image_url: toFullUrl(record.annotated_image_url || null),
     };
 }
 
@@ -297,7 +326,7 @@ app.get('/auth/login', (req, res) => {
     if (req.session && req.session.userId) {
         return res.redirect('/');
     }
-    return res.sendFile(path.join(__dirname, 'public', 'auth', 'login.html'));
+    return res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.get('/auth/register', (req, res) => {
@@ -416,7 +445,7 @@ app.post('/auth/logout', (req, res) => {
     });
 });
 
-app.get('/', requireAuthPage, (_req, res) => {
+app.get(['/', '/dashboard', '/quan-li-iot', '/ai-models', '/dataset-cow', '/tai-khoan', '/cai-dat'], (_req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
@@ -450,22 +479,25 @@ app.post('/api/images', authRequired, postWriteLimiter, datasetUpload.single('im
             return res.status(500).json({ error: 'Khong the luu duong dan anh goc' });
         }
 
-        let prediction;
-        try {
-            prediction = await requestAiPrediction({
-                imagePath: req.file.path,
-                outputDir: getAnnotatedOutputDir(req.file.path),
-                requestId: path.parse(req.file.filename).name || crypto.randomUUID(),
-            });
-        } catch (aiErr) {
-            console.error('POST /api/images AI error:', aiErr);
-            return res.status(502).json({
-                error: 'AI phan tich that bai',
-                details: aiErr.message,
-                original_image_url: originalImageUrl,
-                ai_status: 'failed',
-            });
+        // Try AI prediction, fallback to saving without AI if it fails
+        let prediction = null;
+        let aiStatus = 'skipped';
+        if (aiSettings.AI_ENABLED) {
+            try {
+                prediction = await requestAiPrediction({
+                    imagePath: req.file.path,
+                    outputDir: getAnnotatedOutputDir(req.file.path),
+                    requestId: path.parse(req.file.filename).name || crypto.randomUUID(),
+                });
+                aiStatus = 'completed';
+            } catch (aiErr) {
+                console.error('POST /api/images AI error (fallback to save without AI):', aiErr.message);
+                aiStatus = 'failed';
+            }
         }
+
+        const behaviorValue = prediction ? prediction.predicted_behavior : (req.body.behavior || 'standing');
+        const annotatedUrl = prediction ? prediction.annotated_image_url : null;
 
         const result = await pool.query(
             `INSERT INTO cow_images (
@@ -513,22 +545,22 @@ app.post('/api/images', authRequired, postWriteLimiter, datasetUpload.single('im
             [
                 req.session.userId,
                 cowId,
-                prediction.predicted_behavior,
+                behaviorValue,
                 barnArea || null,
                 capturedAt.toISOString(),
                 notes || null,
-                prediction.annotated_image_url,
+                annotatedUrl || originalImageUrl,
                 originalImageUrl,
-                prediction.annotated_image_url,
+                annotatedUrl,
                 req.file.filename,
                 req.file.size,
-                typeof prediction.confidence === 'number' ? prediction.confidence : null,
-                prediction.primary_bbox || null,
-                Number.isInteger(prediction.detection_count) ? prediction.detection_count : 0,
-                prediction,
-                normalizeText(prediction.model_name || process.env.AI_MODEL_NAME || '', 255) || null,
-                typeof prediction.inference_ms === 'number' ? prediction.inference_ms : null,
-                'completed',
+                prediction && typeof prediction.confidence === 'number' ? prediction.confidence : null,
+                prediction ? (prediction.primary_bbox || null) : null,
+                prediction && Number.isInteger(prediction.detection_count) ? prediction.detection_count : 0,
+                prediction || null,
+                prediction ? (normalizeText(prediction.model_name || process.env.AI_MODEL_NAME || '', 255) || null) : null,
+                prediction && typeof prediction.inference_ms === 'number' ? prediction.inference_ms : null,
+                aiStatus,
             ]
         );
 
@@ -556,7 +588,8 @@ app.get('/api/images', authRequired, async (req, res) => {
         const cowId = normalizeText(req.query.cow_id || '', 100);
         const behavior = normalizeText(req.query.behavior || '', 50);
         const barnArea = normalizeText(req.query.barn_area || '', 200);
-        const conditions = ['user_id = $1'];
+        // Show user's own images + legacy images (user_id IS NULL)
+        const conditions = ['(user_id = $1 OR user_id IS NULL)'];
         const params = [req.session.userId];
         let idx = 2;
 
@@ -601,8 +634,33 @@ app.get('/api/images', authRequired, async (req, res) => {
         const result = await pool.query(sql, params);
         return res.json({ data: result.rows.map(normalizeImageRecord) });
     } catch (err) {
-        console.error('GET /api/images error:', err);
-        return res.status(500).json({ error: 'Khong the tai danh sach anh' });
+        console.error('GET /api/images error:', err.message);
+        return res.status(500).json({ error: 'Khong the tai danh sach anh', details: err.message });
+    }
+});
+
+app.put('/api/images/:id/label', authRequired, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        const behavior = normalizeText(req.body.behavior, 50).toLowerCase();
+        
+        if (!id || !behavior) {
+            return res.status(400).json({ error: 'Thieu ID hoac nhãn hanh vi' });
+        }
+
+        const result = await pool.query(
+            'UPDATE cow_images SET behavior = $1 WHERE id = $2 AND (user_id = $3 OR (SELECT role FROM users WHERE id = $3) = \'admin\') RETURNING id',
+            [behavior, id, req.session.userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Khong tim thay anh hoac khong co quyen' });
+        }
+
+        return res.json({ success: true });
+    } catch (err) {
+        console.error('PUT /api/images/:id/label error:', err);
+        return res.status(500).json({ error: 'Loi khi cap nhat nhan' });
     }
 });
 
@@ -698,7 +756,13 @@ app.get('/api/blog/posts', authRequired, async (req, res) => {
         );
 
         return res.json({
-            data: postsResult.rows,
+            data: postsResult.rows.map(post => ({
+                ...post,
+                images: (Array.isArray(post.images) ? post.images : []).map(img => ({
+                    ...img,
+                    image_url: toFullUrl(img.image_url)
+                }))
+            })),
             meta: { total: totalResult.rows[0].total, limit, offset },
         });
     } catch (err) {
@@ -1000,8 +1064,8 @@ app.get('/admin/users', requireAdmin, async (req, res) => {
         );
         return res.json({ data: result.rows });
     } catch (err) {
-        console.error('GET /admin/users error:', err);
-        return res.status(500).json({ error: 'Khong the tai danh sach user' });
+        console.error('GET /admin/users error:', err.message);
+        return res.status(500).json({ error: 'Khong the tai danh sach user', details: err.message });
     }
 });
 
@@ -1119,5 +1183,16 @@ app.get('/admin/stats', requireAdmin, async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Cow-Visioning server running at http://localhost:${PORT}`);
+}).on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.error(`❌ LỖI: Port ${PORT} đang bị chiếm dụng.`);
+        console.log(`👉 Cách sửa:`);
+        console.log(`   1. Chạy: netstat -ano | findstr :${PORT}`);
+        console.log(`   2. Tìm PID ở cột cuối cùng`);
+        console.log(`   3. Chạy: taskkill /F /PID <PID_đã_tìm>`);
+        process.exit(1);
+    } else {
+        throw err;
+    }
 });
 

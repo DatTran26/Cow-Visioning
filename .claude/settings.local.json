@@ -12,7 +12,9 @@
       "Bash(timeout 5 node -e \":*)",
       "mcp__Claude_Preview__preview_start",
       "Bash(nslookup pctsv.io.vn 8.8.8.8)",
-      "Bash(gh auth:*)"
+      "Bash(gh auth:*)",
+      "Bash(ls \"D:\\\\Projects\\\\Git Public\\\\Cow-Visioning\"/*.md)",
+      "Bash(find 'D:\\\\Projects\\\\Git Public\\\\Cow-Visioning' -maxdepth 1 -name *.sql -o -name *schema* -o -name *migration*)"
     ]
   }
 }

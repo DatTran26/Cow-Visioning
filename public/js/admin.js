@@ -68,7 +68,7 @@ const Admin = (() => {
         try {
             const res = await fetch('/admin/users');
             const result = await res.json();
-            if (!res.ok) throw new Error(result.error);
+            if (!res.ok) throw new Error(result.details || result.error);
 
             const users = result.data || [];
             status.textContent = `Tim thay ${users.length} nguoi dung`;

@@ -80,6 +80,7 @@ const Upload = (() => {
         const barnArea = document.getElementById('barn-area').value.trim();
         const capturedAt = document.getElementById('captured-at').value;
         const notes = document.getElementById('notes').value.trim();
+        const behavior = document.getElementById('upload-behavior').value;
 
         if (!cowId) {
             showStatus(status, 'Vui long nhap ma con bo', 'error');
@@ -108,6 +109,7 @@ const Upload = (() => {
                 formData.append('barn_area', barnArea);
                 formData.append('captured_at', capturedAt || new Date().toISOString());
                 formData.append('notes', notes);
+                formData.append('behavior', behavior);
 
                 const res = await fetch(`${API_BASE}/api/images`, {
                     method: 'POST',

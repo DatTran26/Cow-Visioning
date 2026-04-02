@@ -395,6 +395,16 @@
                 id="cow-id" placeholder="VD: BO-001" required /></div>
             <div class="form-group"><label for="barn-area">Khu vực chuồng</label><input type="text" id="barn-area"
                 placeholder="VD: Chuồng A1" /></div>
+            <div class="form-group"><label for="upload-behavior">Hành vi (nếu AI tắt)</label>
+              <select id="upload-behavior">
+                <option value="standing">Đứng</option>
+                <option value="lying">Nằm</option>
+                <option value="eating">Ăn</option>
+                <option value="drinking">Uống nước</option>
+                <option value="walking">Đi lại</option>
+                <option value="abnormal">Bất thường</option>
+              </select>
+            </div>
             <div class="form-group"><label for="captured-at">Thời gian chụp</label><input type="datetime-local"
                 id="captured-at" /></div>
             <div class="form-group full-width"><label for="notes">Ghi chú</label><textarea id="notes" rows="2"

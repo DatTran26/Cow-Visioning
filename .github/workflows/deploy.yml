@@ -25,6 +25,8 @@ jobs:
           APP_DIR="/home/${{ secrets.VPS_USER }}/myapp"
           STAGING_DIR="/home/${{ secrets.VPS_USER }}/myapp_staging"
           BACKUP_DIR="/home/${{ secrets.VPS_USER }}/myapp_backup_$(date +%Y%m%d_%H%M%S)"
+          export HOME="/home/${{ secrets.VPS_USER }}"
+          export PM2_HOME="$HOME/.pm2"
 
           echo "=== Pulling latest code into staging ==="
           rm -rf "$STAGING_DIR"
@@ -49,10 +51,6 @@ jobs:
             rm -rf "$APP_DIR/logs"
             mv "$BACKUP_DIR/logs" "$APP_DIR/logs"
           fi
-          if [ -d "$BACKUP_DIR/.venv" ]; then
-            rm -rf "$APP_DIR/.venv"
-            mv "$BACKUP_DIR/.venv" "$APP_DIR/.venv"
-          fi
 
           cd "$APP_DIR"
 
@@ -60,7 +58,8 @@ jobs:
           npm install --production
 
           echo "=== Installing AI service dependencies ==="
-          if [ ! -x .venv/bin/python ]; then
+          if [ ! -x .venv/bin/python ] || [ ! -x .venv/bin/pip ]; then
+            rm -rf .venv
             if ! python3 -m venv .venv; then
               echo "=== python3 venv support missing; attempting to install it ==="
               if command -v apt-get >/dev/null 2>&1; then
@@ -80,8 +79,8 @@ jobs:
               fi
             fi
           fi
-          ./.venv/bin/pip install --upgrade pip
-          ./.venv/bin/pip install -r ai_service/requirements.txt
+          ./.venv/bin/python -m pip install --upgrade pip
+          ./.venv/bin/python -m pip install -r ai_service/requirements.txt
 
           echo "=== Running database migrations ==="
           export $(grep -E '^DB_PASSWORD=' "$APP_DIR/.env")

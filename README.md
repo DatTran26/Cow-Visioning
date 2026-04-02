@@ -264,6 +264,10 @@ UPLOAD_DIR=./uploads
 
 # Auth
 SESSION_SECRET=your_random_64_char_secret_here
+PUBLIC_API_BASE_URL=
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+SESSION_COOKIE_SAMESITE=none
+SESSION_COOKIE_SECURE=true
 TOTP_APP_NAME=Cow-Visioning
 
 # AI Service (optional)
@@ -277,6 +281,20 @@ AI_DEVICE=cpu
 AI_CONF_THRESHOLD=0.25
 AI_IOU_THRESHOLD=0.45
 AI_MAX_DET=50
+```
+
+If you want a local frontend to always send uploads to the VPS API, set:
+
+```env
+PUBLIC_API_BASE_URL=https://your-vps-domain
+```
+
+on the frontend server, and allow that frontend origin on the VPS:
+
+```env
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+SESSION_COOKIE_SAMESITE=none
+SESSION_COOKIE_SECURE=true
 ```
 
 ## 🚢 Deployment

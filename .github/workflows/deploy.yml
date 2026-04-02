@@ -24,18 +24,34 @@ jobs:
 
           echo "=== Pulling latest code ==="
           cd /home/${{ secrets.VPS_USER }}/myapp
+          mkdir -p uploads logs
+
+          echo "=== Preparing working tree ==="
+          find . -mindepth 1 -maxdepth 1 \
+            ! -name '.git' \
+            ! -name '.env' \
+            ! -name 'uploads' \
+            ! -name 'logs' \
+            ! -name '.venv' \
+            -exec rm -rf {} +
+
           git fetch origin main
           git reset --hard origin/main
 
           echo "=== Installing dependencies ==="
           npm install --production
 
+          echo "=== Installing AI service dependencies ==="
+          python3 -m venv .venv
+          ./.venv/bin/pip install --upgrade pip
+          ./.venv/bin/pip install -r ai_service/requirements.txt
+
           echo "=== Running database migrations ==="
           export $(grep -E '^DB_PASSWORD=' /home/${{ secrets.VPS_USER }}/myapp/.env)
           PGPASSWORD=$DB_PASSWORD psql -U cowapp -d cow_visioning -f /home/${{ secrets.VPS_USER }}/myapp/schema.sql
 
-          echo "=== Restarting server ==="
-          pm2 restart cow-visioning || pm2 start ecosystem.config.js
+          echo "=== Restarting services ==="
+          pm2 startOrReload ecosystem.config.js --update-env
 
           echo "=== Deployment successful ==="
           pm2 status

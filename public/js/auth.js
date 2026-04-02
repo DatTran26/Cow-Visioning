@@ -7,6 +7,20 @@
     const errorEl = document.getElementById('auth-error');
     const submitBtn = document.getElementById('auth-submit');
     const mode = form ? form.dataset.mode : 'login';
+    const searchParams = new URLSearchParams(window.location.search);
+
+    function sanitizeNext(nextValue) {
+        if (typeof nextValue !== 'string') {
+            return null;
+        }
+
+        const trimmed = nextValue.trim();
+        if (!trimmed.startsWith('/') || trimmed.startsWith('//')) {
+            return null;
+        }
+
+        return trimmed;
+    }
 
     function showError(msg) {
         if (errorEl) {
@@ -21,6 +35,23 @@
         }
     }
 
+    function hydrateSwitchLinks() {
+        const nextUrl = sanitizeNext(searchParams.get('next'));
+        if (!nextUrl) {
+            return;
+        }
+
+        document.querySelectorAll('a[href="/auth/login"]').forEach((anchor) => {
+            anchor.href = `/auth/login?next=${encodeURIComponent(nextUrl)}`;
+        });
+
+        document.querySelectorAll('a[href="/auth/register"]').forEach((anchor) => {
+            anchor.href = `/auth/register?next=${encodeURIComponent(nextUrl)}`;
+        });
+    }
+
+    hydrateSwitchLinks();
+
     if (form && form.id === 'auth-form') {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -28,6 +59,7 @@
 
             const username = usernameInput ? usernameInput.value.trim() : '';
             const password = passwordInput ? passwordInput.value : '';
+            const nextUrl = sanitizeNext(searchParams.get('next'));
             if (!username || !password) {
                 showError('Vui long nhap day du thong tin');
                 return;
@@ -35,7 +67,7 @@
 
             let payload = { username, password };
             let endpoint = '/auth/login';
-            let successRedirect = '/';
+            let successRedirect = nextUrl || '/?tab=thu-thap';
             let idleBtnText = 'Dang nhap';
 
             if (mode === 'register') {
@@ -60,7 +92,9 @@
                     password,
                     password_confirm: passwordConfirm,
                 };
-                successRedirect = '/auth/login';
+                successRedirect = nextUrl
+                    ? `/auth/login?next=${encodeURIComponent(nextUrl)}`
+                    : '/auth/login';
                 idleBtnText = 'Dang ky';
             }
 

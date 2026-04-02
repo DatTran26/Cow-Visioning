@@ -1,21 +1,31 @@
 const Admin = (() => {
     let currentRole = null;
 
+    function syncSessionState() {
+        const currentUser = window.AppSession?.getCurrentUser?.() || null;
+        currentRole = currentUser?.role || null;
+
+        const adminNav = document.getElementById('admin-nav');
+        const adminNavSep = document.getElementById('admin-nav-sep');
+        const adminTab = document.getElementById('tab-admin');
+        const showAdmin = currentRole === 'admin';
+
+        if (adminNav) {
+            adminNav.style.display = showAdmin ? '' : 'none';
+        }
+
+        if (adminNavSep) {
+            adminNavSep.style.display = showAdmin ? '' : 'none';
+        }
+
+        if (adminTab) {
+            adminTab.style.display = showAdmin ? '' : 'none';
+        }
+    }
+
     function init() {
-        // Check if user is admin, show/hide admin tab
-        fetch('/auth/me').then(r => r.json()).then(data => {
-            currentRole = data.user?.role;
-            const adminNav = document.getElementById('admin-nav');
-            const adminTab = document.getElementById('tab-admin');
-            if (currentRole === 'admin' && adminNav) {
-                adminNav.style.display = '';
-            } else if (adminNav) {
-                adminNav.style.display = 'none';
-            }
-            if (adminTab && currentRole !== 'admin') {
-                adminTab.remove();
-            }
-        }).catch(() => {});
+        syncSessionState();
+        document.addEventListener('app:session-changed', syncSessionState);
 
         // Bind events
         const loadUsersBtn = document.getElementById('admin-load-users');
@@ -38,6 +48,7 @@ const Admin = (() => {
     }
 
     async function loadPanel() {
+        syncSessionState();
         if (currentRole !== 'admin') return;
         await Promise.all([loadUsers(), loadAiSettings(), loadStats()]);
     }
@@ -193,6 +204,9 @@ const Admin = (() => {
 
             status.textContent = 'Da luu thanh cong!';
             status.className = 'status-msg success';
+            document.dispatchEvent(new CustomEvent('app:ai-settings-updated', {
+                detail: { settings: result.data || body },
+            }));
             setTimeout(() => { status.textContent = ''; }, 3000);
         } catch (err) {
             status.textContent = `Loi: ${err.message}`;

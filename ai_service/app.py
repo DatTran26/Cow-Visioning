@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 import os
+import tempfile
 import time
 from functools import lru_cache
 from pathlib import Path
@@ -23,9 +26,15 @@ load_dotenv(ROOT_DIR / ".env")
 
 
 class PredictRequest(BaseModel):
-    image_path: str = Field(..., min_length=1)
-    output_dir: str = Field(..., min_length=1)
+    image_path: str | None = Field(default=None, min_length=1)
+    output_dir: str | None = Field(default=None, min_length=1)
     request_id: str = Field(..., min_length=1)
+    image_base64: str | None = None
+    return_annotated_image_base64: bool = False
+    device: str | None = None
+    conf_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
+    iou_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
+    max_det: int | None = Field(default=None, ge=1, le=1000)
 
 
 class HealthResponse(BaseModel):
@@ -66,6 +75,22 @@ def get_iou_threshold() -> float:
 
 def get_max_det() -> int:
     return int(os.getenv("AI_MAX_DET", "50"))
+
+
+def resolve_device(payload: PredictRequest) -> str:
+    return payload.device.strip() if isinstance(payload.device, str) and payload.device.strip() else get_device()
+
+
+def resolve_confidence_threshold(payload: PredictRequest) -> float:
+    return float(payload.conf_threshold) if payload.conf_threshold is not None else get_confidence_threshold()
+
+
+def resolve_iou_threshold(payload: PredictRequest) -> float:
+    return float(payload.iou_threshold) if payload.iou_threshold is not None else get_iou_threshold()
+
+
+def resolve_max_det(payload: PredictRequest) -> int:
+    return int(payload.max_det) if payload.max_det is not None else get_max_det()
 
 
 @lru_cache(maxsize=1)
@@ -114,6 +139,31 @@ def build_output_path(output_dir: Path, request_id: str, image_path: Path) -> Pa
     return output_dir / f"{safe_request_id}{suffix}"
 
 
+def resolve_source_image(payload: PredictRequest) -> tuple[Path, Path | None]:
+    if payload.image_path:
+        image_path = Path(payload.image_path).expanduser().resolve()
+        if image_path.exists():
+            return image_path, None
+
+    if payload.image_base64:
+        suffix = Path(payload.image_path).suffix if payload.image_path else ".jpg"
+        try:
+            raw_bytes = base64.b64decode(payload.image_base64, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise ValueError("image_base64 is not valid base64 data") from exc
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix or ".jpg") as tmp_file:
+            tmp_file.write(raw_bytes)
+            temp_path = Path(tmp_file.name).resolve()
+
+        return temp_path, temp_path
+
+    if payload.image_path:
+        raise FileNotFoundError(f"Image file not found: {payload.image_path}")
+
+    raise ValueError("Either image_path or image_base64 is required.")
+
+
 def serialize_box(box: Any) -> dict[str, Any]:
     x1, y1, x2, y2 = map(float, box.xyxy[0].tolist())
     confidence = float(box.conf[0])
@@ -133,80 +183,100 @@ def serialize_box(box: Any) -> dict[str, Any]:
 
 
 def predict_image(payload: PredictRequest) -> dict[str, Any]:
-    image_path = Path(payload.image_path).expanduser().resolve()
-    if not image_path.exists():
-        raise FileNotFoundError(f"Image file not found: {image_path}")
+    image_path, temp_image_path = resolve_source_image(payload)
 
-    output_dir = Path(payload.output_dir).expanduser().resolve()
-    model = load_model()
-    behavior_map = load_behavior_map()
+    try:
+        model = load_model()
+        behavior_map = load_behavior_map()
 
-    start = time.perf_counter()
-    results = model.predict(
-        source=str(image_path),
-        conf=get_confidence_threshold(),
-        iou=get_iou_threshold(),
-        max_det=get_max_det(),
-        device=get_device(),
-        verbose=False,
-    )
-    inference_ms = round((time.perf_counter() - start) * 1000, 2)
-
-    if not results:
-        raise RuntimeError("Model did not return any results.")
-
-    result = results[0]
-    boxes = list(result.boxes) if result.boxes is not None else []
-    if not boxes:
-        raise RuntimeError("No detections found in the image.")
-
-    class_names = result.names or getattr(model, "names", {}) or {}
-    detections: list[dict[str, Any]] = []
-    mapped_detections: list[dict[str, Any]] = []
-
-    for box in boxes:
-        box_data = serialize_box(box)
-        raw_label = class_names.get(box_data["class_id"], str(box_data["class_id"]))
-        mapped_behavior = map_behavior(raw_label, behavior_map)
-        detection = {
-            **box_data,
-            "raw_label": str(raw_label),
-            "mapped_behavior": mapped_behavior,
-        }
-        detections.append(detection)
-        if mapped_behavior:
-            mapped_detections.append(detection)
-
-    if not mapped_detections:
-        raise RuntimeError(
-            "Detections were found, but none of the labels could be mapped to a supported behavior."
+        start = time.perf_counter()
+        results = model.predict(
+            source=str(image_path),
+            conf=resolve_confidence_threshold(payload),
+            iou=resolve_iou_threshold(payload),
+            max_det=resolve_max_det(payload),
+            device=resolve_device(payload),
+            verbose=False,
         )
+        inference_ms = round((time.perf_counter() - start) * 1000, 2)
 
-    primary = max(mapped_detections, key=lambda item: item["confidence"])
-    annotated_path = build_output_path(output_dir, payload.request_id, image_path)
-    plotted = result.plot()
-    if not cv2.imwrite(str(annotated_path), plotted):
-        raise RuntimeError(f"Failed to write annotated image: {annotated_path}")
+        if not results:
+            raise RuntimeError("Model did not return any results.")
 
-    return {
-        "status": "ok",
-        "predicted_behavior": primary["mapped_behavior"],
-        "confidence": primary["confidence"],
-        "annotated_image_path": str(annotated_path),
-        "primary_bbox": {
-            "x1": primary["x1"],
-            "y1": primary["y1"],
-            "x2": primary["x2"],
-            "y2": primary["y2"],
-            "width": primary["width"],
-            "height": primary["height"],
-        },
-        "detection_count": len(detections),
-        "detections": detections,
-        "model_name": get_model_name(),
-        "inference_ms": inference_ms,
-        "error": None,
-    }
+        result = results[0]
+        boxes = list(result.boxes) if result.boxes is not None else []
+        if not boxes:
+            raise RuntimeError("No detections found in the image.")
+
+        class_names = result.names or getattr(model, "names", {}) or {}
+        detections: list[dict[str, Any]] = []
+        mapped_detections: list[dict[str, Any]] = []
+
+        for box in boxes:
+            box_data = serialize_box(box)
+            raw_label = class_names.get(box_data["class_id"], str(box_data["class_id"]))
+            mapped_behavior = map_behavior(raw_label, behavior_map)
+            detection = {
+                **box_data,
+                "raw_label": str(raw_label),
+                "mapped_behavior": mapped_behavior,
+            }
+            detections.append(detection)
+            if mapped_behavior:
+                mapped_detections.append(detection)
+
+        if not mapped_detections:
+            raise RuntimeError(
+                "Detections were found, but none of the labels could be mapped to a supported behavior."
+            )
+
+        primary = max(mapped_detections, key=lambda item: item["confidence"])
+        plotted = result.plot()
+
+        annotated_image_path: str | None = None
+        annotated_image_base64: str | None = None
+        annotated_image_ext: str | None = None
+
+        if payload.return_annotated_image_base64:
+            ok, encoded = cv2.imencode(".jpg", plotted)
+            if not ok:
+                raise RuntimeError("Failed to encode annotated image")
+            annotated_image_base64 = base64.b64encode(encoded.tobytes()).decode("ascii")
+            annotated_image_ext = ".jpg"
+        else:
+            if not payload.output_dir:
+                raise ValueError("output_dir is required when returning a file path")
+            output_dir = Path(payload.output_dir).expanduser().resolve()
+            annotated_path = build_output_path(output_dir, payload.request_id, image_path)
+            if not cv2.imwrite(str(annotated_path), plotted):
+                raise RuntimeError(f"Failed to write annotated image: {annotated_path}")
+            annotated_image_path = str(annotated_path)
+            annotated_image_ext = annotated_path.suffix or ".jpg"
+
+        return {
+            "status": "ok",
+            "predicted_behavior": primary["mapped_behavior"],
+            "confidence": primary["confidence"],
+            "annotated_image_path": annotated_image_path,
+            "annotated_image_base64": annotated_image_base64,
+            "annotated_image_ext": annotated_image_ext,
+            "primary_bbox": {
+                "x1": primary["x1"],
+                "y1": primary["y1"],
+                "x2": primary["x2"],
+                "y2": primary["y2"],
+                "width": primary["width"],
+                "height": primary["height"],
+            },
+            "detection_count": len(detections),
+            "detections": detections,
+            "model_name": get_model_name(),
+            "inference_ms": inference_ms,
+            "error": None,
+        }
+    finally:
+        if temp_image_path and temp_image_path.exists():
+            temp_image_path.unlink(missing_ok=True)
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -229,6 +299,8 @@ def predict(payload: PredictRequest) -> dict[str, Any]:
             "predicted_behavior": None,
             "confidence": None,
             "annotated_image_path": None,
+            "annotated_image_base64": None,
+            "annotated_image_ext": None,
             "primary_bbox": None,
             "detection_count": 0,
             "detections": [],

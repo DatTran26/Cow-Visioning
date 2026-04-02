@@ -14,17 +14,17 @@ const { execSync } = require('child_process');
 const cors = require('cors');
 
 const app = express();
+app.set('trust proxy', 1);
+
 const PORT = process.env.PORT || 3000;
 const isLocalDev = process.platform === 'win32';
 const dbHost = process.env.DB_HOST || 'localhost';
 const isRemoteDb = dbHost !== 'localhost' && dbHost !== '127.0.0.1';
+const isSecureCookie = process.env.NODE_ENV === 'production';
 
-// Determine the base URL for images
-// On production VPS: Use empty string to support Relative Paths (Auto Domain/IP)
-// On Local Dev with Remote DB: Use VPS_URL or fallback to http://dbHost (no port 3000 as per Nginx config)
-const IMAGE_BASE_URL = (isLocalDev && isRemoteDb)
-    ? (process.env.VPS_URL || `http://${dbHost}`).replace(/\/+$/, '')
-    : (process.env.VPS_URL || '').replace(/\/+$/, '');
+// Keep image URLs relative by default so uploads, gallery, export, and delete flows
+// use the same host that served the current app. Override explicitly only if needed.
+const IMAGE_BASE_URL = (process.env.IMAGE_BASE_URL || '').replace(/\/+$/, '');
 
 app.use(cors());
 
@@ -56,10 +56,19 @@ pool.query('SELECT NOW()', (err, res) => {
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || './uploads';
 const UPLOAD_ROOT = path.resolve(UPLOAD_DIR);
-const AI_ENABLED = process.env.AI_ENABLED !== 'false';
 const AI_DEFAULT_URL = (isLocalDev && isRemoteDb) ? `http://${dbHost}:8001` : 'http://127.0.0.1:8001';
 const AI_SERVICE_URL = (process.env.AI_SERVICE_URL || AI_DEFAULT_URL).replace(/\/+$/, '');
+const AI_LOCAL_FALLBACK_URL = 'http://127.0.0.1:8001';
 const AI_TIMEOUT_MS = parseInt(process.env.AI_TIMEOUT_MS || '20000', 10);
+const aiServiceHost = (() => {
+    try {
+        return new URL(AI_SERVICE_URL).hostname;
+    } catch (_err) {
+        return '';
+    }
+})();
+const AI_EMBED_IMAGE_PAYLOAD = process.env.AI_EMBED_IMAGE_PAYLOAD === 'true'
+    || !['localhost', '127.0.0.1', '::1'].includes(String(aiServiceHost).toLowerCase());
 
 function ensureDir(dirPath) {
     fs.mkdirSync(dirPath, { recursive: true });
@@ -99,6 +108,7 @@ const datasetUpload = createImageUpload('original');
 const blogUpload = createImageUpload('blog');
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
 app.use(
     session({
@@ -114,7 +124,7 @@ app.use(
             maxAge: 7 * 24 * 60 * 60 * 1000,
             httpOnly: true,
             sameSite: 'lax',
-            secure: false,
+            secure: isSecureCookie,
         },
     })
 );
@@ -128,7 +138,11 @@ function authRequired(req, res, next) {
 
 function requireAuthPage(req, res, next) {
     if (!req.session || !req.session.userId) {
-        return res.redirect('/auth/login');
+        const nextTarget = sanitizeNextTarget(req.originalUrl || req.url || '/');
+        const loginUrl = nextTarget
+            ? `/auth/login?next=${encodeURIComponent(nextTarget)}`
+            : '/auth/login';
+        return res.redirect(loginUrl);
     }
     return next();
 }
@@ -143,8 +157,9 @@ function requireAdmin(req, res, next) {
     return next();
 }
 
-// Runtime AI settings (loaded from env, changeable by admin)
-const aiSettings = {
+const AI_SETTING_KEYS = ['AI_DEVICE', 'AI_CONF_THRESHOLD', 'AI_IOU_THRESHOLD', 'AI_MAX_DET', 'AI_ENABLED'];
+
+const DEFAULT_AI_SETTINGS = {
     AI_DEVICE: process.env.AI_DEVICE || 'cpu',
     AI_CONF_THRESHOLD: parseFloat(process.env.AI_CONF_THRESHOLD || '0.25'),
     AI_IOU_THRESHOLD: parseFloat(process.env.AI_IOU_THRESHOLD || '0.45'),
@@ -152,9 +167,97 @@ const aiSettings = {
     AI_ENABLED: process.env.AI_ENABLED !== 'false',
 };
 
+// Runtime AI settings (loaded from env, then optionally overridden from DB by admin)
+const aiSettings = { ...DEFAULT_AI_SETTINGS };
+
+function applyStoredAiSetting(key, rawValue) {
+    if (rawValue === undefined || rawValue === null) {
+        return;
+    }
+
+    switch (key) {
+        case 'AI_DEVICE': {
+            const nextValue = String(rawValue).trim();
+            if (nextValue) {
+                aiSettings.AI_DEVICE = nextValue;
+            }
+            break;
+        }
+        case 'AI_CONF_THRESHOLD': {
+            const nextValue = Number(rawValue);
+            if (Number.isFinite(nextValue)) {
+                aiSettings.AI_CONF_THRESHOLD = Math.max(0, Math.min(1, nextValue));
+            }
+            break;
+        }
+        case 'AI_IOU_THRESHOLD': {
+            const nextValue = Number(rawValue);
+            if (Number.isFinite(nextValue)) {
+                aiSettings.AI_IOU_THRESHOLD = Math.max(0, Math.min(1, nextValue));
+            }
+            break;
+        }
+        case 'AI_MAX_DET': {
+            const nextValue = Number(rawValue);
+            if (Number.isFinite(nextValue)) {
+                aiSettings.AI_MAX_DET = Math.max(1, Math.min(1000, Math.floor(nextValue)));
+            }
+            break;
+        }
+        case 'AI_ENABLED': {
+            const normalized = String(rawValue).trim().toLowerCase();
+            aiSettings.AI_ENABLED = ['true', '1', 'yes', 'on'].includes(normalized);
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+async function loadAiSettingsFromDb() {
+    try {
+        const result = await pool.query(
+            'SELECT key, value FROM app_config WHERE key = ANY($1)',
+            [AI_SETTING_KEYS]
+        );
+
+        result.rows.forEach(({ key, value }) => {
+            applyStoredAiSetting(key, value);
+        });
+    } catch (err) {
+        console.warn('AI settings bootstrap skipped:', err.message);
+    }
+}
+
+async function persistAiSettingsToDb() {
+    const upsertSql = `
+        INSERT INTO app_config (key, value, updated_at)
+        VALUES ($1, $2, NOW())
+        ON CONFLICT (key)
+        DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+    `;
+
+    await Promise.all(
+        AI_SETTING_KEYS.map((key) => pool.query(upsertSql, [key, String(aiSettings[key])]))
+    );
+}
+
 function normalizeText(input, maxLen) {
     if (typeof input !== 'string') return '';
     return input.replace(/[\u0000-\u001F\u007F]/g, '').trim().slice(0, maxLen);
+}
+
+function sanitizeNextTarget(value) {
+    if (typeof value !== 'string') {
+        return null;
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed.startsWith('/') || trimmed.startsWith('//')) {
+        return null;
+    }
+
+    return trimmed;
 }
 
 function validEmail(email) {
@@ -169,6 +272,8 @@ const allowedBehaviors = new Set([
     'walking',
     'abnormal',
 ]);
+
+loadAiSettingsFromDb();
 
 ensureDir(UPLOAD_ROOT);
 
@@ -200,6 +305,26 @@ function getAnnotatedOutputDir(originalFilePath) {
     return ensureDir(path.join(UPLOAD_ROOT, 'annotated', year, month));
 }
 
+function saveAnnotatedImageFromBase64({ annotatedImageBase64, outputDir, requestId, originalFilePath, fallbackExt }) {
+    if (!annotatedImageBase64) {
+        return null;
+    }
+
+    ensureDir(outputDir);
+    const requestIdSafe = String(requestId || '').replace(/[^a-zA-Z0-9_-]/g, '') || crypto.randomUUID();
+    const extension = fallbackExt || path.extname(originalFilePath) || '.jpg';
+    const annotatedPath = path.join(outputDir, `${requestIdSafe}${extension}`);
+
+    fs.writeFileSync(annotatedPath, Buffer.from(annotatedImageBase64, 'base64'));
+
+    const annotatedUrl = toUploadUrl(annotatedPath);
+    if (!annotatedUrl) {
+        throw new Error('Annotated image path is outside the uploads directory');
+    }
+
+    return annotatedUrl;
+}
+
 function deleteUploadFile(uploadUrl, warningPrefix) {
     const filePath = toUploadAbsolutePath(uploadUrl);
     if (!filePath) {
@@ -229,61 +354,100 @@ function normalizeImageRecord(record) {
     };
 }
 
+function getAiServiceCandidates() {
+    const candidates = [AI_SERVICE_URL, AI_LOCAL_FALLBACK_URL]
+        .map((item) => String(item || '').trim().replace(/\/+$/, ''))
+        .filter(Boolean);
+
+    return [...new Set(candidates)];
+}
+
 async function requestAiPrediction({ imagePath, outputDir, requestId }) {
-    if (!AI_ENABLED) {
+    if (!aiSettings.AI_ENABLED) {
         throw new Error('AI service is disabled');
     }
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+    const useEmbeddedTransport = AI_EMBED_IMAGE_PAYLOAD;
+    const imageBase64 = useEmbeddedTransport
+        ? await fs.promises.readFile(imagePath, { encoding: 'base64' })
+        : null;
+    const requestBody = {
+        image_path: imagePath,
+        output_dir: outputDir,
+        request_id: requestId,
+        image_base64: imageBase64,
+        return_annotated_image_base64: useEmbeddedTransport,
+        device: aiSettings.AI_DEVICE,
+        conf_threshold: aiSettings.AI_CONF_THRESHOLD,
+        iou_threshold: aiSettings.AI_IOU_THRESHOLD,
+        max_det: aiSettings.AI_MAX_DET,
+    };
+    const attempts = [];
 
-    try {
-        const response = await fetch(`${AI_SERVICE_URL}/predict`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                image_path: imagePath,
-                output_dir: outputDir,
-                request_id: requestId,
-            }),
-            signal: controller.signal,
-        });
+    for (const serviceUrl of getAiServiceCandidates()) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
 
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            throw new Error(payload.error || `AI service returned HTTP ${response.status}`);
-        }
-        if (payload.status !== 'ok') {
-            throw new Error(payload.error || 'AI service could not analyze the image');
-        }
+        try {
+            const response = await fetch(`${serviceUrl}/predict`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody),
+                signal: controller.signal,
+            });
 
-        const behavior = normalizeText(payload.predicted_behavior || '', 50).toLowerCase();
-        if (!allowedBehaviors.has(behavior)) {
-            throw new Error(`AI service returned unsupported behavior: ${payload.predicted_behavior || 'empty'}`);
-        }
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(payload.error || `AI service returned HTTP ${response.status}`);
+            }
+            if (payload.status !== 'ok') {
+                throw new Error(payload.error || 'AI service could not analyze the image');
+            }
 
-        if (!payload.annotated_image_path) {
-            throw new Error('AI service did not return an annotated image path');
-        }
+            const behavior = normalizeText(payload.predicted_behavior || '', 50).toLowerCase();
+            if (!allowedBehaviors.has(behavior)) {
+                throw new Error(`AI service returned unsupported behavior: ${payload.predicted_behavior || 'empty'}`);
+            }
 
-        const annotatedImageUrl = toUploadUrl(payload.annotated_image_path);
-        if (!annotatedImageUrl) {
-            throw new Error('Annotated image path is outside the uploads directory');
-        }
+            let annotatedImageUrl = null;
+            if (payload.annotated_image_base64) {
+                annotatedImageUrl = saveAnnotatedImageFromBase64({
+                    annotatedImageBase64: payload.annotated_image_base64,
+                    outputDir,
+                    requestId,
+                    originalFilePath: imagePath,
+                    fallbackExt: normalizeText(payload.annotated_image_ext || '', 10) || '.jpg',
+                });
+            } else if (payload.annotated_image_path) {
+                annotatedImageUrl = toUploadUrl(payload.annotated_image_path);
+            }
 
-        return {
-            ...payload,
-            predicted_behavior: behavior,
-            annotated_image_url: annotatedImageUrl,
-        };
-    } catch (err) {
-        if (err.name === 'AbortError') {
-            throw new Error(`AI service timed out after ${AI_TIMEOUT_MS}ms`);
+            if (!annotatedImageUrl) {
+                throw new Error('AI service did not return a usable annotated image');
+            }
+
+            const {
+                annotated_image_base64: _annotatedImageBase64,
+                ...sanitizedPayload
+            } = payload;
+
+            return {
+                ...sanitizedPayload,
+                predicted_behavior: behavior,
+                annotated_image_url: annotatedImageUrl,
+                ai_service_url: serviceUrl,
+            };
+        } catch (err) {
+            const reason = err.name === 'AbortError'
+                ? `timed out after ${AI_TIMEOUT_MS}ms`
+                : (err.message || 'unknown error');
+            attempts.push(`${serviceUrl}: ${reason}`);
+        } finally {
+            clearTimeout(timeout);
         }
-        throw err;
-    } finally {
-        clearTimeout(timeout);
     }
+
+    throw new Error(`AI request failed. Attempts: ${attempts.join(' | ')}`);
 }
 
 const authLimiter = rateLimit({
@@ -324,14 +488,16 @@ app.get('/auth/status', (_req, res) => {
 
 app.get('/auth/login', (req, res) => {
     if (req.session && req.session.userId) {
-        return res.redirect('/');
+        const nextTarget = sanitizeNextTarget(req.query.next);
+        return res.redirect(nextTarget || '/?tab=thu-thap');
     }
-    return res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    return res.sendFile(path.join(__dirname, 'public', 'auth', 'login.html'));
 });
 
 app.get('/auth/register', (req, res) => {
     if (req.session && req.session.userId) {
-        return res.redirect('/');
+        const nextTarget = sanitizeNextTarget(req.query.next);
+        return res.redirect(nextTarget || '/?tab=thu-thap');
     }
     return res.sendFile(path.join(__dirname, 'public', 'auth', 'register.html'));
 });
@@ -445,7 +611,11 @@ app.post('/auth/logout', (req, res) => {
     });
 });
 
-app.get(['/', '/dashboard', '/quan-li-iot', '/ai-models', '/dataset-cow', '/tai-khoan', '/cai-dat'], (_req, res) => {
+app.get('/', (_req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get(['/dashboard', '/quan-li-iot', '/ai-models', '/dataset-cow', '/tai-khoan', '/cai-dat'], requireAuthPage, (_req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
@@ -1122,7 +1292,7 @@ app.delete('/admin/users/:id', requireAdmin, async (req, res) => {
 });
 
 // Public read-only AI settings (for user-facing display)
-app.get('/api/ai-settings', authRequired, (_req, res) => {
+app.get('/api/ai-settings', (_req, res) => {
     return res.json({
         data: {
             AI_CONF_THRESHOLD: aiSettings.AI_CONF_THRESHOLD,
@@ -1138,7 +1308,7 @@ app.get('/admin/ai-settings', requireAdmin, (_req, res) => {
     return res.json({ data: aiSettings });
 });
 
-app.put('/admin/ai-settings', requireAdmin, (req, res) => {
+app.put('/admin/ai-settings', requireAdmin, async (req, res) => {
     try {
         if (typeof req.body.AI_DEVICE === 'string') {
             const d = req.body.AI_DEVICE.trim();
@@ -1156,6 +1326,7 @@ app.put('/admin/ai-settings', requireAdmin, (req, res) => {
         if (typeof req.body.AI_ENABLED === 'boolean') {
             aiSettings.AI_ENABLED = req.body.AI_ENABLED;
         }
+        await persistAiSettingsToDb();
         return res.json({ success: true, data: aiSettings });
     } catch (err) {
         console.error('PUT /admin/ai-settings error:', err);

@@ -142,5 +142,5 @@ const Export = (() => {
             .replace(/(\d{8})(\d{6})/, '$1_$2');
     }
 
-    return { init };
+    return { init, loadData };
 })();

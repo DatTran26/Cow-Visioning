@@ -124,15 +124,20 @@ CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
 
 -- ═══ Seed default accounts ═══
 -- Admin: admin / admin123456
--- User:  user  / user123456
+-- User:  trandat / hd123456
+-- User:  ngochieu / hd123456
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM users WHERE username = 'admin') THEN
         INSERT INTO users (username, email, password_hash, role)
-        VALUES ('admin', 'admin@cowvisioning.local', '$2a$10$d/Ihm2x67gbpansehAlSKeo46R6gcmfwflEBhGT42xERgWQNBvDPu', 'admin');
+        VALUES ('admin', 'admin@cowvisioning.local', '$2a$10$lPR5Ui0gRlJaE.ubyP50KuDsHF1/SQLkOkqevuYEYh654JGU53cXK', 'admin');
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM users WHERE username = 'user') THEN
+    IF NOT EXISTS (SELECT 1 FROM users WHERE username = 'trandat') THEN
         INSERT INTO users (username, email, password_hash, role)
-        VALUES ('user', 'user@cowvisioning.local', '$2a$10$8Kqllk0otezmpKtNJpd2w.nyY1CRv4t9TjACIkkpVO3GsRVLRqLGe', 'user');
+        VALUES ('trandat', 'trandat@cowvisioning.local', '$2a$10$MBYZnV7UwRIaqoZSm5mgueHqsojaeKp5QIx48Qxmkn6j7wYTtfKaW', 'user');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM users WHERE username = 'ngochieu') THEN
+        INSERT INTO users (username, email, password_hash, role)
+        VALUES ('ngochieu', 'ngochieu@cowvisioning.local', '$2a$10$MBYZnV7UwRIaqoZSm5mgueHqsojaeKp5QIx48Qxmkn6j7wYTtfKaW', 'user');
     END IF;
 END $$;

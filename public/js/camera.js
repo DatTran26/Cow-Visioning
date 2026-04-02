@@ -68,8 +68,14 @@ const Camera = (() => {
         updateAutoSaveUI();
         updateSettingsUI();
 
-        const cameraTab = document.getElementById('tab-camera');
-        if (cameraTab && cameraTab.classList.contains('active')) {
+        const appTab = document.getElementById('tab-thu-thap');
+        const cameraPanel = document.getElementById('camera-panel');
+        if (
+            appTab
+            && cameraPanel
+            && appTab.classList.contains('active')
+            && cameraPanel.classList.contains('active')
+        ) {
             startCamera();
         }
     }

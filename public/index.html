@@ -33,12 +33,17 @@
       <span class="nav-sep"></span>
       <li class="topnav-item" data-tab="gallery">Thư viện</li>
       <span class="nav-sep"></span>
+      <li class="topnav-item" data-tab="export" id="export-nav">Xuat du lieu</li>
+      <span class="nav-sep" id="export-nav-sep"></span>
       <li class="topnav-item" data-tab="blog">Blog</li>
       <span class="nav-sep" id="admin-nav-sep" style="display:none"></span>
       <li class="topnav-item" data-tab="admin" id="admin-nav" style="display:none">Admin</li>
     </ul>
     <div class="topnav-right">
       <div class="topnav-time" id="topnav-clock">--:--:--</div>
+      <span class="topnav-user" id="topnav-user" hidden></span>
+      <a class="topnav-link-btn" id="login-btn" href="/auth/login">Dang nhap</a>
+      <a class="topnav-link-btn topnav-link-btn-primary" id="register-btn" href="/auth/register">Dang ky</a>
       <button class="topnav-logout" id="logout-btn">Đăng xuất</button>
     </div>
   </nav>
@@ -312,6 +317,13 @@
               </ul>
             </div>
             <div class="ci-form-box">
+              <h3 id="home-cta-title">Bat dau voi tai khoan that</h3>
+              <p id="home-cta-copy" class="ci-cta-copy">Dang nhap hoac tao tai khoan de su dung day du upload, camera, gallery, blog, export va quan tri AI trong mot he thong dong nhat.</p>
+              <div class="ci-auth-actions">
+                <a id="home-primary-action" class="ci-form-btn" href="/auth/login">Dang nhap de su dung</a>
+                <a id="home-secondary-action" class="ci-btn-line ci-auth-link" href="/auth/register">Tao tai khoan moi</a>
+              </div>
+              <p id="home-cta-note" class="ci-cta-note">Neu chua dang nhap, cac tab nghiep vu se dua ban toi trang xac thuc truoc khi su dung.</p>
               <h3>Đăng ký nhận báo giá &amp; bản dùng thử</h3>
               <form class="ci-form" id="register-form" onsubmit="submitRegister(event)">
                 <div class="ci-field">
@@ -541,6 +553,35 @@
     </div>
 
     <!-- ══ TAB: BLOG ══ -->
+    <div id="tab-export" class="tab-panel app-panel">
+      <div class="app-inner">
+        <h1>Xuat du lieu</h1>
+        <p class="app-sub">Tai nhanh danh sach anh va xuat bo du lieu dang CSV hoac JSON de tiep tuc xu ly AI.</p>
+        <div class="export-actions">
+          <button class="btn btn-primary" id="load-export-btn">Tai du lieu</button>
+          <button class="btn btn-secondary" id="export-csv-btn" disabled>Xuat CSV</button>
+          <button class="btn btn-secondary" id="export-json-btn" disabled>Xuat JSON</button>
+        </div>
+        <div id="export-status" class="status-msg"></div>
+        <div id="export-count" class="record-count">Tong cong: 0 ban ghi</div>
+        <div id="export-table-wrap" class="table-wrap" hidden>
+          <table>
+            <thead>
+              <tr>
+                <th>Ma bo</th>
+                <th>Hanh vi</th>
+                <th>Khu vuc</th>
+                <th>Thoi gian chup</th>
+                <th>Do tin cay AI</th>
+                <th>Xem anh</th>
+              </tr>
+            </thead>
+            <tbody id="export-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <div id="tab-blog" class="tab-panel app-panel">
       <div class="app-inner blog-layout">
         <div class="blog-page-grid">
@@ -777,6 +818,7 @@
   </div>
 
   <script src="js/api-config.js"></script>
+  <script src="js/session.js"></script>
   <script src="js/upload.js"></script>
   <script src="js/camera.js"></script>
   <script src="js/gallery.js"></script>
@@ -786,19 +828,44 @@
   <script>
     // ── TAB SWITCHING ──
     function switchTab(name) {
+      const protectedTabs = new Set(['thu-thap', 'gallery', 'export', 'blog', 'admin']);
+      if (protectedTabs.has(name) && typeof AppSession !== 'undefined' && !AppSession.requireAuth(name)) {
+        return;
+      }
+
+      if (name === 'admin' && typeof AppSession !== 'undefined' && !AppSession.isAdmin()) {
+        name = 'home';
+      }
+
       document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.topnav-item').forEach(n => n.classList.remove('active'));
+
       const panel = document.getElementById('tab-' + name);
-      if (panel) { panel.classList.add('active'); if (name !== 'home') window.scrollTo(0, 0); }
+      if (panel) {
+        panel.classList.add('active');
+        if (name !== 'home') window.scrollTo(0, 0);
+      }
+
       const nav = document.querySelector('.topnav-item[data-tab="' + name + '"]');
       if (nav) nav.classList.add('active');
+
+      const url = new URL(window.location.href);
+      if (name === 'home') {
+        url.searchParams.delete('tab');
+      } else {
+        url.searchParams.set('tab', name);
+      }
+      window.history.replaceState({}, '', url);
+
       if (name === 'gallery' && typeof Gallery !== 'undefined') Gallery.loadGallery();
       if (name === 'blog' && typeof Blog !== 'undefined') Blog.loadFeed();
+      if (name === 'export' && typeof Export !== 'undefined' && typeof Export.loadData === 'function') Export.loadData();
       if (name === 'admin' && typeof Admin !== 'undefined') Admin.loadPanel();
       if (name === 'thu-thap' && typeof Camera !== 'undefined') {
-        // Only start camera if camera sub-tab is active
         const camPanel = document.getElementById('camera-panel');
-        if (camPanel && camPanel.classList.contains('active') && typeof Camera.startCamera === 'function') Camera.startCamera();
+        if (camPanel && camPanel.classList.contains('active') && typeof Camera.startCamera === 'function') {
+          Camera.startCamera();
+        }
       }
       if (name !== 'thu-thap' && typeof Camera !== 'undefined' && typeof Camera.stopCamera === 'function') Camera.stopCamera();
     }
@@ -832,8 +899,8 @@
     window.addEventListener('scroll', () => { tnav.classList.toggle('scrolled', window.scrollY > 80); });
 
     // ── PARALLAX HERO ──
-    const heroBg = document.querySelector('.hero-bg');
-    const aboutTab = document.getElementById('tab-about');
+    const heroBg = document.querySelector('.ci-hero-bg');
+    const aboutTab = document.getElementById('tab-home');
     window.addEventListener('scroll', () => {
       if (heroBg && aboutTab && aboutTab.classList.contains('active'))
         heroBg.style.transform = `translateY(${window.scrollY * 0.35}px)`;
@@ -853,10 +920,13 @@
     document.querySelectorAll('.reveal').forEach(el => ro.observe(el));
 
     // ── LOGOUT ──
-    document.getElementById('logout-btn').addEventListener('click', async () => {
-      await fetch('/auth/logout', { method: 'POST' }).catch(() => { });
-      window.location.href = '/auth/login';
-    });
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async () => {
+        await fetch('/auth/logout', { method: 'POST' }).catch(() => { });
+        window.location.href = '/auth/login';
+      });
+    }
 
     // ── CHATBOT ──
     const fab = document.getElementById('chatFab'), win = document.getElementById('chatWin');
@@ -993,7 +1063,8 @@
     // ── REGISTER FORM ──
     function submitRegister(e) {
       e.preventDefault();
-      const btn = document.querySelector('.ci-form-btn');
+      const btn = document.querySelector('#register-form .ci-form-btn');
+      if (!btn) return;
       btn.textContent = 'Đang gửi...'; btn.disabled = true;
       setTimeout(() => {
         document.getElementById('reg-msg').style.display = 'block';
@@ -1037,43 +1108,60 @@
 
     // ── USER-FACING AI STATUS ──
     (function() {
+      function renderAiStatus(s) {
+        const dot = document.getElementById('ai-status-dot');
+        const txt = document.getElementById('ai-status-text');
+        if (!dot || !txt || !s) return;
+
+        dot.classList.remove('active', 'inactive');
+        if (s.AI_ENABLED) {
+          dot.classList.add('active');
+          txt.textContent = 'AI: Dang hoat dong';
+        } else {
+          dot.classList.add('inactive');
+          txt.textContent = 'AI: Da tat';
+        }
+        document.getElementById('ai-user-conf').textContent = Number(s.AI_CONF_THRESHOLD).toFixed(2);
+        document.getElementById('ai-user-iou').textContent = Number(s.AI_IOU_THRESHOLD).toFixed(2);
+        document.getElementById('ai-user-maxdet').textContent = s.AI_MAX_DET;
+        document.getElementById('ai-user-device').textContent = String(s.AI_DEVICE || '--').toUpperCase();
+      }
+
       async function loadAiStatus() {
         try {
           const res = await fetch('/api/ai-settings');
           const result = await res.json();
           if (!res.ok) throw new Error(result.error);
-          const s = result.data;
-          const dot = document.getElementById('ai-status-dot');
-          const txt = document.getElementById('ai-status-text');
-          if (s.AI_ENABLED) {
-            dot.classList.add('active');
-            txt.textContent = 'AI: Dang hoat dong';
-          } else {
-            dot.classList.add('inactive');
-            txt.textContent = 'AI: Da tat';
-          }
-          document.getElementById('ai-user-conf').textContent = s.AI_CONF_THRESHOLD.toFixed(2);
-          document.getElementById('ai-user-iou').textContent = s.AI_IOU_THRESHOLD.toFixed(2);
-          document.getElementById('ai-user-maxdet').textContent = s.AI_MAX_DET;
-          document.getElementById('ai-user-device').textContent = s.AI_DEVICE.toUpperCase();
+          renderAiStatus(result.data);
         } catch (e) {
           const txt = document.getElementById('ai-status-text');
           if (txt) txt.textContent = 'AI: Khong the tai cau hinh';
         }
       }
       loadAiStatus();
+      document.addEventListener('app:ai-settings-updated', (event) => {
+        renderAiStatus(event.detail?.settings);
+      });
       // Refresh every 60s
       setInterval(loadAiStatus, 60000);
     })();
 
     // ── INIT APP MODULES ──
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (typeof AppSession !== 'undefined') {
+        await AppSession.init();
+      }
+
       if (typeof Upload !== 'undefined') Upload.init();
       if (typeof Camera !== 'undefined') Camera.init();
       if (typeof Gallery !== 'undefined') Gallery.init();
       if (typeof Blog !== 'undefined') Blog.init();
       if (typeof Export !== 'undefined') Export.init();
       if (typeof Admin !== 'undefined') Admin.init();
+
+      const requestedTab = new URLSearchParams(window.location.search).get('tab');
+      const allowedTabs = new Set(['home', 'thu-thap', 'gallery', 'export', 'blog', 'admin']);
+      switchTab(allowedTabs.has(requestedTab) ? requestedTab : 'home');
     });
   </script>
 </body>

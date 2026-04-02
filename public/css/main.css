@@ -70,6 +70,46 @@ body{font-family:'Nunito',system-ui,-apple-system,sans-serif;background:var(--cr
   font-variant-numeric:tabular-nums;white-space:nowrap;
   font-weight:400;letter-spacing:.3px;
 }
+.topnav-user{
+  color:rgba(255,255,255,.85);
+  font-size:12.5px;
+  font-weight:700;
+  padding:6px 12px;
+  border-radius:999px;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.12);
+  white-space:nowrap;
+}
+.topnav-link-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:34px;
+  padding:6px 14px;
+  border-radius:7px;
+  border:1px solid rgba(255,255,255,.15);
+  color:rgba(255,255,255,.78);
+  background:transparent;
+  text-decoration:none;
+  font-size:12.5px;
+  font-weight:600;
+  transition:all .2s;
+  white-space:nowrap;
+}
+.topnav-link-btn:hover{
+  border-color:rgba(255,255,255,.28);
+  color:#fff;
+  background:rgba(255,255,255,.08);
+}
+.topnav-link-btn-primary{
+  background:rgba(78,158,145,.22);
+  border-color:rgba(111,191,179,.42);
+  color:#fff;
+}
+.topnav-link-btn-primary:hover{
+  background:rgba(78,158,145,.34);
+  border-color:rgba(111,191,179,.62);
+}
 .topnav-logout{
   background:transparent;border:1px solid rgba(255,255,255,.15);
   color:rgba(255,255,255,.55);padding:6px 14px;border-radius:7px;
@@ -77,6 +117,8 @@ body{font-family:'Nunito',system-ui,-apple-system,sans-serif;background:var(--cr
   white-space:nowrap;font-family:inherit;
 }
 .topnav-logout:hover{border-color:rgba(239,68,68,.5);color:#f87171;background:rgba(239,68,68,.08)}
+#logout-btn{display:none}
+body.app-authenticated #logout-btn{display:inline-flex}
 
 /* ══════════════════════════════
    MAIN LAYOUT
@@ -415,8 +457,9 @@ tr:hover td{background:#fafbfc}
 @media(max-width:768px){
   :root{--nav-h:58px}
   .topnav{padding:0 16px}
-  .topnav-list .tnav-icon~span,.topnav-time,.topnav-logout{display:none}
+  .topnav-list .tnav-icon~span,.topnav-time,.topnav-user{display:none}
   .topnav-item{padding:8px 10px}
+  .topnav-link-btn,.topnav-logout{padding:6px 10px;font-size:11px}
   .stats-row{grid-template-columns:1fr 1fr}
   .split-grid,.steps-grid,.footer-grid,.form-grid{grid-template-columns:1fr}
   .wrap{padding:0 20px}
@@ -717,7 +760,12 @@ body.modal-open{overflow:hidden}
 .ci-cta-perks li{font-size:14px;color:rgba(255,255,255,.75);font-weight:600}
 /* ── FORM ── */
 .ci-form-box{background:#fff;border-radius:20px;padding:36px 32px}
+.ci-form-box > h3:not(#home-cta-title),#register-form{display:none}
 .ci-form-box h3{font-family:'Nunito',sans-serif;font-size:18px;font-weight:800;color:var(--dark);margin-bottom:24px;line-height:1.35}
+.ci-cta-copy{font-size:14px;color:var(--muted);line-height:1.8;margin-bottom:18px}
+.ci-auth-actions{display:flex;flex-direction:column;gap:12px}
+.ci-auth-link{justify-content:center}
+.ci-cta-note{font-size:13px;color:var(--muted);line-height:1.7;margin-top:16px}
 .ci-form{display:flex;flex-direction:column;gap:16px}
 .ci-field{display:flex;flex-direction:column;gap:6px}
 .ci-field label{font-size:13px;font-weight:700;color:var(--text)}

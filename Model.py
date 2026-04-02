@@ -20,6 +20,7 @@ import numpy as np
 from tkinter import filedialog, messagebox
 import time
 import torch
+from pathlib import Path
 
 # Cấu hình màu sắc hiển thị gia súc
 COLOR_MAP = {
@@ -28,6 +29,8 @@ COLOR_MAP = {
     2: (255, 255, 0),    # Cyan
     3: (42, 42, 165),    # Red
 }
+
+SUPPORTED_MODEL_EXTENSIONS = {".pt", ".onnx"}
 
 class CattleDetectorApp(ctk.CTk):
     def __init__(self):
@@ -320,6 +323,12 @@ class CattleDetectorApp(ctk.CTk):
         def load_thread():
             try:
                 model_name = self.model_path.get().strip()
+                model_extension = Path(model_name).suffix.lower() if model_name else ""
+                if model_name and model_extension not in SUPPORTED_MODEL_EXTENSIONS:
+                    supported = ", ".join(sorted(SUPPORTED_MODEL_EXTENSIONS))
+                    self.model_status.configure(text="Invalid model format", text_color="#EF4444")
+                    messagebox.showerror("Error", f"Only {supported} models are supported.")
+                    return
                 if not model_name:
                     self.model_status.configure(text="❌ Chưa chọn model", text_color="#EF4444")
                     return
@@ -500,6 +509,7 @@ class CattleDetectorApp(ctk.CTk):
             return frame
         
         annotated = frame.copy()
+        class_names = getattr(results, "names", None) or getattr(self.model, "names", {}) or {}
         
         for box in results.boxes:
             # Lấy tọa độ
@@ -511,7 +521,12 @@ class CattleDetectorApp(ctk.CTk):
             track_id = int(box.id[0]) if box.id is not None else -1
             
             # Lấy tên class - mặc định là 'cow' cho bò
-            class_name = self.model.names.get(cls_id, "Unknown")
+            if isinstance(class_names, dict):
+                class_name = class_names.get(cls_id, "Unknown")
+            elif isinstance(class_names, list) and 0 <= cls_id < len(class_names):
+                class_name = class_names[cls_id]
+            else:
+                class_name = "Unknown"
             if class_name.lower() in ["cow", "bò", "cattle"]:
                 label = "cow"
             else:
@@ -542,6 +557,16 @@ class CattleDetectorApp(ctk.CTk):
                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
         
         return annotated
+
+    def browse_model(self):
+        """Browse to select a .pt or .onnx model."""
+        path = filedialog.askopenfilename(
+            filetypes=[("YOLO Model", "*.pt *.onnx"), ("All files", "*.*")],
+            title="Select YOLO or ONNX model"
+        )
+        if path:
+            self.model_path.set(path)
+            self.model_status.configure(text=f"Selected {os.path.basename(path)}", text_color="cyan")
 
     def display_image(self, frame, results):
         """Hiển thị frame trên label"""

@@ -223,18 +223,16 @@ def predict_image(payload: PredictRequest) -> dict[str, Any]:
         model = load_model()
         behavior_map = load_behavior_map()
 
-    start = time.perf_counter()
-    # Integrated tracking logic like Model.py
-    results = model.predict(
-        source=str(image_path),
-        conf=get_confidence_threshold(),
-        iou=get_iou_threshold(),
-        max_det=get_max_det(),
-        device=get_device(),
-        verbose=False,
-        tracker="botsort.yaml"  # Enable tracking as in Model.py
-    )
-    inference_ms = round((time.perf_counter() - start) * 1000, 2)
+        start = time.perf_counter()
+        results = model.predict(
+            source=str(image_path),
+            conf=resolve_confidence_threshold(payload),
+            iou=resolve_iou_threshold(payload),
+            max_det=resolve_max_det(payload),
+            device=resolve_device(payload),
+            verbose=False,
+        )
+        inference_ms = round((time.perf_counter() - start) * 1000, 2)
 
         if not results:
             raise RuntimeError("Model did not return any results.")
@@ -248,25 +246,18 @@ def predict_image(payload: PredictRequest) -> dict[str, Any]:
         detections: list[dict[str, Any]] = []
         mapped_detections: list[dict[str, Any]] = []
 
-    for box in boxes:
-        box_data = serialize_box(box)
-        raw_label = class_names.get(box_data["class_id"], str(box_data["class_id"]))
-        
-        # Cow-Visioning specific: smart label as in Model.py
-        if str(raw_label).lower() in ["cow", "bò", "cattle", "0"]:
-            box_data["label"] = "cow"
-        else:
-            box_data["label"] = str(raw_label)
-            
-        mapped_behavior = map_behavior(raw_label, behavior_map)
-        detection = {
-            **box_data,
-            "raw_label": str(raw_label),
-            "mapped_behavior": mapped_behavior,
-        }
-        detections.append(detection)
-        if mapped_behavior:
-            mapped_detections.append(detection)
+        for box in boxes:
+            box_data = serialize_box(box)
+            raw_label = class_names.get(box_data["class_id"], str(box_data["class_id"]))
+            mapped_behavior = map_behavior(raw_label, behavior_map)
+            detection = {
+                **box_data,
+                "raw_label": str(raw_label),
+                "mapped_behavior": mapped_behavior,
+            }
+            detections.append(detection)
+            if mapped_behavior:
+                mapped_detections.append(detection)
 
         if not mapped_detections:
             raise RuntimeError(

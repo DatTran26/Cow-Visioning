@@ -63,32 +63,13 @@ jobs:
           echo "=== Installing dependencies ==="
           npm install --production
 
-          echo "=== Installing AI service dependencies ==="
+          echo "=== Validating AI service virtual environment ==="
           if [ ! -x "$VENV_DIR/bin/python" ] || [ ! -x "$VENV_DIR/bin/pip" ]; then
-            rm -rf "$VENV_DIR"
-            if ! python3 -m venv "$VENV_DIR"; then
-              echo "=== python3 venv support missing; attempting to install it ==="
-              if command -v apt-get >/dev/null 2>&1; then
-                PYTHON_MINOR="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
-                if command -v sudo >/dev/null 2>&1; then
-                  sudo apt-get update
-                  sudo apt-get install -y "python${PYTHON_MINOR}-venv" || sudo apt-get install -y python3-venv
-                else
-                  apt-get update
-                  apt-get install -y "python${PYTHON_MINOR}-venv" || apt-get install -y python3-venv
-                fi
-                rm -rf "$VENV_DIR"
-                python3 -m venv "$VENV_DIR"
-              else
-                echo "apt-get is unavailable and python3 -m venv failed; cannot bootstrap .venv" >&2
-                exit 1
-              fi
-            fi
+            echo "Shared AI virtualenv is missing at $VENV_DIR. Provision it manually on the VPS first." >&2
+            exit 1
           fi
           rm -rf "$APP_DIR/.venv"
           ln -s "$VENV_DIR" "$APP_DIR/.venv"
-          "$VENV_DIR/bin/python" -m pip install --upgrade pip
-          "$VENV_DIR/bin/python" -m pip install -r ai_service/requirements.txt
 
           echo "=== Running database migrations ==="
           export $(grep -E '^DB_PASSWORD=' "$APP_DIR/.env")

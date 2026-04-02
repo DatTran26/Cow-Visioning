@@ -16,7 +16,7 @@ module.exports = {
         },
         {
             name: 'cow-visioning-ai',
-            script: 'python3',
+            script: './.venv/bin/python',
             cwd: __dirname,
             args: '-m uvicorn ai_service.app:app --host 127.0.0.1 --port 8001',
             interpreter: 'none',

@@ -25,6 +25,7 @@ jobs:
           APP_DIR="/home/${{ secrets.VPS_USER }}/myapp"
           STAGING_DIR="/home/${{ secrets.VPS_USER }}/myapp_staging"
           BACKUP_DIR="/home/${{ secrets.VPS_USER }}/myapp_backup_$(date +%Y%m%d_%H%M%S)"
+          VENV_DIR="/home/${{ secrets.VPS_USER }}/.venvs/cow-visioning"
           export HOME="/home/${{ secrets.VPS_USER }}"
           export PM2_HOME="$HOME/.pm2"
 
@@ -51,6 +52,10 @@ jobs:
             rm -rf "$APP_DIR/logs"
             mv "$BACKUP_DIR/logs" "$APP_DIR/logs"
           fi
+          mkdir -p "$(dirname "$VENV_DIR")"
+          if [ -d "$BACKUP_DIR/.venv" ] && [ ! -e "$VENV_DIR" ]; then
+            mv "$BACKUP_DIR/.venv" "$VENV_DIR"
+          fi
 
           cd "$APP_DIR"
 
@@ -58,9 +63,9 @@ jobs:
           npm install --production
 
           echo "=== Installing AI service dependencies ==="
-          if [ ! -x .venv/bin/python ] || [ ! -x .venv/bin/pip ]; then
-            rm -rf .venv
-            if ! python3 -m venv .venv; then
+          if [ ! -x "$VENV_DIR/bin/python" ] || [ ! -x "$VENV_DIR/bin/pip" ]; then
+            rm -rf "$VENV_DIR"
+            if ! python3 -m venv "$VENV_DIR"; then
               echo "=== python3 venv support missing; attempting to install it ==="
               if command -v apt-get >/dev/null 2>&1; then
                 PYTHON_MINOR="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
@@ -71,16 +76,18 @@ jobs:
                   apt-get update
                   apt-get install -y "python${PYTHON_MINOR}-venv" || apt-get install -y python3-venv
                 fi
-                rm -rf .venv
-                python3 -m venv .venv
+                rm -rf "$VENV_DIR"
+                python3 -m venv "$VENV_DIR"
               else
                 echo "apt-get is unavailable and python3 -m venv failed; cannot bootstrap .venv" >&2
                 exit 1
               fi
             fi
           fi
-          ./.venv/bin/python -m pip install --upgrade pip
-          ./.venv/bin/python -m pip install -r ai_service/requirements.txt
+          rm -rf "$APP_DIR/.venv"
+          ln -s "$VENV_DIR" "$APP_DIR/.venv"
+          "$VENV_DIR/bin/python" -m pip install --upgrade pip
+          "$VENV_DIR/bin/python" -m pip install -r ai_service/requirements.txt
 
           echo "=== Running database migrations ==="
           export $(grep -E '^DB_PASSWORD=' "$APP_DIR/.env")

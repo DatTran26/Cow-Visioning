@@ -18,7 +18,12 @@ from ultralytics import YOLO
 
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_MODEL_PATH = Path(__file__).resolve().parent / "models" / "boudding_catllte_v1_22es.pt"
+AI_SERVICE_DIR = Path(__file__).resolve().parent
+SUPPORTED_MODEL_EXTENSIONS = (".pt", ".onnx")
+DEFAULT_MODEL_CANDIDATES = tuple(
+    AI_SERVICE_DIR / "models" / f"boudding_catllte_v1_22es{extension}"
+    for extension in SUPPORTED_MODEL_EXTENSIONS
+)
 DEFAULT_BEHAVIOR_MAP_PATH = Path(__file__).resolve().with_name("behavior_map.json")
 ALLOWED_BEHAVIORS = {"standing", "lying", "eating", "drinking", "walking", "abnormal"}
 
@@ -41,24 +46,53 @@ class HealthResponse(BaseModel):
     status: str
     model_name: str
     model_path: str
+    model_format: str
     device: str
 
 
 app = FastAPI(title="Cow Visioning AI Service", version="1.0.0")
 
 
+def resolve_repo_path(configured_path: str) -> Path:
+    path = Path(configured_path).expanduser()
+    if not path.is_absolute():
+        path = ROOT_DIR / path
+    return path.resolve()
+
+
+def get_default_model_path() -> Path:
+    for candidate in DEFAULT_MODEL_CANDIDATES:
+        if candidate.exists():
+            return candidate
+    return DEFAULT_MODEL_CANDIDATES[0]
+
+
+def get_configured_model_path() -> Path:
+    configured = os.getenv("AI_MODEL_PATH")
+    return resolve_repo_path(configured) if configured else get_default_model_path()
+
+
 def get_model_path() -> Path:
-    configured = os.getenv("AI_MODEL_PATH", str(DEFAULT_MODEL_PATH))
-    return Path(configured).expanduser().resolve()
+    model_path = get_configured_model_path()
+    if model_path.suffix.lower() not in SUPPORTED_MODEL_EXTENSIONS:
+        supported = ", ".join(SUPPORTED_MODEL_EXTENSIONS)
+        raise ValueError(
+            f"Unsupported model format for {model_path}. Supported formats: {supported}."
+        )
+    return model_path
 
 
 def get_behavior_map_path() -> Path:
     configured = os.getenv("AI_BEHAVIOR_MAP_PATH", str(DEFAULT_BEHAVIOR_MAP_PATH))
-    return Path(configured).expanduser().resolve()
+    return resolve_repo_path(configured)
 
 
 def get_model_name() -> str:
-    return os.getenv("AI_MODEL_NAME", get_model_path().name)
+    return os.getenv("AI_MODEL_NAME", get_configured_model_path().name)
+
+
+def get_model_format() -> str:
+    return get_configured_model_path().suffix.lower().lstrip(".") or "unknown"
 
 
 def get_device() -> str:
@@ -114,7 +148,7 @@ def load_model() -> YOLO:
     model_path = get_model_path()
     if not model_path.exists():
         raise FileNotFoundError(
-            f"Model file not found: {model_path}. Set AI_MODEL_PATH to the correct .pt file."
+            f"Model file not found: {model_path}. Set AI_MODEL_PATH to the correct .pt or .onnx file."
         )
     return YOLO(str(model_path))
 
@@ -280,6 +314,7 @@ def predict_image(payload: PredictRequest) -> dict[str, Any]:
             "detection_count": len(detections),
             "detections": detections,
             "model_name": get_model_name(),
+            "model_format": get_model_format(),
             "inference_ms": inference_ms,
             "error": None,
         }
@@ -294,6 +329,7 @@ def health() -> HealthResponse:
         status="ok",
         model_name=get_model_name(),
         model_path=str(get_model_path()),
+        model_format=get_model_format(),
         device=get_device(),
     )
 
@@ -314,6 +350,7 @@ def predict(payload: PredictRequest) -> dict[str, Any]:
             "detection_count": 0,
             "detections": [],
             "model_name": get_model_name(),
+            "model_format": get_model_format(),
             "inference_ms": None,
             "error": str(exc),
         }

@@ -68,7 +68,7 @@ A web application for managing cow image datasets for AI training. Capture, uplo
 |-----------|------------|
 | Frontend | HTML/CSS/JavaScript (vanilla) |
 | Backend | Node.js + Express |
-| AI Service | Python + FastAPI + YOLOv8 |
+| AI Service | Python + FastAPI + YOLOv8 (.pt/.onnx) |
 | Database | PostgreSQL |
 | File Upload | Multer (local storage) |
 | Web Server | Nginx (reverse proxy + SSL) |
@@ -138,7 +138,7 @@ cow-visioning/
 │
 ├── ai_service/               # Python AI service
 │   ├── app.py               # FastAPI server
-│   ├── models/              # YOLO model weights (.pt)
+│   ├── models/              # YOLO model weights (.pt/.onnx)
 │   ├── behavior_map.json    # Class → behavior mapping
 │   └── requirements.txt     # Python dependencies
 │
@@ -230,7 +230,7 @@ When `AI_ENABLED=true`, uploaded images are sent to the YOLO AI service for dete
 
 1. User uploads image → saved to disk
 2. Server sends image path to AI service (`POST /predict`)
-3. YOLO model runs inference → detects cows, classifies behavior
+3. YOLO model (`.pt` or `.onnx`) runs inference → detects cows, classifies behavior
 4. Annotated image with bounding boxes saved
 5. Results stored in DB: confidence, detection count, bbox coordinates
 
@@ -239,7 +239,7 @@ When `AI_ENABLED=true`, uploaded images are sent to the YOLO AI service for dete
 AI_ENABLED=true
 AI_SERVICE_URL=http://127.0.0.1:8001
 AI_TIMEOUT_MS=20000
-AI_MODEL_PATH=./ai_service/models/boudding_catllte_v1_22es.pt
+AI_MODEL_PATH=./ai_service/models/boudding_catllte_v1_22es.pt  # or .onnx
 AI_DEVICE=cpu
 AI_CONF_THRESHOLD=0.25
 ```
@@ -268,7 +268,7 @@ TOTP_APP_NAME=Cow-Visioning
 AI_ENABLED=true
 AI_SERVICE_URL=http://127.0.0.1:8001
 AI_TIMEOUT_MS=20000
-AI_MODEL_PATH=./ai_service/models/boudding_catllte_v1_22es.pt
+AI_MODEL_PATH=./ai_service/models/boudding_catllte_v1_22es.pt  # or .onnx
 AI_DEVICE=cpu
 AI_CONF_THRESHOLD=0.25
 AI_IOU_THRESHOLD=0.45

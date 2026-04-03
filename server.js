@@ -21,12 +21,53 @@ const isLocalDev = process.platform === 'win32';
 const dbHost = process.env.DB_HOST || 'localhost';
 const isRemoteDb = dbHost !== 'localhost' && dbHost !== '127.0.0.1';
 const isSecureCookie = process.env.NODE_ENV === 'production';
+const PUBLIC_API_BASE_URL = (process.env.PUBLIC_API_BASE_URL || '').trim().replace(/\/+$/, '');
+
+function parseBooleanEnv(value, defaultValue = false) {
+    if (value === undefined || value === null || value === '') {
+        return defaultValue;
+    }
+    return ['1', 'true', 'yes', 'on'].includes(String(value).trim().toLowerCase());
+}
+
+function parseCsvEnv(value) {
+    return String(value || '')
+        .split(',')
+        .map((item) => item.trim().replace(/\/+$/, ''))
+        .filter(Boolean);
+}
+
+const configuredCorsOrigins = parseCsvEnv(process.env.CORS_ALLOWED_ORIGINS);
+const allowAnyCorsOrigin = configuredCorsOrigins.length === 0;
+const crossOriginSessionMode = configuredCorsOrigins.length > 0;
+const sessionCookieSameSite = String(
+    process.env.SESSION_COOKIE_SAMESITE || (crossOriginSessionMode ? 'none' : 'lax')
+).trim().toLowerCase();
+const sessionCookieSecure = parseBooleanEnv(
+    process.env.SESSION_COOKIE_SECURE,
+    sessionCookieSameSite === 'none' ? true : isSecureCookie
+);
 
 // Keep image URLs relative by default so uploads, gallery, export, and delete flows
 // use the same host that served the current app. Override explicitly only if needed.
 const IMAGE_BASE_URL = (process.env.IMAGE_BASE_URL || '').replace(/\/+$/, '');
 
-app.use(cors());
+app.use(cors({
+    origin(origin, callback) {
+        if (!origin) {
+            callback(null, true);
+            return;
+        }
+
+        if (allowAnyCorsOrigin || configuredCorsOrigins.includes(origin)) {
+            callback(null, true);
+            return;
+        }
+
+        callback(new Error(`CORS origin not allowed: ${origin}`));
+    },
+    credentials: true,
+}));
 
 let APP_VERSION = Date.now().toString();
 try {
@@ -123,8 +164,8 @@ app.use(
         cookie: {
             maxAge: 7 * 24 * 60 * 60 * 1000,
             httpOnly: true,
-            sameSite: 'lax',
-            secure: isSecureCookie,
+            sameSite: sessionCookieSameSite,
+            secure: sessionCookieSecure,
         },
     })
 );
@@ -621,6 +662,15 @@ app.get(['/dashboard', '/quan-li-iot', '/ai-models', '/dataset-cow', '/tai-khoan
 
 app.get('/api/version', (_req, res) => {
     res.json({ version: APP_VERSION });
+});
+
+app.get('/js/runtime-config.js', (_req, res) => {
+    res.type('application/javascript');
+    res.send(
+        `window.__APP_CONFIG__ = Object.assign({}, window.__APP_CONFIG__ || {}, ${JSON.stringify({
+            apiBaseUrl: PUBLIC_API_BASE_URL,
+        })});`
+    );
 });
 
 app.use(express.static(path.join(__dirname, 'public')));

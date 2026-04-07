@@ -823,6 +823,8 @@
           integrity="sha512-ks5CkAP7G2XQl9TSXvGOQxm7MkFW/J3q7NvEa0NoUEY8E5bQ5hFkUPSqNiEfkTCMdROT7gj4v5NHnlNBhO2Q=="
           crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="js/api-config.js"></script>
+  <!-- Shared AI display helpers (must load before camera + upload) -->
+  <script src="js/ai-display-helpers.js"></script>
   <!-- Session modules (session-ui.js must load before session.js) -->
   <script src="js/session-ui.js"></script>
   <script src="js/session.js"></script>
@@ -835,15 +837,16 @@
   <!-- Gallery + Export -->
   <script src="js/gallery.js"></script>
   <script src="js/export.js"></script>
-  <!-- Blog modules (dependency order: utils → comments → posts) -->
+  <!-- Blog modules (dependency order: utils → comments → card → composer → posts) -->
   <script src="js/blog-utils.js"></script>
   <script src="js/blog-comments.js"></script>
+  <script src="js/blog-card.js"></script>
+  <script src="js/blog-composer.js"></script>
   <script src="js/blog-posts.js"></script>
   <!-- Admin modules (dependency order: users → panel) -->
   <script src="js/admin-users.js"></script>
   <script src="js/admin-panel.js"></script>
-  <!-- Shared helpers -->
-  <script src="js/ai-display-helpers.js"></script>
+  <!-- App helpers -->
   <script src="js/app-helpers.js"></script>
   <script>
     // ── TAB SWITCHING ──

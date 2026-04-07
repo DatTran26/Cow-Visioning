@@ -25,11 +25,21 @@ ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS ai_raw_result JSONB;
 ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS ai_model_name VARCHAR(255);
 ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS ai_inference_ms DOUBLE PRECISION;
 ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS ai_status VARCHAR(50);
--- Phase 2 readiness: farm_id for multi-tenancy (see migrations/001-add-farm-id.sql)
+-- Phase 2 readiness: farm_id for multi-tenancy (standardized from migrations/001-add-farm-id.sql)
 ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS farm_id VARCHAR(100);
+CREATE INDEX IF NOT EXISTS idx_cow_images_farm_id ON cow_images (farm_id);
+COMMENT ON COLUMN cow_images.farm_id IS 'Farm identifier. Nullable in Phase 1. FK enforced in Phase 2.';
+
 ALTER TABLE users ADD COLUMN IF NOT EXISTS farm_id VARCHAR(100);
+CREATE INDEX IF NOT EXISTS idx_users_farm_id ON users (farm_id);
+COMMENT ON COLUMN users.farm_id IS 'Farm identifier. Nullable in Phase 1. FK enforced in Phase 2.';
+
 ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS farm_id VARCHAR(100);
+CREATE INDEX IF NOT EXISTS idx_blog_posts_farm_id ON blog_posts (farm_id);
+COMMENT ON COLUMN blog_posts.farm_id IS 'Farm identifier. Nullable in Phase 1. FK enforced in Phase 2.';
+
 ALTER TABLE app_config ADD COLUMN IF NOT EXISTS farm_id VARCHAR(100);
+COMMENT ON COLUMN app_config.farm_id IS 'Farm identifier. Nullable in Phase 1. FK enforced in Phase 2.';
 
 UPDATE cow_images
 SET original_image_url = image_url
@@ -40,7 +50,6 @@ CREATE INDEX IF NOT EXISTS idx_cow_images_cow_id ON cow_images (cow_id);
 CREATE INDEX IF NOT EXISTS idx_cow_images_behavior ON cow_images (behavior);
 CREATE INDEX IF NOT EXISTS idx_cow_images_created_at ON cow_images (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_cow_images_user_id ON cow_images (user_id);
-CREATE INDEX IF NOT EXISTS idx_cow_images_farm_id ON cow_images (farm_id);
 
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
@@ -147,3 +156,18 @@ BEGIN
         VALUES ('ngochieu', 'ngochieu@cowvisioning.local', '$2a$10$MBYZnV7UwRIaqoZSm5mgueHqsojaeKp5QIx48Qxmkn6j7wYTtfKaW', 'user');
     END IF;
 END $$;
+
+-- ═══ Seed default configuration ═══
+INSERT INTO app_config (key, value) VALUES
+    ('AI_ENABLED', 'true'),
+    ('AI_SERVICE_URL', 'http://180.93.2.32:8001'),
+    ('AI_TIMEOUT_MS', '20000'),
+    ('AI_MODEL_NAME', 'cow-behavior-yolo'),
+    ('AI_MODEL_BACKEND', 'auto'),
+    ('AI_MODEL_PATH', './ai_service/models/boudding_catllte_v1_22es.pt'),
+    ('AI_BEHAVIOR_MAP_PATH', './ai_service/behavior_map.json'),
+    ('AI_DEVICE', 'cpu'),
+    ('AI_CONF_THRESHOLD', '0.25'),
+    ('AI_IOU_THRESHOLD', '0.45'),
+    ('AI_MAX_DET', '50')
+ON CONFLICT (key) DO NOTHING;

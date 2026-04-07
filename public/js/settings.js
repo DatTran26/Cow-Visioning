@@ -16,13 +16,13 @@ const Settings = (() => {
             statusEl.className = 'status-msg';
 
             if (code.length !== 6) {
-                statusEl.textContent = 'Vui long nhap du 6 so';
+                statusEl.textContent = 'Vui lòng nhập đủ 6 ký tự số';
                 statusEl.className = 'status-msg error';
                 return;
             }
 
             resetBtn.disabled = true;
-            resetBtn.textContent = 'Dang xu ly...';
+            resetBtn.textContent = 'Đang xử lý...';
 
             try {
                 const res = await fetch(`${API_BASE}/api/totp/reset`, {
@@ -34,23 +34,23 @@ const Settings = (() => {
                 const data = await res.json();
 
                 if (res.ok && data.success) {
-                    statusEl.textContent = 'Da dat lai thanh cong! Dang chuyen huong...';
+                    statusEl.textContent = 'Đã đặt lại cấu hình thành công! Đang chuyển hướng...';
                     statusEl.className = 'status-msg success';
                     setTimeout(() => {
                         window.location.href = '/auth/setup';
                     }, 1000);
                 } else {
-                    statusEl.textContent = data.error || 'Ma khong hop le';
+                    statusEl.textContent = data.error || 'Mã xác thực không hợp lệ';
                     statusEl.className = 'status-msg error';
                     codeInput.value = '';
                     codeInput.focus();
                 }
             } catch (err) {
-                statusEl.textContent = 'Loi ket noi server';
+                statusEl.textContent = 'Lỗi kết nối máy chủ Hệ thống';
                 statusEl.className = 'status-msg error';
             } finally {
                 resetBtn.disabled = false;
-                resetBtn.textContent = 'Dat lai TOTP';
+                resetBtn.textContent = 'Đặt lại mật khẩu bảo vệ';
             }
         });
     }

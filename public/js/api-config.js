@@ -1,10 +1,26 @@
 (function () {
     const runtimeConfig = window.__APP_CONFIG__ || {};
-    const configuredBase = typeof runtimeConfig.apiBaseUrl === 'string'
-        ? runtimeConfig.apiBaseUrl.trim().replace(/\/+$/, '')
-        : '';
+    const configuredBase =
+        typeof runtimeConfig.apiBaseUrl === 'string' ? runtimeConfig.apiBaseUrl.trim().replace(/\/+$/, '') : '';
+    const currentOrigin = window.location.origin;
+    const isLocalPage = ['localhost', '127.0.0.1'].includes(window.location.hostname);
     const originalFetch = window.fetch.bind(window);
-    var API_BASE = configuredBase;
+
+    function resolveOrigin(value) {
+        if (!value) {
+            return '';
+        }
+
+        try {
+            return new URL(value, window.location.href).origin;
+        } catch (_err) {
+            return '';
+        }
+    }
+
+    const configuredOrigin = resolveOrigin(configuredBase);
+    const shouldPreferSameOrigin = isLocalPage && configuredOrigin && configuredOrigin !== currentOrigin;
+    const API_BASE = shouldPreferSameOrigin ? '' : configuredBase;
 
     function isAbsoluteUrl(value) {
         return /^[a-zA-Z][a-zA-Z\d+.-]*:/.test(value) || value.startsWith('//');
@@ -12,16 +28,16 @@
 
     function buildApiUrl(path) {
         const normalizedPath = String(path || '');
-        if (!configuredBase || !normalizedPath) {
+        if (!API_BASE || !normalizedPath) {
             return normalizedPath;
         }
         if (isAbsoluteUrl(normalizedPath)) {
             return normalizedPath;
         }
         if (normalizedPath.startsWith('/')) {
-            return `${configuredBase}${normalizedPath}`;
+            return `${API_BASE}${normalizedPath}`;
         }
-        return `${configuredBase}/${normalizedPath.replace(/^\.?\//, '')}`;
+        return `${API_BASE}/${normalizedPath.replace(/^\.?\//, '')}`;
     }
 
     window.API_BASE = API_BASE;
@@ -39,7 +55,7 @@
         return originalFetch(resource, nextOptions);
     };
 
-    var BEHAVIOR_MAP = {
+    window.BEHAVIOR_MAP = {
         standing: 'Đứng',
         lying: 'Nằm',
         eating: 'Ăn',
@@ -47,5 +63,4 @@
         walking: 'Đi lại',
         abnormal: 'Bất thường',
     };
-    window.BEHAVIOR_MAP = BEHAVIOR_MAP;
 })();

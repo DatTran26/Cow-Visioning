@@ -22,9 +22,9 @@
         return trimmed;
     }
 
-    function showError(msg) {
+    function showError(message) {
         if (errorEl) {
-            errorEl.textContent = msg;
+            errorEl.textContent = message;
             errorEl.hidden = false;
         }
     }
@@ -53,38 +53,40 @@
     hydrateSwitchLinks();
 
     if (form && form.id === 'auth-form') {
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
             clearError();
 
             const username = usernameInput ? usernameInput.value.trim() : '';
             const password = passwordInput ? passwordInput.value : '';
             const nextUrl = sanitizeNext(searchParams.get('next'));
             if (!username || !password) {
-                showError('Vui long nhap day du thong tin');
+                showError('Vui lòng nhập đầy đủ thông tin.');
                 return;
             }
 
             let payload = { username, password };
             let endpoint = '/auth/login';
             let successRedirect = nextUrl || '/?tab=thu-thap';
-            let idleBtnText = 'Dang nhap';
+            let idleBtnText = 'Đăng nhập';
 
             if (mode === 'register') {
                 const email = emailInput ? emailInput.value.trim() : '';
                 const passwordConfirm = passwordConfirmInput ? passwordConfirmInput.value : '';
+
                 if (!email) {
-                    showError('Vui long nhap email');
+                    showError('Vui lòng nhập địa chỉ email.');
                     return;
                 }
                 if (password.length < 8) {
-                    showError('Mat khau toi thieu 8 ky tu');
+                    showError('Mật khẩu cần tối thiểu 8 ký tự.');
                     return;
                 }
                 if (password !== passwordConfirm) {
-                    showError('Xac nhan mat khau khong khop');
+                    showError('Mật khẩu xác nhận chưa khớp.');
                     return;
                 }
+
                 endpoint = '/auth/register';
                 payload = {
                     username,
@@ -92,14 +94,12 @@
                     password,
                     password_confirm: passwordConfirm,
                 };
-                successRedirect = nextUrl
-                    ? `/auth/login?next=${encodeURIComponent(nextUrl)}`
-                    : '/auth/login';
-                idleBtnText = 'Dang ky';
+                successRedirect = nextUrl ? `/auth/login?next=${encodeURIComponent(nextUrl)}` : '/auth/login';
+                idleBtnText = 'Tạo tài khoản';
             }
 
             submitBtn.disabled = true;
-            submitBtn.textContent = mode === 'register' ? 'Dang tao tai khoan...' : 'Dang dang nhap...';
+            submitBtn.textContent = mode === 'register' ? 'Đang tạo tài khoản...' : 'Đang đăng nhập...';
 
             try {
                 const res = await fetch(endpoint, {
@@ -113,13 +113,13 @@
                 if (res.ok && (data.success || data.user)) {
                     window.location.href = successRedirect;
                 } else {
-                    showError(data.error || 'Dang nhap that bai');
+                    showError(data.error || 'Không thể hoàn tất yêu cầu xác thực.');
                     if (passwordInput) passwordInput.value = '';
                     if (passwordConfirmInput) passwordConfirmInput.value = '';
                     if (passwordInput) passwordInput.focus();
                 }
-            } catch (err) {
-                showError('Loi ket noi server');
+            } catch (_err) {
+                showError('Không thể kết nối tới máy chủ.');
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.textContent = idleBtnText;

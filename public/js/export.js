@@ -38,7 +38,7 @@ const Export = (() => {
         const status = document.getElementById('export-status');
         const countEl = document.getElementById('export-count');
 
-        status.textContent = 'Dang tai du lieu...';
+        status.textContent = 'Đang tải dữ liệu để xuất...';
         status.className = 'status-msg info';
 
         try {
@@ -46,17 +46,17 @@ const Export = (() => {
             const result = await res.json();
 
             if (!res.ok) {
-                throw new Error(result.error || 'Tai du lieu that bai');
+                throw new Error(result.error || 'Tải dữ liệu thất bại');
             }
 
             records = result.data || [];
         } catch (err) {
-            status.textContent = `Loi: ${err.message}`;
+            status.textContent = `Lỗi: ${err.message}`;
             status.className = 'status-msg error';
             return;
         }
 
-        countEl.textContent = `Tong cong: ${records.length} ban ghi`;
+        countEl.textContent = `Tổng cộng: ${records.length} bản ghi`;
         document.getElementById('export-csv-btn').disabled = records.length === 0;
         document.getElementById('export-json-btn').disabled = records.length === 0;
 
@@ -73,16 +73,16 @@ const Export = (() => {
                 <td>${record.barn_area || '-'}</td>
                 <td>${(record.captured_at || '').slice(0, 16).replace('T', ' ')}</td>
                 <td>${formatConfidence(record.ai_confidence) || '-'}</td>
-                <td><a href="${previewImage}" target="_blank" style="color:#3b82f6;font-size:12px">Xem anh</a></td>
+                <td><a class="gallery-link" href="${previewImage}" target="_blank" rel="noopener">Mở ảnh</a></td>
             `;
             tbody.appendChild(tr);
         });
 
         document.getElementById('export-table-wrap').hidden = false;
         if (records.length > 50) {
-            status.textContent = `Hien thi 50/${records.length} ban ghi`;
+            status.textContent = `Đang hiển thị 50/${records.length} bản ghi đầu tiên`;
         } else {
-            status.textContent = 'Du lieu da san sang de xuat';
+            status.textContent = 'Dữ liệu đã sẵn sàng để tải xuống';
         }
         status.className = 'status-msg success';
     }

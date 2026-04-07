@@ -140,7 +140,7 @@ const Upload = (() => {
         uploadBtn.disabled = false;
 
         if (uploaded === total && lastSuccessfulRecord) {
-            showStatus(status, `Đã tải thành công ${uploaded} ảnh. ${buildAiSummary(lastSuccessfulRecord)}`, 'success');
+            showStatus(status, `Đã tải thành công ${uploaded} ảnh. ${AiDisplay.buildAiSummary(lastSuccessfulRecord)}`, 'success');
             selectedFiles = [];
             document.getElementById('file-preview').innerHTML = '';
         } else if (uploaded > 0 && lastSuccessfulRecord) {
@@ -166,13 +166,11 @@ const Upload = (() => {
         const meta = document.getElementById('upload-ai-meta');
         const originalLink = document.getElementById('upload-ai-original-link');
 
-        if (!card || !record) {
-            return;
-        }
+        if (!card || !record) return;
 
         image.src = record.annotated_image_url || record.image_url || record.original_image_url || '';
         behavior.textContent = BEHAVIOR_MAP[record.behavior] || record.behavior || 'Không xác định';
-        meta.textContent = buildAiMeta(record);
+        meta.textContent = AiDisplay.buildAiMeta(record);
 
         if (record.original_image_url) {
             originalLink.href = record.original_image_url;
@@ -182,31 +180,6 @@ const Upload = (() => {
         }
 
         card.hidden = false;
-    }
-
-    function buildAiSummary(record) {
-        const label = BEHAVIOR_MAP[record.behavior] || record.behavior || 'không xác định';
-        const confidence = formatConfidence(record.ai_confidence);
-        return confidence ? `AI nhận diện: ${label} (${confidence})` : `AI nhận diện: ${label}`;
-    }
-
-    function buildAiMeta(record) {
-        const parts = [];
-        const confidence = formatConfidence(record.ai_confidence);
-        if (confidence) {
-            parts.push(`Độ tin cậy: ${confidence}`);
-        }
-        if (typeof record.detection_count === 'number') {
-            parts.push(`Số khung phát hiện: ${record.detection_count}`);
-        }
-        if (typeof record.ai_inference_ms === 'number') {
-            parts.push(`Thời gian xử lý: ${Math.round(record.ai_inference_ms)} ms`);
-        }
-        return parts.join(' • ');
-    }
-
-    function formatConfidence(value) {
-        return typeof value === 'number' ? `${(value * 100).toFixed(1)}%` : '';
     }
 
     function showStatus(element, message, type) {

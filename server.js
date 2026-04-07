@@ -198,14 +198,32 @@ function requireAdmin(req, res, next) {
     return next();
 }
 
-const AI_SETTING_KEYS = ['AI_DEVICE', 'AI_CONF_THRESHOLD', 'AI_IOU_THRESHOLD', 'AI_MAX_DET', 'AI_ENABLED'];
+const AI_SETTING_KEYS = [
+    'AI_ENABLED',
+    'AI_SERVICE_URL',
+    'AI_TIMEOUT_MS',
+    'AI_MODEL_NAME',
+    'AI_MODEL_BACKEND',
+    'AI_MODEL_PATH',
+    'AI_BEHAVIOR_MAP_PATH',
+    'AI_DEVICE',
+    'AI_CONF_THRESHOLD',
+    'AI_IOU_THRESHOLD',
+    'AI_MAX_DET',
+];
 
 const DEFAULT_AI_SETTINGS = {
+    AI_ENABLED: process.env.AI_ENABLED !== 'false',
+    AI_SERVICE_URL: process.env.AI_SERVICE_URL || 'http://127.0.0.1:8001',
+    AI_TIMEOUT_MS: parseInt(process.env.AI_TIMEOUT_MS || '20000', 10),
+    AI_MODEL_NAME: process.env.AI_MODEL_NAME || 'cow-behavior-yolo',
+    AI_MODEL_BACKEND: process.env.AI_MODEL_BACKEND || 'auto',
+    AI_MODEL_PATH: process.env.AI_MODEL_PATH || './ai_service/models/boudding_catllte_v1_22es.pt',
+    AI_BEHAVIOR_MAP_PATH: process.env.AI_BEHAVIOR_MAP_PATH || './ai_service/behavior_map.json',
     AI_DEVICE: process.env.AI_DEVICE || 'cpu',
     AI_CONF_THRESHOLD: parseFloat(process.env.AI_CONF_THRESHOLD || '0.25'),
     AI_IOU_THRESHOLD: parseFloat(process.env.AI_IOU_THRESHOLD || '0.45'),
     AI_MAX_DET: parseInt(process.env.AI_MAX_DET || '50', 10),
-    AI_ENABLED: process.env.AI_ENABLED !== 'false',
 };
 
 // Runtime AI settings (loaded from env, then optionally overridden from DB by admin)
@@ -248,6 +266,32 @@ function applyStoredAiSetting(key, rawValue) {
         case 'AI_ENABLED': {
             const normalized = String(rawValue).trim().toLowerCase();
             aiSettings.AI_ENABLED = ['true', '1', 'yes', 'on'].includes(normalized);
+            break;
+        }
+        case 'AI_SERVICE_URL': {
+            const nextValue = String(rawValue).trim().replace(/\/+$/, '');
+            if (nextValue) aiSettings.AI_SERVICE_URL = nextValue;
+            break;
+        }
+        case 'AI_TIMEOUT_MS': {
+            const nextValue = Number(rawValue);
+            if (Number.isFinite(nextValue)) aiSettings.AI_TIMEOUT_MS = Math.max(1000, Math.floor(nextValue));
+            break;
+        }
+        case 'AI_MODEL_NAME': {
+            aiSettings.AI_MODEL_NAME = String(rawValue).trim() || 'cow-behavior-yolo';
+            break;
+        }
+        case 'AI_MODEL_BACKEND': {
+            aiSettings.AI_MODEL_BACKEND = String(rawValue).trim() || 'auto';
+            break;
+        }
+        case 'AI_MODEL_PATH': {
+            aiSettings.AI_MODEL_PATH = String(rawValue).trim();
+            break;
+        }
+        case 'AI_BEHAVIOR_MAP_PATH': {
+            aiSettings.AI_BEHAVIOR_MAP_PATH = String(rawValue).trim();
             break;
         }
         default:
@@ -396,7 +440,7 @@ function normalizeImageRecord(record) {
 }
 
 function getAiServiceCandidates() {
-    const candidates = [AI_SERVICE_URL, AI_LOCAL_FALLBACK_URL]
+    const candidates = [aiSettings.AI_SERVICE_URL, AI_LOCAL_FALLBACK_URL]
         .map((item) => String(item || '').trim().replace(/\/+$/, ''))
         .filter(Boolean);
 
@@ -427,7 +471,7 @@ async function requestAiPrediction({ imagePath, outputDir, requestId }) {
 
     for (const serviceUrl of getAiServiceCandidates()) {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+        const timeout = setTimeout(() => controller.abort(), aiSettings.AI_TIMEOUT_MS);
 
         try {
             const response = await fetch(`${serviceUrl}/predict`, {
@@ -799,7 +843,7 @@ app.post('/api/images', authRequired, postWriteLimiter, datasetUpload.single('im
         });
     } catch (err) {
         console.error('POST /api/images error:', err);
-        return res.status(500).json({ error: 'Upload that bai' });
+        return res.status(500).json({ error: 'Upload thất bại' });
     }
 });
 
@@ -855,7 +899,7 @@ app.get('/api/images', authRequired, async (req, res) => {
         return res.json({ data: result.rows.map(normalizeImageRecord) });
     } catch (err) {
         console.error('GET /api/images error:', err.message);
-        return res.status(500).json({ error: 'Khong the tai danh sach anh', details: err.message });
+        return res.status(500).json({ error: 'Không thể tải danh sách ảnh', details: err.message });
     }
 });
 
@@ -865,7 +909,7 @@ app.put('/api/images/:id/label', authRequired, async (req, res) => {
         const behavior = normalizeText(req.body.behavior, 50).toLowerCase();
         
         if (!id || !behavior) {
-            return res.status(400).json({ error: 'Thieu ID hoac nhãn hanh vi' });
+            return res.status(400).json({ error: 'Thiếu ID hoặc nhãn hành vi' });
         }
 
         const result = await pool.query(
@@ -874,13 +918,13 @@ app.put('/api/images/:id/label', authRequired, async (req, res) => {
         );
 
         if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Khong tim thay anh hoac khong co quyen' });
+            return res.status(404).json({ error: 'Không tìm thấy ảnh hoặc không có quyền' });
         }
 
         return res.json({ success: true });
     } catch (err) {
         console.error('PUT /api/images/:id/label error:', err);
-        return res.status(500).json({ error: 'Loi khi cap nhat nhan' });
+        return res.status(500).json({ error: 'Lỗi khi cập nhật nhãn' });
     }
 });
 
@@ -899,10 +943,10 @@ app.delete('/api/images/:id', authRequired, async (req, res) => {
             [id]
         );
         if (record.rows.length === 0) {
-            return res.status(404).json({ error: 'Khong tim thay anh' });
+            return res.status(404).json({ error: 'Không tìm thấy ảnh' });
         }
         if (record.rows[0].user_id !== req.session.userId) {
-            return res.status(403).json({ error: 'Ban khong co quyen xoa anh nay' });
+            return res.status(403).json({ error: 'Bạn không có quyền xoá ảnh này' });
         }
 
         const fileUrls = [
@@ -913,7 +957,7 @@ app.delete('/api/images/:id', authRequired, async (req, res) => {
 
         for (const uploadUrl of [...new Set(fileUrls.filter(Boolean))]) {
             if (!toUploadAbsolutePath(uploadUrl)) {
-                return res.status(400).json({ error: 'Duong dan file khong hop le' });
+                return res.status(400).json({ error: 'Đường dẫn file không hợp lệ' });
             }
             deleteUploadFile(uploadUrl, 'File delete warning');
         }
@@ -922,7 +966,7 @@ app.delete('/api/images/:id', authRequired, async (req, res) => {
         return res.json({ success: true });
     } catch (err) {
         console.error('DELETE /api/images/:id error:', err);
-        return res.status(500).json({ error: 'Xoá that bai' });
+        return res.status(500).json({ error: 'Xoá thất bại' });
     }
 });
 
@@ -996,10 +1040,10 @@ app.post('/api/blog/posts', authRequired, postWriteLimiter, async (req, res) => 
         const title = normalizeText(req.body.title, 255);
         const content = normalizeText(req.body.content, 10000);
         if (!title || !content) {
-            return res.status(400).json({ error: 'Title va content la bat buoc' });
+            return res.status(400).json({ error: 'Tiêu đề và nội dung là bắt buộc' });
         }
         if (title.length < 3 || content.length < 10) {
-            return res.status(400).json({ error: 'Noi dung bai viet qua ngan' });
+            return res.status(400).json({ error: 'Nội dung bài viết quá ngắn' });
         }
 
         const created = await pool.query(
@@ -1026,10 +1070,10 @@ app.put('/api/blog/posts/:id', authRequired, postWriteLimiter, async (req, res) 
         const title = normalizeText(req.body.title, 255);
         const content = normalizeText(req.body.content, 10000);
         if (!title || !content) {
-            return res.status(400).json({ error: 'Title va content la bat buoc' });
+            return res.status(400).json({ error: 'Tiêu đề và nội dung là bắt buộc' });
         }
         if (title.length < 3 || content.length < 10) {
-            return res.status(400).json({ error: 'Noi dung bai viet qua ngan' });
+            return res.status(400).json({ error: 'Nội dung bài viết quá ngắn' });
         }
 
         const ownerCheck = await pool.query('SELECT user_id FROM blog_posts WHERE id = $1', [id]);
@@ -1037,7 +1081,7 @@ app.put('/api/blog/posts/:id', authRequired, postWriteLimiter, async (req, res) 
             return res.status(404).json({ error: 'Không tìm thấy bài viết' });
         }
         if (ownerCheck.rows[0].user_id !== req.session.userId) {
-            return res.status(403).json({ error: 'Ban khong co quyen sua bai viet nay' });
+            return res.status(403).json({ error: 'Bạn không có quyền sửa bài viết này' });
         }
 
         const updated = await pool.query(
@@ -1051,7 +1095,7 @@ app.put('/api/blog/posts/:id', authRequired, postWriteLimiter, async (req, res) 
         return res.json({ success: true, data: updated.rows[0] });
     } catch (err) {
         console.error('PUT /api/blog/posts/:id error:', err);
-        return res.status(500).json({ error: 'Khong the cap nhat bai viet' });
+        return res.status(500).json({ error: 'Không thể cập nhật bài viết' });
     }
 });
 
@@ -1067,7 +1111,7 @@ app.delete('/api/blog/posts/:id', authRequired, postWriteLimiter, async (req, re
             return res.status(404).json({ error: 'Không tìm thấy bài viết' });
         }
         if (ownerCheck.rows[0].user_id !== req.session.userId) {
-            return res.status(403).json({ error: 'Ban khong co quyen xoa bai viet nay' });
+            return res.status(403).json({ error: 'Bạn không có quyền xoá bài viết này' });
         }
 
         await pool.query('DELETE FROM blog_posts WHERE id = $1', [id]);
@@ -1093,12 +1137,12 @@ app.post('/api/blog/posts/:postId/images', authRequired, postWriteLimiter, blogU
             return res.status(404).json({ error: 'Không tìm thấy bài viết' });
         }
         if (ownerCheck.rows[0].user_id !== req.session.userId) {
-            return res.status(403).json({ error: 'Ban khong co quyen them anh vao bai viet nay' });
+            return res.status(403).json({ error: 'Bạn không có quyền thêm ảnh vào bài viết này' });
         }
 
         const imageUrl = toUploadUrl(req.file.path);
         if (!imageUrl) {
-            return res.status(500).json({ error: 'Khong the luu duong dan anh bai viet' });
+            return res.status(500).json({ error: 'Không thể lưu đường dẫn ảnh bài viết' });
         }
 
         const inserted = await pool.query(
@@ -1111,7 +1155,7 @@ app.post('/api/blog/posts/:postId/images', authRequired, postWriteLimiter, blogU
         return res.status(201).json({ success: true, data: inserted.rows[0] });
     } catch (err) {
         console.error('POST /api/blog/posts/:postId/images error:', err);
-        return res.status(500).json({ error: 'Khong the tai anh len bai viet' });
+        return res.status(500).json({ error: 'Không thể tải ảnh lên bài viết' });
     }
 });
 
@@ -1130,15 +1174,15 @@ app.delete('/api/blog/images/:id', authRequired, postWriteLimiter, async (req, r
             [id]
         );
         if (record.rows.length === 0) {
-            return res.status(404).json({ error: 'Khong tim thay anh bai viet' });
+            return res.status(404).json({ error: 'Không tìm thấy ảnh bài viết' });
         }
         if (record.rows[0].user_id !== req.session.userId) {
-            return res.status(403).json({ error: 'Ban khong co quyen xoa anh nay' });
+            return res.status(403).json({ error: 'Bạn không có quyền xoá ảnh này' });
         }
 
         const imageUrl = record.rows[0].image_url;
         if (!toUploadAbsolutePath(imageUrl)) {
-            return res.status(400).json({ error: 'Duong dan file khong hop le' });
+            return res.status(400).json({ error: 'Đường dẫn file không hợp lệ' });
         }
         deleteUploadFile(imageUrl, 'Blog image delete warning');
 
@@ -1168,7 +1212,7 @@ app.get('/api/blog/posts/:postId/comments', authRequired, async (req, res) => {
         return res.json({ data: comments.rows });
     } catch (err) {
         console.error('GET /api/blog/posts/:postId/comments error:', err);
-        return res.status(500).json({ error: 'Khong the tai comment' });
+        return res.status(500).json({ error: 'Không thể tải comment' });
     }
 });
 
@@ -1181,10 +1225,10 @@ app.post('/api/blog/posts/:postId/comments', authRequired, commentWriteLimiter, 
 
         const content = normalizeText(req.body.content, 2000);
         if (!content) {
-            return res.status(400).json({ error: 'Comment khong duoc de trong' });
+            return res.status(400).json({ error: 'Comment không được để trống' });
         }
         if (content.length < 2) {
-            return res.status(400).json({ error: 'Comment qua ngan' });
+            return res.status(400).json({ error: 'Comment quá ngắn' });
         }
 
         const exists = await pool.query('SELECT id FROM blog_posts WHERE id = $1', [postId]);
@@ -1202,7 +1246,7 @@ app.post('/api/blog/posts/:postId/comments', authRequired, commentWriteLimiter, 
         return res.status(201).json({ success: true, data: inserted.rows[0] });
     } catch (err) {
         console.error('POST /api/blog/posts/:postId/comments error:', err);
-        return res.status(500).json({ error: 'Khong the them comment' });
+        return res.status(500).json({ error: 'Không thể thêm comment' });
     }
 });
 
@@ -1215,17 +1259,17 @@ app.delete('/api/blog/comments/:id', authRequired, commentWriteLimiter, async (r
 
         const ownerCheck = await pool.query('SELECT user_id FROM blog_comments WHERE id = $1', [id]);
         if (ownerCheck.rows.length === 0) {
-            return res.status(404).json({ error: 'Khong tim thay comment' });
+            return res.status(404).json({ error: 'Không tìm thấy comment' });
         }
         if (ownerCheck.rows[0].user_id !== req.session.userId) {
-            return res.status(403).json({ error: 'Ban khong co quyen xoa comment nay' });
+            return res.status(403).json({ error: 'Bạn không có quyền xoá comment này' });
         }
 
         await pool.query('DELETE FROM blog_comments WHERE id = $1', [id]);
         return res.json({ success: true });
     } catch (err) {
         console.error('DELETE /api/blog/comments/:id error:', err);
-        return res.status(500).json({ error: 'Khong the xoa comment' });
+        return res.status(500).json({ error: 'Không thể xoá comment' });
     }
 });
 
@@ -1265,7 +1309,7 @@ app.post('/api/blog/posts/:postId/likes', authRequired, likeLimiter, async (req,
         return res.json({ success: true, liked, like_count: countResult.rows[0].count });
     } catch (err) {
         console.error('POST /api/blog/posts/:postId/likes error:', err);
-        return res.status(500).json({ error: 'Khong the xu ly like' });
+        return res.status(500).json({ error: 'Không thể xử lý like' });
     }
 });
 
@@ -1285,7 +1329,7 @@ app.get('/admin/users', requireAdmin, async (req, res) => {
         return res.json({ data: result.rows });
     } catch (err) {
         console.error('GET /admin/users error:', err.message);
-        return res.status(500).json({ error: 'Khong the tai danh sach user', details: err.message });
+        return res.status(500).json({ error: 'Không thể tải danh sách thành viên', details: err.message });
     }
 });
 
@@ -1296,11 +1340,11 @@ app.put('/admin/users/:id/role', requireAdmin, async (req, res) => {
 
         const newRole = normalizeText(req.body.role, 20);
         if (!['admin', 'user'].includes(newRole)) {
-            return res.status(400).json({ error: 'Role khong hop le. Chi chap nhan: admin, user' });
+            return res.status(400).json({ error: 'Vai trò không hợp lệ. Chỉ chấp nhận: admin, user' });
         }
 
         if (id === req.session.userId && newRole !== 'admin') {
-            return res.status(400).json({ error: 'Khong the tu ha quyen cua chinh minh' });
+            return res.status(400).json({ error: 'Không thể tự hạ quyền của chính mình' });
         }
 
         const updated = await pool.query(
@@ -1309,13 +1353,13 @@ app.put('/admin/users/:id/role', requireAdmin, async (req, res) => {
             [newRole, id]
         );
         if (updated.rows.length === 0) {
-            return res.status(404).json({ error: 'Khong tim thay user' });
+            return res.status(404).json({ error: 'Không tìm thấy người dùng' });
         }
 
         return res.json({ success: true, data: updated.rows[0] });
     } catch (err) {
         console.error('PUT /admin/users/:id/role error:', err);
-        return res.status(500).json({ error: 'Khong the cap nhat role' });
+        return res.status(500).json({ error: 'Không thể cập nhật quyền' });
     }
 });
 
@@ -1325,19 +1369,19 @@ app.delete('/admin/users/:id', requireAdmin, async (req, res) => {
         if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID không hợp lệ' });
 
         if (id === req.session.userId) {
-            return res.status(400).json({ error: 'Khong the tu xoa chinh minh' });
+            return res.status(400).json({ error: 'Không thể tự xoá chính mình' });
         }
 
         const check = await pool.query('SELECT id, username FROM users WHERE id = $1', [id]);
         if (check.rows.length === 0) {
-            return res.status(404).json({ error: 'Khong tim thay user' });
+            return res.status(404).json({ error: 'Không tìm thấy người dùng' });
         }
 
         await pool.query('DELETE FROM users WHERE id = $1', [id]);
         return res.json({ success: true, deleted: check.rows[0].username });
     } catch (err) {
         console.error('DELETE /admin/users/:id error:', err);
-        return res.status(500).json({ error: 'Khong the xoa user' });
+        return res.status(500).json({ error: 'Không thể xoá người dùng' });
     }
 });
 
@@ -1350,6 +1394,8 @@ app.get('/api/ai-settings', (_req, res) => {
             AI_MAX_DET: aiSettings.AI_MAX_DET,
             AI_DEVICE: aiSettings.AI_DEVICE,
             AI_ENABLED: aiSettings.AI_ENABLED,
+            AI_MODEL_NAME: aiSettings.AI_MODEL_NAME,
+            AI_SERVICE_URL: aiSettings.AI_SERVICE_URL, // Publicly visible for status display
         }
     });
 });
@@ -1363,6 +1409,25 @@ app.put('/admin/ai-settings', requireAdmin, async (req, res) => {
         if (typeof req.body.AI_DEVICE === 'string') {
             const d = req.body.AI_DEVICE.trim();
             if (['cpu', '0', '1', 'cuda', 'cuda:0', 'cuda:1'].includes(d)) aiSettings.AI_DEVICE = d;
+        }
+        if (typeof req.body.AI_SERVICE_URL === 'string') {
+            const url = req.body.AI_SERVICE_URL.trim().replace(/\/+$/, '');
+            if (url) aiSettings.AI_SERVICE_URL = url;
+        }
+        if (typeof req.body.AI_TIMEOUT_MS === 'number') {
+            aiSettings.AI_TIMEOUT_MS = Math.max(1000, Math.floor(req.body.AI_TIMEOUT_MS));
+        }
+        if (typeof req.body.AI_MODEL_NAME === 'string') {
+            aiSettings.AI_MODEL_NAME = req.body.AI_MODEL_NAME.trim() || 'cow-behavior-yolo';
+        }
+        if (typeof req.body.AI_MODEL_BACKEND === 'string') {
+            aiSettings.AI_MODEL_BACKEND = req.body.AI_MODEL_BACKEND.trim() || 'auto';
+        }
+        if (typeof req.body.AI_MODEL_PATH === 'string') {
+            aiSettings.AI_MODEL_PATH = req.body.AI_MODEL_PATH.trim();
+        }
+        if (typeof req.body.AI_BEHAVIOR_MAP_PATH === 'string') {
+            aiSettings.AI_BEHAVIOR_MAP_PATH = req.body.AI_BEHAVIOR_MAP_PATH.trim();
         }
         if (typeof req.body.AI_CONF_THRESHOLD === 'number') {
             aiSettings.AI_CONF_THRESHOLD = Math.max(0, Math.min(1, req.body.AI_CONF_THRESHOLD));
@@ -1380,7 +1445,7 @@ app.put('/admin/ai-settings', requireAdmin, async (req, res) => {
         return res.json({ success: true, data: aiSettings });
     } catch (err) {
         console.error('PUT /admin/ai-settings error:', err);
-        return res.status(500).json({ error: 'Khong the cap nhat AI settings' });
+        return res.status(500).json({ error: 'Không thể cập nhật cấu hình AI' });
     }
 });
 
@@ -1398,7 +1463,7 @@ app.get('/admin/stats', requireAdmin, async (req, res) => {
         });
     } catch (err) {
         console.error('GET /admin/stats error:', err);
-        return res.status(500).json({ error: 'Khong the tai thong ke' });
+        return res.status(500).json({ error: 'Không thể tải thống kê' });
     }
 });
 // Export app for testing (supertest can require without starting a server)

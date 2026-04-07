@@ -25,6 +25,11 @@ ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS ai_raw_result JSONB;
 ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS ai_model_name VARCHAR(255);
 ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS ai_inference_ms DOUBLE PRECISION;
 ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS ai_status VARCHAR(50);
+-- Phase 2 readiness: farm_id for multi-tenancy (see migrations/001-add-farm-id.sql)
+ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS farm_id VARCHAR(100);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS farm_id VARCHAR(100);
+ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS farm_id VARCHAR(100);
+ALTER TABLE app_config ADD COLUMN IF NOT EXISTS farm_id VARCHAR(100);
 
 UPDATE cow_images
 SET original_image_url = image_url
@@ -35,6 +40,7 @@ CREATE INDEX IF NOT EXISTS idx_cow_images_cow_id ON cow_images (cow_id);
 CREATE INDEX IF NOT EXISTS idx_cow_images_behavior ON cow_images (behavior);
 CREATE INDEX IF NOT EXISTS idx_cow_images_created_at ON cow_images (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_cow_images_user_id ON cow_images (user_id);
+CREATE INDEX IF NOT EXISTS idx_cow_images_farm_id ON cow_images (farm_id);
 
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,

@@ -16,12 +16,12 @@ const Blog = (() => {
         try {
             payload = text ? JSON.parse(text) : {};
         } catch (_err) {
-            const snippet = text ? text.slice(0, 120) : 'empty response';
-            throw new Error(`Phan hoi khong hop le tu server: ${snippet}`);
+            const snippet = text ? text.slice(0, 120) : 'phản hồi rỗng';
+            throw new Error(`Phản hồi từ máy chủ không hợp lệ: ${snippet}`);
         }
 
         if (!response.ok) {
-            throw new Error(payload.error || `Request failed (${response.status})`);
+            throw new Error(payload.error || `Yêu cầu thất bại (${response.status})`);
         }
 
         return payload;
@@ -38,6 +38,7 @@ const Blog = (() => {
         const titleInput = document.getElementById('blog-title');
         const contentInput = document.getElementById('blog-content');
         const clearImageBtn = document.getElementById('blog-image-clear-btn');
+
         if (postForm) postForm.addEventListener('submit', onSubmitPost);
         if (refreshBtn) refreshBtn.addEventListener('click', () => loadFeed());
         if (cancelBtn) cancelBtn.addEventListener('click', resetComposer);
@@ -59,6 +60,7 @@ const Blog = (() => {
         if (titleInput) titleInput.addEventListener('input', renderComposerPreview);
         if (contentInput) contentInput.addEventListener('input', renderComposerPreview);
         if (clearImageBtn) clearImageBtn.addEventListener('click', clearSelectedImage);
+
         renderComposerPreview();
         hydrateMindPrompt();
 
@@ -78,10 +80,10 @@ const Blog = (() => {
             .replace(/'/g, '&#39;');
     }
 
-    function setStatus(msg, type) {
+    function setStatus(message, type) {
         const status = document.getElementById('blog-status');
         if (!status) return;
-        status.textContent = msg;
+        status.textContent = message;
         status.className = `status-msg ${type}`;
     }
 
@@ -90,9 +92,7 @@ const Blog = (() => {
         if (modal) modal.hidden = false;
         document.body.classList.add('modal-open');
         const title = document.getElementById('blog-title');
-        if (title) {
-            title.focus();
-        }
+        if (title) title.focus();
     }
 
     function closeComposer() {
@@ -105,13 +105,13 @@ const Blog = (() => {
         const promptBtn = document.getElementById('blog-open-composer-btn');
         if (!promptBtn) return;
         try {
-            const payload = await fetchJson(buildApiUrl('/auth/me'));
-            const username = payload?.user?.username;
+            const me = typeof AppSession !== 'undefined' ? AppSession.getCurrentUser() : null;
+            const username = me?.username;
             if (username) {
-                promptBtn.textContent = `What's on your mind, ${username}?`;
+                promptBtn.textContent = `Bạn muốn chia sẻ điều gì hôm nay, ${username}?`;
             }
         } catch (_err) {
-            // Keep default copy when user profile is unavailable.
+            // Giữ nguyên nội dung mặc định.
         }
     }
 
@@ -130,7 +130,10 @@ const Blog = (() => {
             titleTarget.textContent = title || 'Tiêu đề bài viết sẽ hiển thị ở đây';
         }
         if (contentTarget) {
-            contentTarget.innerHTML = escapeHtml(content || 'Nội dung xem trước sẽ tự động cập nhật khi bạn nhập.').replace(/\n/g, '<br>');
+            contentTarget.innerHTML = escapeHtml(content || 'Nội dung xem trước sẽ tự động cập nhật khi bạn nhập.').replace(
+                /\n/g,
+                '<br>'
+            );
         }
         if (timeTarget) {
             timeTarget.textContent = formatTime(new Date().toISOString());
@@ -139,7 +142,9 @@ const Blog = (() => {
         if (imagesTarget) {
             if (selectedImagePreviewUrl) {
                 imagesTarget.hidden = false;
-                imagesTarget.innerHTML = `<img class="blog-post-image" src="${escapeHtml(selectedImagePreviewUrl)}" alt="Anh bai viet xem truoc" />`;
+                imagesTarget.innerHTML = `<img class="blog-post-image" src="${escapeHtml(
+                    selectedImagePreviewUrl
+                )}" alt="Ảnh bài viết xem trước" />`;
             } else {
                 imagesTarget.hidden = true;
                 imagesTarget.innerHTML = '';
@@ -155,7 +160,7 @@ const Blog = (() => {
         editingPostId = null;
         if (title) title.value = '';
         if (content) content.value = '';
-        if (submit) submit.textContent = 'Dang bai';
+        if (submit) submit.textContent = 'Đăng bài viết';
         if (cancel) cancel.hidden = true;
         clearSelectedImage();
         renderComposerPreview();
@@ -171,12 +176,12 @@ const Blog = (() => {
         const file = input.files[0];
         if (!file.type.startsWith('image/')) {
             clearSelectedImage();
-            setStatus('Chi chap nhan file anh', 'error');
+            setStatus('Chỉ chấp nhận tệp ảnh.', 'error');
             return;
         }
         if (file.size > 10 * 1024 * 1024) {
             clearSelectedImage();
-            setStatus('Anh toi da 10MB', 'error');
+            setStatus('Ảnh tối đa 10 MB.', 'error');
             return;
         }
 
@@ -240,12 +245,12 @@ const Blog = (() => {
         const content = contentEl ? contentEl.value.trim() : '';
 
         if (!title || !content) {
-            setStatus('Vui long nhap tieu de va noi dung bai viet', 'error');
+            setStatus('Vui lòng nhập đầy đủ tiêu đề và nội dung bài viết.', 'error');
             return;
         }
 
         submitBtn.disabled = true;
-        submitBtn.textContent = editingPostId ? 'Dang cap nhat...' : 'Dang dang bai...';
+        submitBtn.textContent = editingPostId ? 'Đang cập nhật...' : 'Đang đăng bài...';
 
         try {
             const endpoint = editingPostId ? `/api/blog/posts/${editingPostId}` : '/api/blog/posts';
@@ -261,15 +266,15 @@ const Blog = (() => {
                 await uploadPostImage(savedPost.id, selectedImageFile);
             }
 
-            setStatus(editingPostId ? 'Da cap nhat bai viet' : 'Dang bai thanh cong', 'success');
+            setStatus(editingPostId ? 'Đã cập nhật bài viết.' : 'Đăng bài thành công.', 'success');
             resetComposer();
             closeComposer();
             await loadFeed();
         } catch (err) {
-            setStatus(`Loi: ${err.message}`, 'error');
+            setStatus(`Lỗi: ${err.message}`, 'error');
         } finally {
             submitBtn.disabled = false;
-            submitBtn.textContent = editingPostId ? 'Cap nhat bai viet' : 'Dang bai';
+            submitBtn.textContent = editingPostId ? 'Cập nhật bài viết' : 'Đăng bài viết';
         }
     }
 
@@ -298,11 +303,6 @@ const Blog = (() => {
 
         if (target.matches('[data-delete-comment]')) {
             await deleteComment(target.dataset.deleteComment);
-            return;
-        }
-
-        if (target.matches('[data-cancel-edit]')) {
-            resetComposer();
         }
     }
 
@@ -326,7 +326,7 @@ const Blog = (() => {
             input.value = '';
             await loadFeed();
         } catch (err) {
-            setStatus(`Loi comment: ${err.message}`, 'error');
+            setStatus(`Lỗi khi gửi bình luận: ${err.message}`, 'error');
         }
     }
 
@@ -335,28 +335,28 @@ const Blog = (() => {
             await fetchJson(buildApiUrl(`/api/blog/posts/${postId}/likes`), { method: 'POST' });
             await loadFeed();
         } catch (err) {
-            setStatus(`Loi like: ${err.message}`, 'error');
+            setStatus(`Lỗi khi bày tỏ quan tâm: ${err.message}`, 'error');
         }
     }
 
     async function deletePost(postId) {
-        if (!window.confirm('Ban chac chan muon xoa bai viet nay?')) return;
+        if (!window.confirm('Bạn có chắc muốn xóa bài viết này không?')) return;
         try {
             await fetchJson(buildApiUrl(`/api/blog/posts/${postId}`), { method: 'DELETE' });
-            setStatus('Da xoa bai viet', 'success');
+            setStatus('Đã xóa bài viết.', 'success');
             await loadFeed();
         } catch (err) {
-            setStatus(`Loi xoa bai: ${err.message}`, 'error');
+            setStatus(`Lỗi khi xóa bài viết: ${err.message}`, 'error');
         }
     }
 
     async function deleteComment(commentId) {
-        if (!window.confirm('Ban chac chan muon xoa comment nay?')) return;
+        if (!window.confirm('Bạn có chắc muốn xóa bình luận này không?')) return;
         try {
             await fetchJson(buildApiUrl(`/api/blog/comments/${commentId}`), { method: 'DELETE' });
             await loadFeed();
         } catch (err) {
-            setStatus(`Loi xoa comment: ${err.message}`, 'error');
+            setStatus(`Lỗi khi xóa bình luận: ${err.message}`, 'error');
         }
     }
 
@@ -373,7 +373,7 @@ const Blog = (() => {
         editingPostId = postId;
         titleEl.value = title;
         contentEl.value = content;
-        submit.textContent = 'Cap nhat bai viet';
+        submit.textContent = 'Cập nhật bài viết';
         cancel.hidden = false;
         openComposer();
         titleEl.focus();
@@ -390,35 +390,34 @@ const Blog = (() => {
         const feed = document.getElementById('blog-feed');
         if (!feed) return;
 
-        setStatus('Dang tai bai viet...', 'info');
+        setStatus('Đang tải danh sách bài viết...', 'info');
         feed.innerHTML = '';
 
         try {
-            const mePayload = await fetchJson(buildApiUrl('/auth/me'));
-            const me = mePayload.user;
-
+            const me = typeof AppSession !== 'undefined' ? AppSession.getCurrentUser() : null;
             const payload = await fetchJson(buildApiUrl('/api/blog/posts?limit=30&offset=0'));
 
             const posts = payload.data || [];
             if (posts.length === 0) {
-                feed.innerHTML = '<div class="blog-empty">Chua co bai viet nao. Hay dang bai dau tien!</div>';
-                setStatus('Feed trong', 'info');
+                feed.innerHTML = '<div class="blog-empty">Chưa có bài viết nào. Hãy tạo bài viết đầu tiên.</div>';
+                setStatus('Chưa có bài viết nào trong hệ thống.', 'info');
                 return;
             }
 
             for (const post of posts) {
                 const comments = await fetchComments(post.id);
-                feed.appendChild(createPostCard(post, comments, me.id));
+                feed.appendChild(createPostCard(post, comments, me ? me.id : null));
             }
 
-            setStatus(`Da tai ${posts.length} bai viet`, 'success');
+            setStatus(`Đã tải ${posts.length} bài viết.`, 'success');
         } catch (err) {
-            setStatus(`Loi tai feed: ${err.message}`, 'error');
+            setStatus(`Lỗi khi tải bài viết: ${err.message}`, 'error');
         }
     }
 
     function createPostCard(post, comments, currentUserId) {
-        const canManagePost = Number(post.user_id) === Number(currentUserId);
+        const isAuthenticated = currentUserId != null;
+        const canManagePost = isAuthenticated && Number(post.user_id) === Number(currentUserId);
         const images = Array.isArray(post.images) ? post.images : [];
 
         const card = document.createElement('article');
@@ -430,51 +429,59 @@ const Blog = (() => {
         const imagesHtml = images
             .map(
                 (img) =>
-                    `<img class="blog-post-image" src="${escapeHtml(img.image_url)}" alt="Anh bai viet" loading="lazy" />`
+                    `<img class="blog-post-image" src="${escapeHtml(img.image_url)}" alt="Ảnh bài viết" loading="lazy" />`
             )
             .join('');
 
         const commentsHtml = comments
-            .map((c) => {
-                const ownComment = Number(c.user_id) === Number(currentUserId);
+            .map((comment) => {
+                const ownComment = isAuthenticated && Number(comment.user_id) === Number(currentUserId);
                 return `
                     <li class="blog-comment-item">
                         <div>
-                            <strong>${escapeHtml(c.username)}</strong>
-                            <span>${escapeHtml(formatTime(c.created_at))}</span>
+                            <strong>${escapeHtml(comment.username || 'Anonymous')}</strong>
+                            <span>${escapeHtml(formatTime(comment.created_at))}</span>
                         </div>
-                        <p>${escapeHtml(c.content)}</p>
-                        ${ownComment ? `<button class="btn btn-link" data-delete-comment="${c.id}">Xoa</button>` : ''}
+                        <p>${escapeHtml(comment.content)}</p>
+                        ${ownComment ? `<button class="btn btn-link" data-delete-comment="${comment.id}">Xóa bình luận</button>` : ''}
                     </li>
                 `;
             })
             .join('');
 
-        card.innerHTML = `
+        const rawHtml = `
             <header class="blog-card-header">
                 <div>
                     <h3>${escapeHtml(post.title)}</h3>
-                    <p>By <strong>${escapeHtml(post.username)}</strong> · ${escapeHtml(formatTime(post.created_at))}</p>
+                    <p>Bởi <strong>${escapeHtml(post.username || 'Anonymous')}</strong> • ${escapeHtml(formatTime(post.created_at))}</p>
                 </div>
                 <div class="blog-card-actions">
-                    <button class="btn btn-secondary" data-like-post="${post.id}">
-                        ${post.liked_by_me ? 'Bo like' : 'Like'} (${post.like_count || 0})
+                    <button class="btn btn-secondary" data-like-post="${post.id}" ${!isAuthenticated ? 'disabled title="Đăng nhập để quan tâm"' : ''}>
+                        ${post.liked_by_me ? 'Bỏ quan tâm' : 'Quan tâm'} (${post.like_count || 0})
                     </button>
-                    ${canManagePost ? '<button class="btn btn-secondary" data-edit-post="1">Sua</button>' : ''}
-                    ${canManagePost ? '<button class="btn btn-danger" data-delete-post="1">Xoa</button>' : ''}
+                    ${canManagePost ? '<button class="btn btn-secondary" data-edit-post="1">Sửa</button>' : ''}
+                    ${canManagePost ? '<button class="btn btn-danger" data-delete-post="1">Xóa</button>' : ''}
                 </div>
             </header>
             <div class="blog-card-content">${escapeHtml(post.content).replace(/\n/g, '<br>')}</div>
             ${imagesHtml ? `<div class="blog-post-images">${imagesHtml}</div>` : ''}
             <section class="blog-comments">
-                <h4>Comment (${comments.length})</h4>
-                <ul class="blog-comment-list">${commentsHtml || '<li class="blog-comment-item blog-comment-empty">Chua co comment</li>'}</ul>
+                <h4>Bình luận (${comments.length})</h4>
+                <ul class="blog-comment-list">${commentsHtml || '<li class="blog-comment-item blog-comment-empty">Chưa có bình luận nào.</li>'}</ul>
+                ${isAuthenticated ? `
                 <form class="blog-comment-form" data-post-id="${post.id}">
-                    <input type="text" name="comment" placeholder="Viet binh luan cua ban..." maxlength="2000" required />
-                    <button class="btn btn-primary" type="submit">Gui</button>
+                    <input type="text" name="comment" placeholder="Viết bình luận của bạn..." maxlength="2000" required />
+                    <button class="btn btn-primary" type="submit">Gửi bình luận</button>
                 </form>
+                ` : `<p style="font-size: 0.85rem; color: var(--t3); margin-top: 1rem;">Đăng nhập để tương tác và bình luận.</p>`}
             </section>
         `;
+        card.innerHTML = typeof DOMPurify !== 'undefined'
+            ? DOMPurify.sanitize(rawHtml, {
+                ADD_TAGS: ['form'],
+                ADD_ATTR: ['data-post-id', 'data-like-post', 'data-edit-post', 'data-delete-post', 'data-delete-comment'],
+            })
+            : rawHtml;
 
         return card;
     }

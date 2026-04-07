@@ -818,14 +818,33 @@
   </div>
 
   <script src="/js/runtime-config.js"></script>
+  <!-- DOMPurify: XSS sanitization for innerHTML content (defense-in-depth) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"
+          integrity="sha512-ks5CkAP7G2XQl9TSXvGOQxm7MkFW/J3q7NvEa0NoUEY8E5bQ5hFkUPSqNiEfkTCMdROT7gj4v5NHnlNBhO2Q=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="js/api-config.js"></script>
+  <!-- Session modules (session-ui.js must load before session.js) -->
+  <script src="js/session-ui.js"></script>
   <script src="js/session.js"></script>
+  <!-- Upload module -->
   <script src="js/upload.js"></script>
-  <script src="js/camera.js"></script>
+  <!-- Camera modules (dependency order: ai-display → capture → init) -->
+  <script src="js/camera-ai-display.js"></script>
+  <script src="js/camera-capture.js"></script>
+  <script src="js/camera-init.js"></script>
+  <!-- Gallery + Export -->
   <script src="js/gallery.js"></script>
-  <script src="js/blog.js"></script>
   <script src="js/export.js"></script>
-  <script src="js/admin.js"></script>
+  <!-- Blog modules (dependency order: utils → comments → posts) -->
+  <script src="js/blog-utils.js"></script>
+  <script src="js/blog-comments.js"></script>
+  <script src="js/blog-posts.js"></script>
+  <!-- Admin modules (dependency order: users → panel) -->
+  <script src="js/admin-users.js"></script>
+  <script src="js/admin-panel.js"></script>
+  <!-- Shared helpers -->
+  <script src="js/ai-display-helpers.js"></script>
+  <script src="js/app-helpers.js"></script>
   <script>
     // ── TAB SWITCHING ──
     function switchTab(name) {

@@ -3,14 +3,13 @@ const Camera = (() => {
     let isOn = false;
     let isCapturing = false;
     let savedCount = 0;
-    let savedThumbs = []; // { url }
+    let savedThumbs = [];
     let settingsVisible = false;
     let autoSaveEnabled = true;
 
-    // Burst mode state
     let burstInterval = null;
     let burstActive = false;
-    const BURST_DELAY = 500; // ms between burst shots
+    const BURST_DELAY = 500;
 
     function generateAutoCowId() {
         const ts = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
@@ -21,33 +20,42 @@ const Camera = (() => {
         document.getElementById('toggle-camera-btn').addEventListener('click', toggleCamera);
 
         const captureBtn = document.getElementById('capture-btn');
-
-        // Burst mode: hold to burst, tap for single shot
-        captureBtn.addEventListener('pointerdown', (e) => {
-            e.preventDefault();
+        captureBtn.addEventListener('pointerdown', (event) => {
+            event.preventDefault();
             startBurstOrSingle();
         });
-        captureBtn.addEventListener('pointerup', (e) => {
-            e.preventDefault();
+        captureBtn.addEventListener('pointerup', (event) => {
+            event.preventDefault();
             stopBurst();
         });
-        captureBtn.addEventListener('pointerleave', (e) => {
-            e.preventDefault();
+        captureBtn.addEventListener('pointerleave', (event) => {
+            event.preventDefault();
             stopBurst();
         });
-        // Touch events for mobile
-        captureBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            startBurstOrSingle();
-        }, { passive: false });
-        captureBtn.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            stopBurst();
-        }, { passive: false });
-        captureBtn.addEventListener('touchcancel', (e) => {
-            e.preventDefault();
-            stopBurst();
-        }, { passive: false });
+        captureBtn.addEventListener(
+            'touchstart',
+            (event) => {
+                event.preventDefault();
+                startBurstOrSingle();
+            },
+            { passive: false }
+        );
+        captureBtn.addEventListener(
+            'touchend',
+            (event) => {
+                event.preventDefault();
+                stopBurst();
+            },
+            { passive: false }
+        );
+        captureBtn.addEventListener(
+            'touchcancel',
+            (event) => {
+                event.preventDefault();
+                stopBurst();
+            },
+            { passive: false }
+        );
 
         document.getElementById('toggle-cam-settings-btn').addEventListener('click', toggleSettings);
         document.getElementById('close-cam-settings').addEventListener('click', hideSettings);
@@ -59,8 +67,8 @@ const Camera = (() => {
 
         const autoSaveToggle = document.getElementById('cam-auto-save-toggle');
         autoSaveToggle.checked = autoSaveEnabled;
-        autoSaveToggle.addEventListener('change', (e) => {
-            autoSaveEnabled = e.target.checked;
+        autoSaveToggle.addEventListener('change', (event) => {
+            autoSaveEnabled = event.target.checked;
             localStorage.setItem('cam_auto_save_enabled', String(autoSaveEnabled));
             updateAutoSaveUI();
         });
@@ -70,12 +78,7 @@ const Camera = (() => {
 
         const appTab = document.getElementById('tab-thu-thap');
         const cameraPanel = document.getElementById('camera-panel');
-        if (
-            appTab
-            && cameraPanel
-            && appTab.classList.contains('active')
-            && cameraPanel.classList.contains('active')
-        ) {
+        if (appTab && cameraPanel && appTab.classList.contains('active') && cameraPanel.classList.contains('active')) {
             startCamera();
         }
     }
@@ -83,11 +86,7 @@ const Camera = (() => {
     function startBurstOrSingle() {
         if (!isOn || burstActive) return;
         burstActive = true;
-
-        // Fire first shot immediately
         captureAndSave();
-
-        // Start burst after holding for BURST_DELAY
         burstInterval = setInterval(() => {
             if (isOn && !isCapturing) {
                 captureAndSave();
@@ -104,23 +103,23 @@ const Camera = (() => {
     }
 
     function mapCameraError(err) {
-        if (!err || !err.name) return 'Khong the mo camera. Vui long thu lai.';
+        if (!err || !err.name) return 'Không thể mở camera. Vui lòng thử lại.';
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-            return 'Ban da tu choi quyen camera. Hay cap quyen camera cho trinh duyet roi thu lai.';
+            return 'Bạn đã từ chối quyền dùng camera. Hãy cấp quyền cho trình duyệt rồi thử lại.';
         }
         if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-            return 'Khong tim thay camera tren thiet bi.';
+            return 'Không tìm thấy camera trên thiết bị này.';
         }
         if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-            return 'Camera dang duoc ung dung khac su dung. Hay dong app khac roi thu lai.';
+            return 'Camera đang được ứng dụng khác sử dụng. Hãy đóng ứng dụng đó rồi thử lại.';
         }
         if (err.name === 'OverconstrainedError' || err.name === 'ConstraintNotSatisfiedError') {
-            return 'Cau hinh camera khong duoc ho tro tren thiet bi nay.';
+            return 'Thiết bị không hỗ trợ cấu hình camera đã chọn.';
         }
         if (err.name === 'SecurityError') {
-            return 'Trinh duyet chan camera vi ly do bao mat. Hay dung HTTPS.';
+            return 'Trình duyệt đang chặn camera vì lý do bảo mật. Hãy dùng HTTPS hoặc localhost.';
         }
-        return `Khong the mo camera: ${err.message || err.name}`;
+        return `Không thể mở camera: ${err.message || err.name}`;
     }
 
     function updateAutoSaveUI() {
@@ -152,22 +151,17 @@ const Camera = (() => {
         const toggleBtn = document.getElementById('toggle-cam-settings-btn');
         const fullText = toggleBtn?.querySelector('.cam-settings-text-full');
         const mobileText = toggleBtn?.querySelector('.cam-settings-text-mobile');
-        const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
         camPage.classList.toggle('settings-hidden', !settingsVisible);
 
         if (fullText && mobileText) {
-            fullText.textContent = settingsVisible
-                ? '🙈 Ẩn thiết lập trước khi chụp'
-                : '⚙️ Thiết lập trước khi chụp';
-            mobileText.textContent = settingsVisible ? '🙈 Ẩn' : '⚙️ Thiết lập';
-        } else {
-            toggleBtn.textContent = settingsVisible ? '🙈 Ẩn thiết lập trước khi chụp' : '⚙️ Thiết lập trước khi chụp';
+            fullText.textContent = settingsVisible ? 'Ẩn thiết lập' : 'Hiển thị thiết lập';
+            mobileText.textContent = settingsVisible ? 'Ẩn' : 'Thiết lập';
+        } else if (toggleBtn) {
+            toggleBtn.textContent = settingsVisible ? 'Ẩn thiết lập' : 'Hiển thị thiết lập';
         }
 
-        if (isMobile) {
-            updateAutoSaveUI();
-        }
+        updateAutoSaveUI();
     }
 
     async function toggleCamera() {
@@ -185,13 +179,13 @@ const Camera = (() => {
         if (isOn) return;
 
         if (!window.isSecureContext) {
-            status.textContent = 'Camera can HTTPS hoac localhost.';
+            status.textContent = 'Camera cần HTTPS hoặc localhost để hoạt động.';
             status.className = 'status-msg error';
             return;
         }
 
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            status.textContent = 'Trinh duyet khong ho tro getUserMedia.';
+            status.textContent = 'Trình duyệt không hỗ trợ truy cập camera.';
             status.className = 'status-msg error';
             return;
         }
@@ -217,10 +211,11 @@ const Camera = (() => {
             } catch (playErr) {
                 console.warn('video.play failed, keep stream attached:', playErr);
             }
+
             document.getElementById('camera-overlay').hidden = true;
             document.getElementById('capture-btn').disabled = false;
             toggleBtn.classList.add('active');
-            document.getElementById('toggle-cam-icon').textContent = '⏹';
+            document.getElementById('toggle-cam-icon').textContent = 'Tắt camera';
             isOn = true;
             status.textContent = '';
             status.className = 'status-msg';
@@ -233,7 +228,7 @@ const Camera = (() => {
     function stopCamera() {
         stopBurst();
         if (stream) {
-            stream.getTracks().forEach(t => t.stop());
+            stream.getTracks().forEach((track) => track.stop());
             stream = null;
         }
         const toggleBtn = document.getElementById('toggle-camera-btn');
@@ -241,7 +236,7 @@ const Camera = (() => {
         document.getElementById('camera-overlay').hidden = false;
         document.getElementById('capture-btn').disabled = true;
         toggleBtn.classList.remove('active');
-        document.getElementById('toggle-cam-icon').textContent = '📷';
+        document.getElementById('toggle-cam-icon').textContent = 'Mở camera';
         isOn = false;
     }
 
@@ -254,7 +249,6 @@ const Camera = (() => {
         if (isCapturing) return;
         isCapturing = true;
 
-        // Read settings
         const cowId = document.getElementById('cam-cow-id').value.trim();
         const barnArea = document.getElementById('cam-barn-area').value.trim();
         const notes = document.getElementById('cam-notes').value.trim();
@@ -267,19 +261,16 @@ const Camera = (() => {
             if (!isOn) {
                 await startCamera();
                 if (!isOn) {
-                    cameraStatus.textContent = 'Vui long mo camera truoc khi chup';
+                    cameraStatus.textContent = 'Vui lòng bật camera trước khi chụp.';
                     cameraStatus.className = 'status-msg error';
                     return;
                 }
             }
 
-            // Disable shutter briefly to prevent double-tap
             shutterBtn.disabled = true;
-
             status.textContent = '';
             cameraStatus.textContent = '';
 
-            // Capture frame
             const video = document.getElementById('camera-video');
             const canvas = document.getElementById('camera-canvas');
 
@@ -287,12 +278,11 @@ const Camera = (() => {
             let sourceHeight = video.videoHeight || video.clientHeight;
 
             if (!sourceWidth || !sourceHeight) {
-                cameraStatus.textContent = 'Camera chua san sang, vui long thu lai sau 1 giay';
+                cameraStatus.textContent = 'Camera chưa sẵn sàng. Vui lòng thử lại sau khoảng một giây.';
                 cameraStatus.className = 'status-msg error';
                 return;
             }
 
-            // Scale down extremely large frames for better mobile compatibility.
             const maxWidth = 1600;
             if (sourceWidth > maxWidth) {
                 const ratio = maxWidth / sourceWidth;
@@ -304,51 +294,45 @@ const Camera = (() => {
             canvas.height = sourceHeight;
             canvas.getContext('2d').drawImage(video, 0, 0, sourceWidth, sourceHeight);
 
-            // Flash
-            const vf = document.getElementById('camera-viewfinder');
-            vf.classList.add('flash');
-            setTimeout(() => vf.classList.remove('flash'), 250);
+            const viewfinder = document.getElementById('camera-viewfinder');
+            viewfinder.classList.add('flash');
+            setTimeout(() => viewfinder.classList.remove('flash'), 250);
 
-            // Convert to blob
-            let blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.9));
+            let blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
             if (!blob) {
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
                 blob = dataURLToBlob(dataUrl);
             }
 
             if (!blob) {
-                cameraStatus.textContent = 'Khong the tao anh tu camera, vui long thu lai';
+                cameraStatus.textContent = 'Không thể tạo ảnh từ camera. Vui lòng thử lại.';
                 cameraStatus.className = 'status-msg error';
                 return;
             }
 
             const thumbUrl = URL.createObjectURL(blob);
-
-            // Show last thumb immediately
             const lastThumb = document.getElementById('cam-last-thumb');
-            lastThumb.innerHTML = `<img src="${thumbUrl}">`;
+            lastThumb.innerHTML = `<img src="${thumbUrl}" alt="Ảnh vừa chụp">`;
             lastThumb.classList.add('has-img');
 
             if (!autoSaveEnabled && !cowId) {
-                cameraStatus.textContent = 'Che do tu luu dang tat. Vui long dien Ma bo truoc khi luu.';
+                cameraStatus.textContent = 'Chế độ tự lưu đang tắt. Vui lòng nhập mã con bò trước khi lưu.';
                 cameraStatus.className = 'status-msg error';
                 return;
             }
 
             const cowIdToSave = cowId || generateAutoCowId();
-            const barnAreaToSave = barnArea || 'Chua xac dinh';
-            const notesToSave = notes || 'Auto-captured (khong thiet lap truoc)';
+            const barnAreaToSave = barnArea || 'Chưa xác định';
+            const notesToSave = notes || 'Ảnh chụp tự động chưa có ghi chú';
 
-            savedCount++;
+            savedCount += 1;
             savedThumbs.unshift({ url: thumbUrl });
             updateSavedUI();
 
-            // Show saving indicator
             saving.hidden = false;
 
             try {
                 const uniqueName = `${crypto.randomUUID()}.jpg`;
-
                 const formData = new FormData();
                 formData.append('image', blob, uniqueName);
                 formData.append('cow_id', cowIdToSave);
@@ -362,7 +346,7 @@ const Camera = (() => {
                 });
 
                 const result = await res.json();
-                if (!res.ok) throw new Error(result.details || result.error || 'Luu anh that bai');
+                if (!res.ok) throw new Error(result.details || result.error || 'Lưu ảnh thất bại');
 
                 const savedRecord = result.data || null;
                 if (savedRecord) {
@@ -370,19 +354,19 @@ const Camera = (() => {
                 }
 
                 cameraStatus.textContent = savedRecord
-                    ? `Da luu anh. ${buildAiSummary(savedRecord)}`
-                    : 'Da chup va luu anh len he thong';
+                    ? `Đã lưu ảnh. ${buildAiSummary(savedRecord)}`
+                    : 'Đã chụp và lưu ảnh lên hệ thống.';
                 cameraStatus.className = 'status-msg success';
             } catch (err) {
                 console.error('Save error:', err);
-                status.textContent = 'Loi luu anh: ' + err.message;
+                status.textContent = `Lỗi khi lưu ảnh: ${err.message}`;
                 status.className = 'status-msg error';
             } finally {
                 saving.hidden = true;
             }
         } catch (err) {
             console.error('Capture error:', err);
-            cameraStatus.textContent = 'Loi khi chup anh: ' + (err.message || 'khong xac dinh');
+            cameraStatus.textContent = `Lỗi khi chụp ảnh: ${err.message || 'không xác định'}`;
             cameraStatus.className = 'status-msg error';
         } finally {
             if (isOn) shutterBtn.disabled = false;
@@ -399,30 +383,27 @@ const Camera = (() => {
         const binary = atob(parts[1]);
         const len = binary.length;
         const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) {
+        for (let i = 0; i < len; i += 1) {
             bytes[i] = binary.charCodeAt(i);
         }
         return new Blob([bytes], { type: mime });
     }
 
     function updateSavedUI() {
-        // Count badge on viewfinder
         const badge = document.getElementById('cam-count-badge');
         document.getElementById('cam-count-num').textContent = savedCount;
         badge.hidden = false;
 
-        // Saved count in sidebar
         document.getElementById('cam-saved-count').textContent = savedCount;
 
-        // Thumbnail strip in sidebar
         const strip = document.getElementById('captured-strip');
         strip.innerHTML = '';
-        savedThumbs.forEach((item, i) => {
+        savedThumbs.forEach((item, index) => {
             const thumb = document.createElement('div');
             thumb.className = 'file-thumb';
             thumb.innerHTML = `
-                <img src="${item.url}" alt="Ảnh ${savedCount - i}">
-                <span class="thumb-index">${savedCount - i}</span>
+                <img src="${item.url}" alt="Ảnh ${savedCount - index}">
+                <span class="thumb-index">${savedCount - index}</span>
             `;
             strip.appendChild(thumb);
         });
@@ -442,7 +423,7 @@ const Camera = (() => {
 
         const displayUrl = record.annotated_image_url || record.image_url || record.original_image_url || '';
         imageEl.src = displayUrl;
-        behaviorEl.textContent = BEHAVIOR_MAP[record.behavior] || record.behavior || 'Khong xac dinh';
+        behaviorEl.textContent = BEHAVIOR_MAP[record.behavior] || record.behavior || 'Không xác định';
         metaEl.textContent = buildAiMeta(record);
 
         if (record.original_image_url) {
@@ -453,7 +434,7 @@ const Camera = (() => {
         }
 
         if (displayUrl) {
-            lastThumb.innerHTML = `<img src="${displayUrl}" alt="AI result">`;
+            lastThumb.innerHTML = `<img src="${displayUrl}" alt="Kết quả AI">`;
             lastThumb.classList.add('has-img');
         }
 
@@ -461,24 +442,24 @@ const Camera = (() => {
     }
 
     function buildAiSummary(record) {
-        const label = BEHAVIOR_MAP[record.behavior] || record.behavior || 'khong xac dinh';
+        const label = BEHAVIOR_MAP[record.behavior] || record.behavior || 'không xác định';
         const confidence = formatConfidence(record.ai_confidence);
-        return confidence ? `AI nhan dien ${label} (${confidence})` : `AI nhan dien ${label}`;
+        return confidence ? `AI nhận diện ${label} (${confidence})` : `AI nhận diện ${label}`;
     }
 
     function buildAiMeta(record) {
         const parts = [];
         const confidence = formatConfidence(record.ai_confidence);
         if (confidence) {
-            parts.push(`Do tin cay: ${confidence}`);
+            parts.push(`Độ tin cậy: ${confidence}`);
         }
         if (typeof record.detection_count === 'number') {
-            parts.push(`So bbox: ${record.detection_count}`);
+            parts.push(`Số khung phát hiện: ${record.detection_count}`);
         }
         if (typeof record.ai_inference_ms === 'number') {
-            parts.push(`Thoi gian: ${Math.round(record.ai_inference_ms)} ms`);
+            parts.push(`Thời gian xử lý: ${Math.round(record.ai_inference_ms)} ms`);
         }
-        return parts.join(' | ');
+        return parts.join(' • ');
     }
 
     function formatConfidence(value) {

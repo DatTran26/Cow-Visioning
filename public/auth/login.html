@@ -1,38 +1,61 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Cow Visioning - Dang nhap</title>
-    <link rel="stylesheet" href="/css/auth.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đăng nhập — Con Bò Cười AI</title>
+  <meta name="description" content="Đăng nhập vào hệ thống giám sát và thu thập dữ liệu bò bằng AI." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/auth.css" />
 </head>
 <body>
-    <div class="auth-container">
-        <div class="auth-card">
-            <div class="auth-logo">
-                <span class="auth-logo-icon">🐄</span>
-                <h1>Cow Visioning</h1>
-            </div>
-            <p class="auth-subtitle">Dang nhap de quan ly blog va du lieu bo cua ban</p>
+  <div class="auth-bg"></div>
 
-            <form id="auth-form" class="auth-form" data-mode="login">
-                <div class="auth-field">
-                    <label for="auth-username">Username</label>
-                    <input type="text" id="auth-username" autocomplete="username" placeholder="vd: dattran26" autofocus required />
-                </div>
-                <div class="auth-field">
-                    <label for="auth-password">Mat khau</label>
-                    <input type="password" id="auth-password" autocomplete="current-password" placeholder="Nhap mat khau" required />
-                </div>
-                <div id="auth-error" class="auth-error" hidden></div>
-                <button type="submit" class="auth-btn" id="auth-submit">Dang nhap</button>
-            </form>
-            <p class="auth-switch">Chua co tai khoan? <a href="/auth/register">Dang ky ngay</a></p>
+  <div class="auth-container">
+    <div class="auth-card">
+      <header class="auth-logo">
+        <a href="/" style="text-decoration:none">
+          <div class="logo-cow">CB</div>
+          <h1>Con Bò Cười</h1>
+        </a>
+      </header>
+
+      <div class="auth-header">
+        <p class="auth-subtitle">Chào mừng bạn trở lại! Đăng nhập để tiếp tục xây dựng tập dữ liệu thông minh.</p>
+      </div>
+
+      <div id="auth-error" class="auth-error" hidden></div>
+
+      <form id="auth-form" class="auth-form" data-mode="login">
+        <div class="auth-field">
+          <label for="auth-username">Tên đăng nhập</label>
+          <input type="text" id="auth-username" placeholder="Nhập tên đăng nhập của bạn" required autofocus />
         </div>
-    </div>
 
-    <script src="/js/runtime-config.js"></script>
-    <script src="/js/api-config.js"></script>
-    <script src="/js/auth.js"></script>
+        <div class="auth-field">
+          <label for="auth-password">Mật khẩu</label>
+          <input type="password" id="auth-password" placeholder="Tối thiểu 8 ký tự" required />
+        </div>
+
+        <div class="auth-options">
+          <label class="remember-me">
+            <input type="checkbox" id="remember-me" checked />
+            <span>Ghi nhớ tôi</span>
+          </label>
+          <a href="#" class="forgot-link">Quên mật khẩu?</a>
+        </div>
+
+        <button type="submit" id="auth-submit" class="auth-btn">Đăng nhập</button>
+      </form>
+
+      <footer class="auth-switch">
+        Bạn chưa có tài khoản? <a href="/auth/register">Đăng ký ngay</a>
+      </footer>
+    </div>
+  </div>
+
+  <script src="../js/auth.js"></script>
 </body>
 </html>

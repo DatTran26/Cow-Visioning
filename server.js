@@ -139,7 +139,7 @@ function createImageUpload(bucket) {
             if (file.mimetype.startsWith('image/')) {
                 cb(null, true);
             } else {
-                cb(new Error('Chi chap nhan file anh'));
+                cb(new Error('Chỉ chấp nhận file ảnh'));
             }
         },
     });
@@ -193,7 +193,7 @@ function requireAdmin(req, res, next) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
     if (req.session.role !== 'admin') {
-        return res.status(403).json({ error: 'Khong co quyen admin' });
+        return res.status(403).json({ error: 'Không có quyền admin' });
     }
     return next();
 }
@@ -496,7 +496,7 @@ const authLimiter = rateLimit({
     max: 20,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { error: 'Qua nhieu yeu cau xac thuc. Vui long thu lai sau 15 phut.' },
+    message: { error: 'Quá nhiều yêu cầu xác thực. Vui lòng thử lại sau 15 phút.' },
 });
 
 const postWriteLimiter = rateLimit({
@@ -504,7 +504,7 @@ const postWriteLimiter = rateLimit({
     max: 50,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { error: 'Ban thao tac qua nhanh. Vui long thu lai sau.' },
+    message: { error: 'Bạn thao tác quá nhanh. Vui lòng thử lại sau.' },
 });
 
 const commentWriteLimiter = rateLimit({
@@ -512,7 +512,7 @@ const commentWriteLimiter = rateLimit({
     max: 40,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { error: 'Ban dang gui binh luan qua nhanh. Vui long thu lai sau.' },
+    message: { error: 'Bạn đang gửi bình luận quá nhanh. Vui lòng thử lại sau.' },
 });
 
 const likeLimiter = rateLimit({
@@ -520,7 +520,7 @@ const likeLimiter = rateLimit({
     max: 120,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { error: 'Ban da thao tac like qua nhanh. Vui long thu lai sau.' },
+    message: { error: 'Bạn đã thao tác like quá nhanh. Vui lòng thử lại sau.' },
 });
 
 app.get('/auth/status', (_req, res) => {
@@ -551,19 +551,19 @@ app.post('/auth/register', authLimiter, async (req, res) => {
         const passwordConfirm = typeof req.body.password_confirm === 'string' ? req.body.password_confirm : '';
 
         if (!username || username.length < 3 || username.length > 30) {
-            return res.status(400).json({ error: 'Username phai tu 3 den 30 ky tu' });
+            return res.status(400).json({ error: 'Username phải từ 3 đến 30 ký tự' });
         }
         if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-            return res.status(400).json({ error: 'Username chi gom chu, so, dau _' });
+            return res.status(400).json({ error: 'Username chỉ gồm chữ, số, dấu _' });
         }
         if (!validEmail(email)) {
-            return res.status(400).json({ error: 'Email khong hop le' });
+            return res.status(400).json({ error: 'Email không hợp lệ' });
         }
         if (password.length < 8 || password.length > 72) {
-            return res.status(400).json({ error: 'Mat khau phai tu 8 den 72 ky tu' });
+            return res.status(400).json({ error: 'Mật khẩu phải từ 8 đến 72 ký tự' });
         }
         if (password !== passwordConfirm) {
-            return res.status(400).json({ error: 'Xac nhan mat khau khong khop' });
+            return res.status(400).json({ error: 'Xác nhận mật khẩu không khớp' });
         }
 
         const exists = await pool.query(
@@ -571,7 +571,7 @@ app.post('/auth/register', authLimiter, async (req, res) => {
             [username, email]
         );
         if (exists.rows.length > 0) {
-            return res.status(400).json({ error: 'Username hoac email da ton tai' });
+            return res.status(400).json({ error: 'Username hoặc email đã tồn tại' });
         }
 
         const passwordHash = await bcrypt.hash(password, 10);
@@ -585,7 +585,7 @@ app.post('/auth/register', authLimiter, async (req, res) => {
         return res.status(201).json({ success: true, user: created.rows[0] });
     } catch (err) {
         console.error('POST /auth/register error:', err);
-        return res.status(500).json({ error: 'Khong the tao tai khoan' });
+        return res.status(500).json({ error: 'Không thể tạo tài khoản' });
     }
 });
 
@@ -594,7 +594,7 @@ app.post('/auth/login', authLimiter, async (req, res) => {
         const username = normalizeText(req.body.username, 30).toLowerCase();
         const password = typeof req.body.password === 'string' ? req.body.password : '';
         if (!username || !password) {
-            return res.status(400).json({ error: 'Thieu username hoac password' });
+            return res.status(400).json({ error: 'Thiếu username hoặc password' });
         }
 
         const result = await pool.query(
@@ -602,13 +602,13 @@ app.post('/auth/login', authLimiter, async (req, res) => {
             [username]
         );
         if (result.rows.length === 0) {
-            return res.status(401).json({ error: 'Thong tin dang nhap khong dung' });
+            return res.status(401).json({ error: 'Thông tin đăng nhập không đúng' });
         }
 
         const user = result.rows[0];
         const matched = await bcrypt.compare(password, user.password_hash);
         if (!matched) {
-            return res.status(401).json({ error: 'Thong tin dang nhap khong dung' });
+            return res.status(401).json({ error: 'Thông tin đăng nhập không đúng' });
         }
 
         req.session.userId = user.id;
@@ -626,7 +626,7 @@ app.post('/auth/login', authLimiter, async (req, res) => {
         });
     } catch (err) {
         console.error('POST /auth/login error:', err);
-        return res.status(500).json({ error: 'Loi dang nhap' });
+        return res.status(500).json({ error: 'Lỗi đăng nhập' });
     }
 });
 
@@ -642,7 +642,7 @@ app.get('/auth/me', authRequired, async (req, res) => {
         return res.json({ user: me.rows[0] });
     } catch (err) {
         console.error('GET /auth/me error:', err);
-        return res.status(500).json({ error: 'Khong the tai thong tin user' });
+        return res.status(500).json({ error: 'Không thể tải thông tin user' });
     }
 });
 
@@ -679,7 +679,7 @@ app.use('/uploads', express.static(path.resolve(UPLOAD_DIR)));
 app.post('/api/images', authRequired, postWriteLimiter, datasetUpload.single('image'), async (req, res) => {
     try {
         if (!req.file) {
-            return res.status(400).json({ error: 'Khong co file anh' });
+            return res.status(400).json({ error: 'Không có file ảnh' });
         }
 
         const cowId = normalizeText(req.body.cow_id, 100);
@@ -688,15 +688,15 @@ app.post('/api/images', authRequired, postWriteLimiter, datasetUpload.single('im
         const capturedAt = req.body.captured_at ? new Date(req.body.captured_at) : new Date();
 
         if (!cowId) {
-            return res.status(400).json({ error: 'Thieu cow_id' });
+            return res.status(400).json({ error: 'Thiếu cow_id' });
         }
         if (!Number.isFinite(capturedAt.getTime())) {
-            return res.status(400).json({ error: 'captured_at khong hop le' });
+            return res.status(400).json({ error: 'captured_at không hợp lệ' });
         }
 
         const originalImageUrl = toUploadUrl(req.file.path);
         if (!originalImageUrl) {
-            return res.status(500).json({ error: 'Khong the luu duong dan anh goc' });
+            return res.status(500).json({ error: 'Không thể lưu đường dẫn ảnh gốc' });
         }
 
         // Try AI prediction, fallback to saving without AI if it fails
@@ -888,7 +888,7 @@ app.delete('/api/images/:id', authRequired, async (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
         if (!Number.isInteger(id)) {
-            return res.status(400).json({ error: 'ID khong hop le' });
+            return res.status(400).json({ error: 'ID không hợp lệ' });
         }
 
         const record = await pool.query(
@@ -922,7 +922,7 @@ app.delete('/api/images/:id', authRequired, async (req, res) => {
         return res.json({ success: true });
     } catch (err) {
         console.error('DELETE /api/images/:id error:', err);
-        return res.status(500).json({ error: 'Xoa that bai' });
+        return res.status(500).json({ error: 'Xoá that bai' });
     }
 });
 
@@ -987,7 +987,7 @@ app.get('/api/blog/posts', authRequired, async (req, res) => {
         });
     } catch (err) {
         console.error('GET /api/blog/posts error:', err);
-        return res.status(500).json({ error: 'Khong the tai bai viet' });
+        return res.status(500).json({ error: 'Không thể tải bài viết' });
     }
 });
 
@@ -1012,7 +1012,7 @@ app.post('/api/blog/posts', authRequired, postWriteLimiter, async (req, res) => 
         return res.status(201).json({ success: true, data: created.rows[0] });
     } catch (err) {
         console.error('POST /api/blog/posts error:', err);
-        return res.status(500).json({ error: 'Khong the tao bai viet' });
+        return res.status(500).json({ error: 'Không thể tạo bài viết' });
     }
 });
 
@@ -1020,7 +1020,7 @@ app.put('/api/blog/posts/:id', authRequired, postWriteLimiter, async (req, res) 
     try {
         const id = parseInt(req.params.id, 10);
         if (!Number.isInteger(id)) {
-            return res.status(400).json({ error: 'ID khong hop le' });
+            return res.status(400).json({ error: 'ID không hợp lệ' });
         }
 
         const title = normalizeText(req.body.title, 255);
@@ -1034,7 +1034,7 @@ app.put('/api/blog/posts/:id', authRequired, postWriteLimiter, async (req, res) 
 
         const ownerCheck = await pool.query('SELECT user_id FROM blog_posts WHERE id = $1', [id]);
         if (ownerCheck.rows.length === 0) {
-            return res.status(404).json({ error: 'Khong tim thay bai viet' });
+            return res.status(404).json({ error: 'Không tìm thấy bài viết' });
         }
         if (ownerCheck.rows[0].user_id !== req.session.userId) {
             return res.status(403).json({ error: 'Ban khong co quyen sua bai viet nay' });
@@ -1059,12 +1059,12 @@ app.delete('/api/blog/posts/:id', authRequired, postWriteLimiter, async (req, re
     try {
         const id = parseInt(req.params.id, 10);
         if (!Number.isInteger(id)) {
-            return res.status(400).json({ error: 'ID khong hop le' });
+            return res.status(400).json({ error: 'ID không hợp lệ' });
         }
 
         const ownerCheck = await pool.query('SELECT user_id FROM blog_posts WHERE id = $1', [id]);
         if (ownerCheck.rows.length === 0) {
-            return res.status(404).json({ error: 'Khong tim thay bai viet' });
+            return res.status(404).json({ error: 'Không tìm thấy bài viết' });
         }
         if (ownerCheck.rows[0].user_id !== req.session.userId) {
             return res.status(403).json({ error: 'Ban khong co quyen xoa bai viet nay' });
@@ -1074,7 +1074,7 @@ app.delete('/api/blog/posts/:id', authRequired, postWriteLimiter, async (req, re
         return res.json({ success: true });
     } catch (err) {
         console.error('DELETE /api/blog/posts/:id error:', err);
-        return res.status(500).json({ error: 'Khong the xoa bai viet' });
+        return res.status(500).json({ error: 'Không thể xoá bài viết' });
     }
 });
 
@@ -1082,15 +1082,15 @@ app.post('/api/blog/posts/:postId/images', authRequired, postWriteLimiter, blogU
     try {
         const postId = parseInt(req.params.postId, 10);
         if (!Number.isInteger(postId)) {
-            return res.status(400).json({ error: 'Post ID khong hop le' });
+            return res.status(400).json({ error: 'Post ID không hợp lệ' });
         }
         if (!req.file) {
-            return res.status(400).json({ error: 'Khong co file anh' });
+            return res.status(400).json({ error: 'Không có file ảnh' });
         }
 
         const ownerCheck = await pool.query('SELECT user_id FROM blog_posts WHERE id = $1 LIMIT 1', [postId]);
         if (ownerCheck.rows.length === 0) {
-            return res.status(404).json({ error: 'Khong tim thay bai viet' });
+            return res.status(404).json({ error: 'Không tìm thấy bài viết' });
         }
         if (ownerCheck.rows[0].user_id !== req.session.userId) {
             return res.status(403).json({ error: 'Ban khong co quyen them anh vao bai viet nay' });
@@ -1119,7 +1119,7 @@ app.delete('/api/blog/images/:id', authRequired, postWriteLimiter, async (req, r
     try {
         const id = parseInt(req.params.id, 10);
         if (!Number.isInteger(id)) {
-            return res.status(400).json({ error: 'Image ID khong hop le' });
+            return res.status(400).json({ error: 'Image ID không hợp lệ' });
         }
 
         const record = await pool.query(
@@ -1146,7 +1146,7 @@ app.delete('/api/blog/images/:id', authRequired, postWriteLimiter, async (req, r
         return res.json({ success: true });
     } catch (err) {
         console.error('DELETE /api/blog/images/:id error:', err);
-        return res.status(500).json({ error: 'Khong the xoa anh bai viet' });
+        return res.status(500).json({ error: 'Không thể xoá ảnh bai viet' });
     }
 });
 
@@ -1154,7 +1154,7 @@ app.get('/api/blog/posts/:postId/comments', authRequired, async (req, res) => {
     try {
         const postId = parseInt(req.params.postId, 10);
         if (!Number.isInteger(postId)) {
-            return res.status(400).json({ error: 'Post ID khong hop le' });
+            return res.status(400).json({ error: 'Post ID không hợp lệ' });
         }
 
         const comments = await pool.query(
@@ -1176,7 +1176,7 @@ app.post('/api/blog/posts/:postId/comments', authRequired, commentWriteLimiter, 
     try {
         const postId = parseInt(req.params.postId, 10);
         if (!Number.isInteger(postId)) {
-            return res.status(400).json({ error: 'Post ID khong hop le' });
+            return res.status(400).json({ error: 'Post ID không hợp lệ' });
         }
 
         const content = normalizeText(req.body.content, 2000);
@@ -1189,7 +1189,7 @@ app.post('/api/blog/posts/:postId/comments', authRequired, commentWriteLimiter, 
 
         const exists = await pool.query('SELECT id FROM blog_posts WHERE id = $1', [postId]);
         if (exists.rows.length === 0) {
-            return res.status(404).json({ error: 'Khong tim thay bai viet' });
+            return res.status(404).json({ error: 'Không tìm thấy bài viết' });
         }
 
         const inserted = await pool.query(
@@ -1210,7 +1210,7 @@ app.delete('/api/blog/comments/:id', authRequired, commentWriteLimiter, async (r
     try {
         const id = parseInt(req.params.id, 10);
         if (!Number.isInteger(id)) {
-            return res.status(400).json({ error: 'Comment ID khong hop le' });
+            return res.status(400).json({ error: 'Comment ID không hợp lệ' });
         }
 
         const ownerCheck = await pool.query('SELECT user_id FROM blog_comments WHERE id = $1', [id]);
@@ -1233,12 +1233,12 @@ app.post('/api/blog/posts/:postId/likes', authRequired, likeLimiter, async (req,
     try {
         const postId = parseInt(req.params.postId, 10);
         if (!Number.isInteger(postId)) {
-            return res.status(400).json({ error: 'Post ID khong hop le' });
+            return res.status(400).json({ error: 'Post ID không hợp lệ' });
         }
 
         const postExists = await pool.query('SELECT id FROM blog_posts WHERE id = $1 LIMIT 1', [postId]);
         if (postExists.rows.length === 0) {
-            return res.status(404).json({ error: 'Khong tim thay bai viet' });
+            return res.status(404).json({ error: 'Không tìm thấy bài viết' });
         }
 
         const existing = await pool.query(
@@ -1292,7 +1292,7 @@ app.get('/admin/users', requireAdmin, async (req, res) => {
 app.put('/admin/users/:id/role', requireAdmin, async (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
-        if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID khong hop le' });
+        if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID không hợp lệ' });
 
         const newRole = normalizeText(req.body.role, 20);
         if (!['admin', 'user'].includes(newRole)) {
@@ -1322,7 +1322,7 @@ app.put('/admin/users/:id/role', requireAdmin, async (req, res) => {
 app.delete('/admin/users/:id', requireAdmin, async (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
-        if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID khong hop le' });
+        if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID không hợp lệ' });
 
         if (id === req.session.userId) {
             return res.status(400).json({ error: 'Khong the tu xoa chinh minh' });
@@ -1401,19 +1401,23 @@ app.get('/admin/stats', requireAdmin, async (req, res) => {
         return res.status(500).json({ error: 'Khong the tai thong ke' });
     }
 });
+// Export app for testing (supertest can require without starting a server)
+module.exports = { app, pool };
 
-app.listen(PORT, () => {
-    console.log(`Cow-Visioning server running at http://localhost:${PORT}`);
-}).on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-        console.error(`❌ LỖI: Port ${PORT} đang bị chiếm dụng.`);
-        console.log(`👉 Cách sửa:`);
-        console.log(`   1. Chạy: netstat -ano | findstr :${PORT}`);
-        console.log(`   2. Tìm PID ở cột cuối cùng`);
-        console.log(`   3. Chạy: taskkill /F /PID <PID_đã_tìm>`);
-        process.exit(1);
-    } else {
-        throw err;
-    }
-});
-
+// Only start the HTTP server when running directly (not when required by tests)
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`Cow-Visioning server running at http://localhost:${PORT}`);
+    }).on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+            console.error(`❌ LỖI: Port ${PORT} đang bị chiếm dụng.`);
+            console.log(`👉 Cách sửa:`);
+            console.log(`   1. Chạy: netstat -ano | findstr :${PORT}`);
+            console.log(`   2. Tìm PID ở cột cuối cùng`);
+            console.log(`   3. Chạy: taskkill /F /PID <PID_đã_tìm>`);
+            process.exit(1);
+        } else {
+            throw err;
+        }
+    });
+}

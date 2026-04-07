@@ -1,78 +1,63 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="vi">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Cow Visioning - Dang ky</title>
-        <link rel="stylesheet" href="/css/auth.css" />
-    </head>
-    <body>
-        <div class="auth-container">
-            <div class="auth-card">
-                <div class="auth-logo">
-                    <span class="auth-logo-icon">🐄</span>
-                    <h1>Tao tai khoan</h1>
-                </div>
-                <p class="auth-subtitle">
-                    Dang ky de dang bai, comment va tuong tac trong Blog
-                </p>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đăng ký tài khoản — Con Bò Cười AI</title>
+  <meta name="description" content="Tạo tài khoản mới để tham gia đóng góp và quản lý tập dữ liệu chăn nuôi thông minh." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/auth.css" />
+</head>
+<body>
+  <div class="auth-bg"></div>
 
-                <form id="auth-form" class="auth-form" data-mode="register">
-                    <div class="auth-field">
-                        <label for="auth-username">Username</label>
-                        <input
-                            type="text"
-                            id="auth-username"
-                            autocomplete="username"
-                            placeholder="vd: dattran26"
-                            required
-                        />
-                    </div>
-                    <div class="auth-field">
-                        <label for="auth-email">Email</label>
-                        <input
-                            type="email"
-                            id="auth-email"
-                            autocomplete="email"
-                            placeholder="you@example.com"
-                            required
-                        />
-                    </div>
-                    <div class="auth-field">
-                        <label for="auth-password">Mat khau</label>
-                        <input
-                            type="password"
-                            id="auth-password"
-                            autocomplete="new-password"
-                            placeholder="Toi thieu 8 ky tu"
-                            required
-                        />
-                    </div>
-                    <div class="auth-field">
-                        <label for="auth-password-confirm"
-                            >Xac nhan mat khau</label
-                        >
-                        <input
-                            type="password"
-                            id="auth-password-confirm"
-                            autocomplete="new-password"
-                            placeholder="Nhap lai mat khau"
-                            required
-                        />
-                    </div>
-                    <div id="auth-error" class="auth-error" hidden></div>
-                    <button type="submit" class="auth-btn" id="auth-submit">
-                        Dang ky
-                    </button>
-                </form>
-                <p class="auth-switch">
-                    Da co tai khoan? <a href="/auth/login">Dang nhap</a>
-                </p>
-            </div>
+  <div class="auth-container">
+    <div class="auth-card">
+      <header class="auth-logo">
+        <a href="/" style="text-decoration:none">
+          <div class="logo-cow">CB</div>
+          <h1>Con Bò Cười</h1>
+        </a>
+      </header>
+
+      <div class="auth-header">
+        <p class="auth-subtitle">Tham gia cộng đồng AI Vision trong chăn nuôi. Đăng ký ngay để bắt đầu!</p>
+      </div>
+
+      <div id="auth-error" class="auth-error" hidden></div>
+
+      <form id="auth-form" class="auth-form" data-mode="register">
+        <div class="auth-field">
+          <label for="auth-username">Tên đăng nhập</label>
+          <input type="text" id="auth-username" placeholder="Ví dụ: van_nguyen_01" required autofocus />
         </div>
 
-        <script src="/js/runtime-config.js"></script>
-        <script src="/js/api-config.js"></script>
-        <script src="/js/auth.js"></script>
-    </body>
+        <div class="auth-field">
+          <label for="auth-email">Địa chỉ Email</label>
+          <input type="email" id="auth-email" placeholder="email@vi-du.com" required />
+        </div>
+
+        <div class="auth-field">
+          <label for="auth-password">Mật khẩu</label>
+          <input type="password" id="auth-password" placeholder="Tối thiểu 8 ký tự" required />
+        </div>
+
+        <div class="auth-field">
+          <label for="auth-password-confirm">Xác nhận mật khẩu</label>
+          <input type="password" id="auth-password-confirm" placeholder="Nhập lại mật khẩu" required />
+        </div>
+
+        <button type="submit" id="auth-submit" class="auth-btn">Tạo tài khoản</button>
+      </form>
+
+      <footer class="auth-switch">
+        Bạn đã có tài khoản rồi? <a href="/auth/login">Đăng nhập ngay</a>
+      </footer>
+    </div>
+  </div>
+
+  <script src="../js/auth.js"></script>
+</body>
 </html>

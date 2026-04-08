@@ -66,7 +66,7 @@ const Export = (() => {
         const preview = records.slice(0, 50);
         preview.forEach((record) => {
             const tr = document.createElement('tr');
-            const previewImage = record.annotated_image_url || record.image_url || record.original_image_url || '#';
+            const previewImage = normalizeImageUrl(record.annotated_image_url || record.image_url || record.original_image_url);
             tr.innerHTML = `
                 <td>${record.cow_id}</td>
                 <td>${BEHAVIOR_MAP[record.behavior] || record.behavior}</td>
@@ -128,6 +128,23 @@ const Export = (() => {
         anchor.download = filename;
         anchor.click();
         URL.revokeObjectURL(url);
+    }
+
+    // Normalize image URLs stored with the VPS origin so they work on any host.
+    // If the URL is absolute and points to a different origin, strip it to a
+    // root-relative path and let buildApiUrl apply the current API_BASE.
+    function normalizeImageUrl(url) {
+        if (!url) return '#';
+        try {
+            const parsed = new URL(url);
+            if (parsed.origin !== window.location.origin) {
+                const path = parsed.pathname + parsed.search;
+                return typeof buildApiUrl === 'function' ? buildApiUrl(path) : path;
+            }
+        } catch (_) {
+            // relative URL — fall through
+        }
+        return typeof buildApiUrl === 'function' ? buildApiUrl(url) : url;
     }
 
     function formatConfidence(value) {

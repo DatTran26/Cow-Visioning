@@ -2,7 +2,7 @@
    Auth Pages — Premium Light Mode (Con Bò Cười Brand)
    ===================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Nunito:wght@700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -11,9 +11,10 @@
 }
 
 :root {
-  --teal:        #3a9e91;
-  --teal-d:      #1e7060;
-  --teal-l:      #5fbfb2;
+  --teal:        #3a9b8e;
+  --teal-d:      #1e7062;
+  --teal-l:      #5dc4b5;
+  --orange:      #e07527;
   --teal-faint:  #eaf5f3;
   --text:        #0f2825;
   --muted:       #5a7872;
@@ -26,10 +27,10 @@
 html { scroll-behavior: smooth; }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
   background: linear-gradient(135deg, #eaf5f3 0%, #f0faf8 50%, #e8f2f0 100%);
   color: var(--text);
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -115,7 +116,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Nunito', sans-serif;
+  font-family: 'Outfit', sans-serif;
   font-size: 22px;
   font-weight: 900;
   color: #fff;
@@ -125,7 +126,7 @@ body {
 }
 
 .auth-logo h1 {
-  font-family: 'Nunito', sans-serif;
+  font-family: 'Outfit', sans-serif;
   font-size: 22px;
   font-weight: 800;
   color: var(--text);

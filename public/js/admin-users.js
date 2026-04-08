@@ -33,6 +33,7 @@ window.AdminUsers = (() => {
         document.querySelectorAll('.admin-cb-row').forEach(cb => {
             cb.checked = false;
         });
+        document.querySelectorAll('#admin-users-tbody tr.selected').forEach(row => row.classList.remove('selected'));
         updateBatchBar();
     }
 
@@ -49,7 +50,21 @@ window.AdminUsers = (() => {
             const result = await res.json();
             if (!res.ok) throw new Error(result.details || result.error);
 
-            const users = result.data || [];
+            let users = result.data || [];
+            
+            const queryRaw = document.getElementById('admin-user-search')?.value.trim().toLowerCase() || '';
+            const roleFilter = document.getElementById('admin-user-role-filter')?.value || '';
+            
+            if (queryRaw || roleFilter) {
+                users = users.filter(u => {
+                    if (roleFilter && u.role !== roleFilter) return false;
+                    if (queryRaw && !u.username?.toLowerCase().includes(queryRaw) && !u.email?.toLowerCase().includes(queryRaw)) {
+                        return false;
+                    }
+                    return true;
+                });
+            }
+
             status.textContent = `Found ${users.length} user(s)`;
             status.className = 'status-msg success';
             clearSelection();
@@ -63,7 +78,7 @@ window.AdminUsers = (() => {
                             
                         return `
                         <tr data-id="${user.id}">
-                            <td style="text-align: center;">
+                            <td style="text-align: center;" class="admin-multi-choice-col">
                                 <input type="checkbox" class="admin-cb admin-cb-row" value="${user.id}" />
                             </td>
                             <td>${user.id}</td>
@@ -92,10 +107,13 @@ window.AdminUsers = (() => {
             tbody.querySelectorAll('.admin-cb-row').forEach(cb => {
                 cb.addEventListener('change', (e) => {
                     const id = parseInt(e.target.value, 10);
+                    const row = e.target.closest('tr');
                     if (e.target.checked) {
                         selectedAdminUserIds.add(id);
+                        if (row) row.classList.add('selected');
                     } else {
                         selectedAdminUserIds.delete(id);
+                        if (row) row.classList.remove('selected');
                     }
                     updateBatchBar();
                 });
@@ -108,13 +126,35 @@ window.AdminUsers = (() => {
                     const isChecked = e.target.checked;
                     tbody.querySelectorAll('.admin-cb-row').forEach(cb => {
                         cb.checked = isChecked;
+                        const row = cb.closest('tr');
                         const id = parseInt(cb.value, 10);
-                        if (isChecked) selectedAdminUserIds.add(id);
-                        else selectedAdminUserIds.delete(id);
+                        if (isChecked) {
+                            selectedAdminUserIds.add(id);
+                            if (row) row.classList.add('selected');
+                        } else {
+                            selectedAdminUserIds.delete(id);
+                            if (row) row.classList.remove('selected');
+                        }
                     });
                     updateBatchBar();
                 });
             }
+
+            // Row click for selection mode
+            tbody.addEventListener('click', (e) => {
+                const table = document.getElementById('admin-users-table');
+                if (table && table.classList.contains('selection-mode')) {
+                    const tr = e.target.closest('tr');
+                    if (!tr) return;
+                    if (e.target.closest('button') || e.target.closest('select') || e.target.closest('.admin-cb')) return;
+                    
+                    const cb = tr.querySelector('.admin-cb-row');
+                    if (cb) {
+                        cb.checked = !cb.checked;
+                        cb.dispatchEvent(new Event('change'));
+                    }
+                }
+            });
 
             tbody.querySelectorAll('.admin-save-role-btn').forEach((btn) => {
                 btn.addEventListener('click', () => {
@@ -212,6 +252,33 @@ window.AdminUsers = (() => {
         document.getElementById('admin-batch-deactivate-btn')?.addEventListener('click', () => batchDeactivate(true));
         document.getElementById('admin-batch-activate-btn')?.addEventListener('click', () => batchDeactivate(false));
         document.getElementById('admin-batch-delete-btn')?.addEventListener('click', batchDelete);
+
+        // Filter events
+        document.getElementById('admin-user-search-btn')?.addEventListener('click', loadUsers);
+        document.getElementById('admin-user-search')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') loadUsers();
+        });
+        document.getElementById('admin-user-reset-btn')?.addEventListener('click', () => {
+            document.getElementById('admin-user-search').value = '';
+            document.getElementById('admin-user-role-filter').value = '';
+            loadUsers();
+        });
+
+        // Multiple Choices toggle
+        document.getElementById('admin-multiple-choices-btn')?.addEventListener('click', (e) => {
+            const table = document.getElementById('admin-users-table');
+            const isSelectionMode = table.classList.toggle('selection-mode');
+            if (isSelectionMode) {
+                e.currentTarget.classList.add('active');
+                e.currentTarget.style.background = 'var(--teal)';
+                e.currentTarget.style.color = '#fff';
+            } else {
+                e.currentTarget.classList.remove('active');
+                e.currentTarget.style.background = '';
+                e.currentTarget.style.color = '';
+                clearSelection();
+            }
+        });
     });
 
     return { loadUsers, changeRole, deleteUser, setRefreshCallback };

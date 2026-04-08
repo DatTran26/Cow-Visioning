@@ -1864,7 +1864,10 @@ app.delete('/api/images/:id', authRequired, async (req, res) => {
         if (record.rows.length === 0) {
             return res.status(404).json({ error: 'Không tìm thấy ảnh' });
         }
-        if (record.rows[0].user_id !== req.session.userId) {
+
+        const isAdmin = req.session.role === 'admin';
+
+        if (record.rows[0].user_id !== req.session.userId && !isAdmin) {
             return res.status(403).json({ error: 'Bạn không có quyền xoá ảnh này' });
         }
 

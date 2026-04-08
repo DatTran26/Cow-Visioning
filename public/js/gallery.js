@@ -57,6 +57,21 @@ const Gallery = (() => {
             if (currentData.length > 0) renderCards(sortData(currentData));
         });
 
+        document.getElementById('gal-multiple-choices-btn')?.addEventListener('click', (e) => {
+            const grid = document.getElementById('gallery-grid');
+            const isSelectionMode = grid.classList.toggle('selection-mode');
+            if (isSelectionMode) {
+                e.currentTarget.classList.add('active');
+                e.currentTarget.style.background = 'var(--teal)';
+                e.currentTarget.style.color = '#fff';
+            } else {
+                e.currentTarget.classList.remove('active');
+                e.currentTarget.style.background = '';
+                e.currentTarget.style.color = '';
+                clearBatchSelection();
+            }
+        });
+
         document.getElementById('view-grid')?.addEventListener('click', () => setView('grid'));
         document.getElementById('view-list')?.addEventListener('click', () => setView('list'));
 
@@ -204,11 +219,22 @@ const Gallery = (() => {
             if (e.target.checked) {
                 selectedCardIds.add(record.id);
                 cbWrap.classList.add('checked');
+                card.classList.add('selected');
             } else {
                 selectedCardIds.delete(record.id);
                 cbWrap.classList.remove('checked');
+                card.classList.remove('selected');
             }
             updateBatchToolbar();
+        });
+
+        card.addEventListener('click', (e) => {
+            const grid = document.getElementById('gallery-grid');
+            if (grid && grid.classList.contains('selection-mode')) {
+                if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.gal-select-cb')) return;
+                checkbox.checked = !checkbox.checked;
+                checkbox.dispatchEvent(new Event('change'));
+            }
         });
 
         card.querySelector('.gal-view-full-btn').addEventListener('click', (event) => {
@@ -235,8 +261,7 @@ const Gallery = (() => {
         if (selectedCardIds.size > 0) {
             countVal.textContent = selectedCardIds.size;
             batchBar.classList.remove('hidden');
-            // Allow layout before adding animation class
-            requestAnimationFrame(() => batchBar.classList.add('show'));
+            setTimeout(() => batchBar.classList.add('show'), 10);
         } else {
             batchBar.classList.remove('show');
             setTimeout(() => {
@@ -251,6 +276,7 @@ const Gallery = (() => {
             cb.checked = false;
             if (cb.parentElement) cb.parentElement.classList.remove('checked');
         });
+        document.querySelectorAll('#gallery-grid .card.selected').forEach(card => card.classList.remove('selected'));
         updateBatchToolbar();
     }
 

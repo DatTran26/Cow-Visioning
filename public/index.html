@@ -380,7 +380,7 @@
 
         <!-- UPLOAD PANEL -->
         <div id="upload-panel" class="sub-panel active">
-          <div class="upload-workspace">
+          <div class="upload-workspace" id="upload-workspace">
             <form id="upload-form" class="form-grid upload-form-grid">
               <div class="form-group"><label for="cow-id">Cow ID <span class="req">*</span></label><input type="text"
                   id="cow-id" placeholder="e.g. COW-001" required /></div>
@@ -413,26 +413,39 @@
                 </div>
                 <div id="file-preview" class="file-preview"></div>
               </div>
-              <div class="form-group full-width"><button type="submit" class="btn btn-primary" id="upload-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
-                Upload Images
-              </button></div>
+              <div class="form-group full-width">
+                <div class="upload-actions-row">
+                  <button type="submit" class="btn btn-primary upload-submit-btn" id="upload-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+                    Upload Images
+                  </button>
+                  <button type="button" class="btn btn-results" id="toggle-results-btn" hidden aria-label="View upload results">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                    Results
+                    <span class="results-count-badge" id="results-count">0</span>
+                  </button>
+                </div>
+              </div>
               <div id="upload-progress" class="progress-bar" hidden>
                 <div class="progress-fill"></div>
               </div>
               <div id="upload-status" class="status-msg"></div>
             </form>
-            <aside id="upload-ai-result" class="ai-result-card ai-result-sidebar" hidden>
-              <div class="ai-result-media">
-                <img id="upload-ai-image" alt="AI annotated result" />
-                <span class="ai-result-media-placeholder">Preview unavailable</span>
+
+            <aside id="upload-results-panel" class="upload-results-panel" hidden>
+              <div class="upload-results-header">
+                <div class="upload-results-header-left">
+                  <h3 class="upload-results-title">Results</h3>
+                  <span class="upload-results-subtitle" id="results-panel-count">0 results</span>
+                </div>
+                <div class="upload-results-header-right">
+                  <button type="button" class="btn-text-small" id="clear-results-btn">Clear all</button>
+                  <button type="button" class="upload-results-close" id="close-results-btn" aria-label="Close results panel">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
               </div>
-              <div class="ai-result-body">
-                <p class="ai-result-eyebrow">Latest AI Result</p>
-                <h3 id="upload-ai-behavior">Waiting for analysis</h3>
-                <div id="upload-ai-meta" class="ai-result-meta"></div>
-                <a id="upload-ai-original-link" class="ai-result-link" href="#" target="_blank" rel="noopener" hidden>View original</a>
-              </div>
+              <div id="upload-results-list" class="upload-results-list"></div>
             </aside>
           </div>
         </div><!-- /upload-panel -->

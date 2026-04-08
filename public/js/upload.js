@@ -1,5 +1,6 @@
 const Upload = (() => {
     let selectedFiles = [];
+    let resultCount = 0;
 
     function init() {
         const dropzone = document.getElementById('dropzone');
@@ -28,6 +29,21 @@ const Upload = (() => {
         });
 
         form.addEventListener('submit', handleUpload);
+
+        // Results panel toggle
+        document.getElementById('toggle-results-btn').addEventListener('click', () => {
+            const panel = document.getElementById('upload-results-panel');
+            panel.hidden = false;
+            document.getElementById('upload-workspace').classList.add('results-open');
+        });
+
+        document.getElementById('close-results-btn').addEventListener('click', () => {
+            const panel = document.getElementById('upload-results-panel');
+            panel.hidden = true;
+            document.getElementById('upload-workspace').classList.remove('results-open');
+        });
+
+        document.getElementById('clear-results-btn').addEventListener('click', clearResults);
 
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -128,10 +144,10 @@ const Upload = (() => {
 
                 uploaded += 1;
                 lastSuccessfulRecord = result.data || null;
+
+                // Append each result individually (show all, not just last)
                 if (AiDisplay.hasAiResult(lastSuccessfulRecord)) {
-                    renderAiResult(lastSuccessfulRecord);
-                } else {
-                    hideAiResult();
+                    appendAiResult(lastSuccessfulRecord);
                 }
             } catch (err) {
                 console.error('Upload error:', err);
@@ -168,104 +184,82 @@ const Upload = (() => {
         }, 2500);
     }
 
-    function renderAiResult(record) {
-        const card = document.getElementById('upload-ai-result');
-        const image = document.getElementById('upload-ai-image');
-        const behavior = document.getElementById('upload-ai-behavior');
-        const meta = document.getElementById('upload-ai-meta');
-        const originalLink = document.getElementById('upload-ai-original-link');
+    /**
+     * Append a single AI result card to the results panel.
+     * Shows the Results toggle button if this is the first result.
+     */
+    function appendAiResult(record) {
+        if (!record || !AiDisplay.hasAiResult(record)) return;
 
-        if (!card || !record) return;
-        if (!AiDisplay.hasAiResult(record)) {
-            hideAiResult();
-            return;
+        const list = document.getElementById('upload-results-list');
+        const countBadge = document.getElementById('results-count');
+        const panelCountEl = document.getElementById('results-panel-count');
+        const toggleBtn = document.getElementById('toggle-results-btn');
+        if (!list) return;
+
+        resultCount += 1;
+
+        // Update badge + panel count text
+        if (countBadge) countBadge.textContent = String(resultCount);
+        if (panelCountEl) {
+            panelCountEl.textContent = `${resultCount} result${resultCount !== 1 ? 's' : ''}`;
         }
 
-        setAiPreviewImage(image, record);
-        behavior.textContent = BEHAVIOR_MAP[record.behavior] || record.behavior || 'Unknown';
-        meta.innerHTML = AiDisplay.buildAiMetaMarkup(record);
+        // Reveal the Results button (first time)
+        if (toggleBtn) toggleBtn.hidden = false;
 
-        if (record.original_image_url) {
-            originalLink.href = record.original_image_url;
-            originalLink.hidden = false;
-        } else {
-            originalLink.hidden = true;
-        }
+        // Build image sources with fallbacks
+        const imageSrc = record.annotated_image_url || record.original_image_url || record.image_url || '';
+        const behaviorLabel = BEHAVIOR_MAP[record.behavior] || record.behavior || 'Unknown';
+        const metaMarkup = AiDisplay.buildAiMetaMarkup(record);
+        const originalUrl = record.original_image_url || '';
 
-        card.hidden = false;
+        const item = document.createElement('div');
+        item.className = 'upload-result-item';
+        item.innerHTML = `
+            <div class="uri-thumb-wrap${imageSrc ? '' : ' is-empty'}">
+              ${imageSrc
+                ? `<img class="uri-thumb" src="${escapeAttr(imageSrc)}" alt="Result #${resultCount}" loading="lazy" onerror="this.parentElement.classList.add('is-empty');this.style.display='none'">`
+                : ''}
+              <span class="uri-thumb-empty">No preview</span>
+            </div>
+            <div class="uri-body">
+              <p class="uri-eyebrow">Result #${resultCount}</p>
+              <h4 class="uri-behavior">${escapeHtml(behaviorLabel)}</h4>
+              <div class="uri-meta">${metaMarkup}</div>
+              ${originalUrl ? `<a class="ai-result-link" href="${escapeAttr(originalUrl)}" target="_blank" rel="noopener">View original</a>` : ''}
+            </div>`;
+
+        // Newest on top
+        list.prepend(item);
     }
 
-    function hideAiResult() {
-        const card = document.getElementById('upload-ai-result');
-        const image = document.getElementById('upload-ai-image');
-        const meta = document.getElementById('upload-ai-meta');
-        const originalLink = document.getElementById('upload-ai-original-link');
-        const media = image?.closest('.ai-result-media');
+    function clearResults() {
+        resultCount = 0;
+        const list = document.getElementById('upload-results-list');
+        const countBadge = document.getElementById('results-count');
+        const panelCountEl = document.getElementById('results-panel-count');
+        const toggleBtn = document.getElementById('toggle-results-btn');
+        const panel = document.getElementById('upload-results-panel');
 
-        if (!card) return;
-        card.hidden = true;
-        if (image) {
-            image.onload = null;
-            image.onerror = null;
-            image.removeAttribute('src');
-            delete image.dataset.previewCandidates;
-            delete image.dataset.previewIndex;
-        }
-        if (media) media.classList.remove('is-empty');
-        if (meta) meta.innerHTML = '';
-        if (originalLink) {
-            originalLink.hidden = true;
-            originalLink.removeAttribute('href');
-        }
+        if (list) list.innerHTML = '';
+        if (countBadge) countBadge.textContent = '0';
+        if (panelCountEl) panelCountEl.textContent = '0 results';
+        if (toggleBtn) toggleBtn.hidden = true;
+        if (panel) panel.hidden = true;
+        document.getElementById('upload-workspace')?.classList.remove('results-open');
     }
 
-    function setAiPreviewImage(image, record) {
-        const media = image?.closest('.ai-result-media');
-        if (!image || !media) return;
-
-        const candidates = [...new Set([
-            record?.annotated_image_url,
-            record?.original_image_url,
-            record?.image_url,
-        ].filter(Boolean))];
-
-        image.onload = () => {
-            media.classList.remove('is-empty');
-        };
-
-        image.onerror = () => {
-            const nextIndex = Number(image.dataset.previewIndex || '0') + 1;
-            const nextCandidates = safeParsePreviewCandidates(image.dataset.previewCandidates);
-
-            if (nextIndex < nextCandidates.length) {
-                image.dataset.previewIndex = String(nextIndex);
-                image.src = nextCandidates[nextIndex];
-                return;
-            }
-
-            image.removeAttribute('src');
-            media.classList.add('is-empty');
-        };
-
-        if (!candidates.length) {
-            image.removeAttribute('src');
-            media.classList.add('is-empty');
-            return;
-        }
-
-        media.classList.remove('is-empty');
-        image.dataset.previewCandidates = JSON.stringify(candidates);
-        image.dataset.previewIndex = '0';
-        image.src = candidates[0];
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
     }
 
-    function safeParsePreviewCandidates(rawValue) {
-        try {
-            const parsed = JSON.parse(rawValue || '[]');
-            return Array.isArray(parsed) ? parsed : [];
-        } catch (error) {
-            return [];
-        }
+    function escapeAttr(str) {
+        return String(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     function showStatus(element, message, type) {

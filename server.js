@@ -2381,29 +2381,6 @@ app.put('/admin/users/:id/role', requireAdmin, async (req, res) => {
         return res.status(500).json({ error: 'Không thể cập nhật quyền' });
     }
 });
-
-app.delete('/admin/users/:id', requireAdmin, async (req, res) => {
-    try {
-        const id = parseInt(req.params.id, 10);
-        if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID không hợp lệ' });
-
-        if (id === req.session.userId) {
-            return res.status(400).json({ error: 'Không thể tự xoá chính mình' });
-        }
-
-        const check = await pool.query('SELECT id, username FROM users WHERE id = $1', [id]);
-        if (check.rows.length === 0) {
-            return res.status(404).json({ error: 'Không tìm thấy người dùng' });
-        }
-
-        await pool.query('DELETE FROM users WHERE id = $1', [id]);
-        return res.json({ success: true, deleted: check.rows[0].username });
-    } catch (err) {
-        console.error('DELETE /admin/users/:id error:', err);
-        return res.status(500).json({ error: 'Không thể xoá người dùng' });
-    }
-});
-
 app.put('/admin/users/batch-deactivate', requireAdmin, async (req, res) => {
     try {
         const { ids, deactivate } = req.body;
@@ -2453,6 +2430,28 @@ app.delete('/admin/users/batch', requireAdmin, async (req, res) => {
     } catch (err) {
         console.error('DELETE /admin/users/batch error:', err);
         return res.status(500).json({ error: 'Không thể xoá nhiều người dùng' });
+    }
+});
+
+app.delete('/admin/users/:id', requireAdmin, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID không hợp lệ' });
+
+        if (id === req.session.userId) {
+            return res.status(400).json({ error: 'Không thể tự xoá chính mình' });
+        }
+
+        const check = await pool.query('SELECT id, username FROM users WHERE id = $1', [id]);
+        if (check.rows.length === 0) {
+            return res.status(404).json({ error: 'Không tìm thấy người dùng' });
+        }
+
+        await pool.query('DELETE FROM users WHERE id = $1', [id]);
+        return res.json({ success: true, deleted: check.rows[0].username });
+    } catch (err) {
+        console.error('DELETE /admin/users/:id error:', err);
+        return res.status(500).json({ error: 'Không thể xoá người dùng' });
     }
 });
 

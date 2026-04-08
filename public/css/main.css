@@ -319,9 +319,10 @@ input::placeholder,textarea::placeholder{font-size:15px;color:var(--muted);opaci
 .status-msg.success{color:#16a34a}
 .status-msg.error{color:#dc2626}
 .status-msg.info{color:#2563eb}
-.upload-workspace{display:grid;grid-template-columns:minmax(0,1.18fr) minmax(340px,.82fr);gap:24px;align-items:start}
-.upload-form-grid{min-width:0}
-.ai-result-sidebar{grid-column:auto;position:sticky;top:24px;min-width:0}
+.upload-workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,.82fr);gap:24px;align-items:start;transition:all .4s cubic-bezier(.2,.8,.2,1)}
+.upload-form-grid{min-width:0;background:#fff;padding:32px;border-radius:18px;box-shadow:0 8px 32px rgba(18,43,39,.05);border:1px solid rgba(46,122,109,.1);transition:all .4s cubic-bezier(.2,.8,.2,1)}
+.upload-workspace:has(.ai-result-sidebar[hidden]){grid-template-columns:minmax(0,1fr)}
+.ai-result-sidebar{grid-column:auto;position:sticky;top:24px;min-width:0;transition:all .4s cubic-bezier(.2,.8,.2,1)}
 
 /* ── FILTER BAR / GALLERY ── */
 .filter-bar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:24px;align-items:center}
@@ -492,7 +493,7 @@ tr:hover td{background:#fafbfc}
 ══════════════════════════════ */
 @media(max-width:1160px){
   .upload-workspace{grid-template-columns:1fr}
-  .ai-result-sidebar{position:static}
+  .ai-result-sidebar{position:static;width:100%;flex:auto}
 }
 @media(max-width:1024px){.wrap{padding:0 30px}.split-grid{gap:40px}.art-grid{grid-template-columns:1fr}}
 @media(max-width:768px){

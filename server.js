@@ -169,8 +169,22 @@ const OPENAI_BLOG_DRAFT_MAX_OUTPUT_TOKENS = Math.max(
     500,
     Math.min(parseInt(process.env.OPENAI_BLOG_DRAFT_MAX_OUTPUT_TOKENS || '2200', 10), 5000)
 );
+const OPENAI_BLOG_DRAFT_TIMEOUT_MS = Math.max(
+    10000,
+    Math.min(
+        parseInt(process.env.OPENAI_BLOG_DRAFT_TIMEOUT_MS || String(Math.max(OPENAI_TIMEOUT_MS, 90000)), 10),
+        300000
+    )
+);
 const OPENAI_BLOG_IMAGE_MODEL = (process.env.OPENAI_BLOG_IMAGE_MODEL || 'gpt-image-1').trim();
 const OPENAI_BLOG_IMAGE_SIZE = normalizeText(process.env.OPENAI_BLOG_IMAGE_SIZE || '1024x1024', 20) || '1024x1024';
+const OPENAI_BLOG_IMAGE_TIMEOUT_MS = Math.max(
+    10000,
+    Math.min(
+        parseInt(process.env.OPENAI_BLOG_IMAGE_TIMEOUT_MS || String(Math.max(OPENAI_TIMEOUT_MS, 120000)), 10),
+        300000
+    )
+);
 const OPENAI_BLOG_MAX_DRAFTS = Math.max(1, Math.min(parseInt(process.env.OPENAI_BLOG_MAX_DRAFTS || '4', 10), 6));
 const DEFAULT_OPENAI_BLOG_SYSTEM_PROMPT = [
     'You are an agriculture content strategist for Cow Visioning.',
@@ -926,7 +940,7 @@ async function requestOpenAiBlogDrafts({ prompt, count, includeImages, requestId
 
     const safeCount = Math.max(1, Math.min(Number(count) || 1, OPENAI_BLOG_MAX_DRAFTS));
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
+    let timeout = setTimeout(() => controller.abort(), OPENAI_BLOG_DRAFT_TIMEOUT_MS);
 
     try {
         const body = {
@@ -970,6 +984,9 @@ async function requestOpenAiBlogDrafts({ prompt, count, includeImages, requestId
             throw new Error(message);
         }
 
+        clearTimeout(timeout);
+        timeout = null;
+
         const rawText = extractOpenAiTextPayload(payload);
         if (!rawText) {
             throw createOpenAiAssistantChatError(payload);
@@ -1006,11 +1023,11 @@ async function requestOpenAiBlogDrafts({ prompt, count, includeImages, requestId
         return normalizedDrafts;
     } catch (err) {
         if (err.name === 'AbortError') {
-            throw new Error(`OpenAI blog draft request timed out after ${OPENAI_TIMEOUT_MS}ms`);
+            throw new Error(`OpenAI blog draft request timed out after ${OPENAI_BLOG_DRAFT_TIMEOUT_MS}ms`);
         }
         throw err;
     } finally {
-        clearTimeout(timeout);
+        if (timeout) clearTimeout(timeout);
     }
 }
 
@@ -1025,51 +1042,64 @@ async function requestOpenAiBlogImage({ prompt, requestId }) {
         throw new Error('Image prompt is empty');
     }
 
-    const response = await fetch('https://api.openai.com/v1/images/generations', {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${openAiApiKey}`,
-            'Content-Type': 'application/json',
-            'X-Client-Request-Id': requestId,
-        },
-        body: JSON.stringify({
-            model: OPENAI_BLOG_IMAGE_MODEL,
-            prompt: normalizedPrompt,
-            size: OPENAI_BLOG_IMAGE_SIZE,
-        }),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), OPENAI_BLOG_IMAGE_TIMEOUT_MS);
 
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-        const message = payload?.error?.message || payload?.message || `OpenAI image generation returned HTTP ${response.status}`;
-        throw new Error(message);
-    }
-
-    const imageItem = Array.isArray(payload?.data) ? payload.data[0] : null;
-    if (!imageItem) {
-        throw new Error('OpenAI did not return any generated image');
-    }
-
-    if (imageItem.b64_json) {
-        const mimeType = imageItem.mime_type || 'image/png';
-        return persistGeneratedBlogImage({
-            imageBuffer: Buffer.from(imageItem.b64_json, 'base64'),
-            mimeType,
-            requestId,
+    try {
+        const response = await fetch('https://api.openai.com/v1/images/generations', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${openAiApiKey}`,
+                'Content-Type': 'application/json',
+                'X-Client-Request-Id': requestId,
+            },
+            body: JSON.stringify({
+                model: OPENAI_BLOG_IMAGE_MODEL,
+                prompt: normalizedPrompt,
+                size: OPENAI_BLOG_IMAGE_SIZE,
+            }),
+            signal: controller.signal,
         });
-    }
 
-    if (imageItem.url) {
-        const imageResponse = await fetch(imageItem.url);
-        if (!imageResponse.ok) {
-            throw new Error('Unable to download generated image');
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const message = payload?.error?.message || payload?.message || `OpenAI image generation returned HTTP ${response.status}`;
+            throw new Error(message);
         }
-        const mimeType = imageResponse.headers.get('content-type') || 'image/png';
-        const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
-        return persistGeneratedBlogImage({ imageBuffer, mimeType, requestId });
-    }
 
-    throw new Error('OpenAI image generation response did not contain usable image data');
+        const imageItem = Array.isArray(payload?.data) ? payload.data[0] : null;
+        if (!imageItem) {
+            throw new Error('OpenAI did not return any generated image');
+        }
+
+        if (imageItem.b64_json) {
+            const mimeType = imageItem.mime_type || 'image/png';
+            return persistGeneratedBlogImage({
+                imageBuffer: Buffer.from(imageItem.b64_json, 'base64'),
+                mimeType,
+                requestId,
+            });
+        }
+
+        if (imageItem.url) {
+            const imageResponse = await fetch(imageItem.url, { signal: controller.signal });
+            if (!imageResponse.ok) {
+                throw new Error('Unable to download generated image');
+            }
+            const mimeType = imageResponse.headers.get('content-type') || 'image/png';
+            const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+            return persistGeneratedBlogImage({ imageBuffer, mimeType, requestId });
+        }
+
+        throw new Error('OpenAI image generation response did not contain usable image data');
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            throw new Error(`OpenAI blog image request timed out after ${OPENAI_BLOG_IMAGE_TIMEOUT_MS}ms`);
+        }
+        throw err;
+    } finally {
+        clearTimeout(timeout);
+    }
 }
 
 function normalizeOpenAiClassification(payload) {

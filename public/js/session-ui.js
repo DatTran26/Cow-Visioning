@@ -47,6 +47,13 @@ window.SessionUI = (() => {
             setVisibility(userBadge, isAuthenticated, 'inline-flex');
         }
 
+        const blogUserName = document.getElementById('blog-user-badge-name');
+        const blogUserInitial = document.getElementById('blog-user-badge-initial');
+        if (blogUserName && blogUserInitial) {
+            blogUserName.textContent = isAuthenticated ? currentUser.username : 'Guest user';
+            blogUserInitial.textContent = isAuthenticated ? currentUser.username.charAt(0).toUpperCase() : '?';
+        }
+
         if (primaryAction && secondaryAction && ctaTitle && ctaCopy && ctaNote) {
             if (isAuthenticated) {
                 ctaTitle.textContent = 'Your Account is Ready';

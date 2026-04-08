@@ -24,6 +24,7 @@ ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS detection_count INTEGER;
 ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS ai_raw_result JSONB;
 ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS ai_model_name VARCHAR(255);
 ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS ai_inference_ms DOUBLE PRECISION;
+ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS ai_provider VARCHAR(50);
 ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS ai_status VARCHAR(50);
 -- Phase 2 readiness: farm_id for multi-tenancy (standardized from migrations/001-add-farm-id.sql)
 ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS farm_id VARCHAR(100);
@@ -99,6 +100,7 @@ CREATE TABLE IF NOT EXISTS blog_likes (
     id SERIAL PRIMARY KEY,
     post_id INTEGER NOT NULL REFERENCES blog_posts(id) ON DELETE CASCADE,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    reaction_type VARCHAR(20) NOT NULL DEFAULT 'like',
     created_at TIMESTAMP DEFAULT NOW(),
     UNIQUE(post_id, user_id)
 );
@@ -112,12 +114,15 @@ CREATE TABLE IF NOT EXISTS blog_post_images (
     file_size INTEGER,
     created_at TIMESTAMP DEFAULT NOW()
 );
+ALTER TABLE blog_likes ADD COLUMN IF NOT EXISTS reaction_type VARCHAR(20) NOT NULL DEFAULT 'like';
+UPDATE blog_likes SET reaction_type = 'like' WHERE reaction_type IS NULL OR reaction_type = '';
 
 CREATE INDEX IF NOT EXISTS idx_blog_posts_created_at ON blog_posts (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_blog_posts_user_id ON blog_posts (user_id);
 CREATE INDEX IF NOT EXISTS idx_blog_comments_post_id ON blog_comments (post_id);
 CREATE INDEX IF NOT EXISTS idx_blog_comments_created_at ON blog_comments (created_at);
 CREATE INDEX IF NOT EXISTS idx_blog_likes_post_id ON blog_likes (post_id);
+CREATE INDEX IF NOT EXISTS idx_blog_likes_post_reaction ON blog_likes (post_id, reaction_type);
 CREATE INDEX IF NOT EXISTS idx_blog_post_images_post_id ON blog_post_images (post_id);
 
 -- App config (TOTP secret storage)
@@ -160,6 +165,7 @@ END $$;
 -- ═══ Seed default configuration ═══
 INSERT INTO app_config (key, value) VALUES
     ('AI_ENABLED', 'true'),
+    ('AI_TOOL_PRO_ENABLED', 'true'),
     ('AI_SERVICE_URL', 'http://180.93.2.32:8001'),
     ('AI_TIMEOUT_MS', '20000'),
     ('AI_MODEL_NAME', 'cow-behavior-yolo'),

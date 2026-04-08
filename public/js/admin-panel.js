@@ -1,4 +1,4 @@
-// admin-panel.js — Admin init, stats, AI settings, session sync
+// admin-panel.js â€” Admin init, stats, AI settings, session sync
 // Depends on: AdminUsers
 // Exposes window.Admin = { init, loadPanel }
 const Admin = (() => {
@@ -47,6 +47,7 @@ const Admin = (() => {
             const maxDetInput = document.getElementById('admin-max-det');
             const deviceSelect = document.getElementById('admin-ai-device');
             const enabledCheck = document.getElementById('admin-ai-enabled');
+            const toolProCheck = document.getElementById('admin-tool-pro-enabled');
 
             if (confSlider) {
                 confSlider.value = settings.AI_CONF_THRESHOLD;
@@ -59,6 +60,7 @@ const Admin = (() => {
             if (maxDetInput) maxDetInput.value = settings.AI_MAX_DET;
             if (deviceSelect) deviceSelect.value = settings.AI_DEVICE;
             if (enabledCheck) enabledCheck.checked = settings.AI_ENABLED;
+            if (toolProCheck) toolProCheck.checked = settings.AI_TOOL_PRO_ENABLED !== false;
         } catch (err) {
             console.error('Load AI settings error:', err);
         }
@@ -77,6 +79,7 @@ const Admin = (() => {
                 AI_IOU_THRESHOLD: parseFloat(document.getElementById('admin-iou-threshold').value),
                 AI_MAX_DET: parseInt(document.getElementById('admin-max-det').value, 10),
                 AI_ENABLED: document.getElementById('admin-ai-enabled').checked,
+                AI_TOOL_PRO_ENABLED: document.getElementById('admin-tool-pro-enabled').checked,
             };
 
             const res = await fetch('/admin/ai-settings', {
@@ -104,6 +107,24 @@ const Admin = (() => {
         }
     }
 
+    function bindExclusiveAiModeToggles() {
+        const enabledCheck = document.getElementById('admin-ai-enabled');
+        const toolProCheck = document.getElementById('admin-tool-pro-enabled');
+        if (!enabledCheck || !toolProCheck) return;
+
+        enabledCheck.addEventListener('change', () => {
+            if (enabledCheck.checked) {
+                toolProCheck.checked = false;
+            }
+        });
+
+        toolProCheck.addEventListener('change', () => {
+            if (toolProCheck.checked) {
+                enabledCheck.checked = false;
+            }
+        });
+    }
+
     function init() {
         syncSessionState();
         document.addEventListener('app:session-changed', syncSessionState);
@@ -116,6 +137,8 @@ const Admin = (() => {
 
         const saveAiBtn = document.getElementById('admin-save-ai');
         if (saveAiBtn) saveAiBtn.addEventListener('click', saveAiSettings);
+
+        bindExclusiveAiModeToggles();
 
         const confSlider = document.getElementById('admin-conf-threshold');
         const iouSlider = document.getElementById('admin-iou-threshold');
@@ -130,6 +153,7 @@ const Admin = (() => {
                 document.getElementById('admin-iou-value').textContent = parseFloat(iouSlider.value).toFixed(2);
             });
         }
+
     }
 
     async function loadPanel() {

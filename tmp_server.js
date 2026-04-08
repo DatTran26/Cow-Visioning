@@ -1,7 +1,4 @@
-const dotenv = require('dotenv');
-// In production this app is often started by PM2/systemd with inherited env vars.
-// Force `.env` to win so blank/stale process-level values do not mask local config.
-dotenv.config({ override: true });
+require('dotenv').config();
 
 const express = require('express');
 const multer = require('multer');
@@ -38,22 +35,6 @@ function parseCsvEnv(value) {
         .split(',')
         .map((item) => item.trim().replace(/\/+$/, ''))
         .filter(Boolean);
-}
-
-function normalizeProcessingMode(value, fallback = 'manual') {
-    const normalized = String(value || '').trim().toLowerCase();
-    if (['yolo', 'tool_pro', 'manual'].includes(normalized)) {
-        return normalized;
-    }
-    return fallback;
-}
-
-function normalizeOpenAiReasoningEffort(value, fallback = 'low') {
-    const normalized = String(value || '').trim().toLowerCase();
-    if (['minimal', 'low', 'medium', 'high'].includes(normalized)) {
-        return normalized;
-    }
-    return fallback;
 }
 
 const configuredCorsOrigins = parseCsvEnv(process.env.CORS_ALLOWED_ORIGINS);
@@ -120,89 +101,6 @@ const AI_DEFAULT_URL = (isLocalDev && isRemoteDb) ? `http://${dbHost}:8001` : 'h
 const AI_SERVICE_URL = (process.env.AI_SERVICE_URL || AI_DEFAULT_URL).replace(/\/+$/, '');
 const AI_LOCAL_FALLBACK_URL = 'http://127.0.0.1:8001';
 const AI_TIMEOUT_MS = parseInt(process.env.AI_TIMEOUT_MS || '20000', 10);
-const OPENAI_API_KEY = (process.env.OPENAI_API_KEY || '').trim();
-const OPENAI_MODEL = (process.env.OPENAI_MODEL || 'gpt-5.1').trim();
-const OPENAI_CHAT_MODEL = (process.env.OPENAI_CHAT_MODEL || 'gpt-5-chat-latest').trim();
-const OPENAI_CHAT_REASONING_EFFORT = normalizeOpenAiReasoningEffort(
-    process.env.OPENAI_CHAT_REASONING_EFFORT,
-    'low'
-);
-const OPENAI_TIMEOUT_MS = parseInt(process.env.OPENAI_TIMEOUT_MS || '30000', 10);
-const OPENAI_UPLOAD_ENABLED = parseBooleanEnv(process.env.OPENAI_UPLOAD_ENABLED, true);
-const OPENAI_UPLOAD_REASONING_EFFORT = normalizeOpenAiReasoningEffort(
-    process.env.OPENAI_UPLOAD_REASONING_EFFORT,
-    'low'
-);
-const OPENAI_UPLOAD_MAX_OUTPUT_TOKENS = Math.max(
-    200,
-    Math.min(parseInt(process.env.OPENAI_UPLOAD_MAX_OUTPUT_TOKENS || '400', 10), 4000)
-);
-const OPENAI_CHAT_HISTORY_LIMIT = Math.max(
-    1,
-    Math.min(parseInt(process.env.OPENAI_CHAT_HISTORY_LIMIT || '8', 10), 20)
-);
-const OPENAI_CHAT_MAX_OUTPUT_TOKENS = Math.max(
-    200,
-    Math.min(parseInt(process.env.OPENAI_CHAT_MAX_OUTPUT_TOKENS || '700', 10), 4000)
-);
-const DEFAULT_OPENAI_CHAT_SYSTEM_PROMPT = [
-    'Bạn là Cow Visioning Assistant, trợ lý AI cho nền tảng Cow Visioning.',
-    'Ưu tiên trả lời bằng tiếng Việt nếu người dùng dùng tiếng Việt; nếu không thì trả lời theo ngôn ngữ của người dùng.',
-    'Tập trung chủ yếu vào nông nghiệp, chăn nuôi bò, quản lý trang trại, dinh dưỡng, giống, môi trường chuồng trại, phúc lợi vật nuôi, năng suất, và vận hành thực tế.',
-    'Chỉ hỗ trợ cách dùng hệ thống Cow Visioning khi người dùng hỏi trực tiếp về tính năng, thao tác, tab, màn hình, dữ liệu, upload, camera, hoặc export.',
-    'Thông tin sản phẩm chỉ dùng khi thật sự liên quan: tab Upload Images hỗ trợ JPG/PNG/WebP tối đa 10MB; tab Camera có Burst Mode khoảng 1 ảnh mỗi 500ms; tab Export Data có thể xuất CSV hoặc JSON.',
-    'Nếu câu hỏi là chuyên môn chăn nuôi/nông nghiệp, hãy trả lời trực tiếp đúng trọng tâm và không tự thêm mục gợi ý, giới thiệu, hay upsell về Cow Visioning ở cuối câu trả lời.',
-    'Nếu câu hỏi nằm ngoài nông nghiệp và cũng không liên quan tới hệ thống, hãy trả lời ngắn gọn rằng bạn tập trung vào nông nghiệp/chăn nuôi bò và hướng dẫn sử dụng Cow Visioning.',
-    'Không bịa số liệu, thuốc, phác đồ, hoặc chẩn đoán chắc chắn.',
-    'Nếu câu hỏi liên quan bệnh lý nghiêm trọng, dịch bệnh, ngộ độc, hoặc cấp cứu thú y, hãy nói rõ cần liên hệ bác sĩ thú y/khuyến nông địa phương để xác nhận.',
-    'Phong cách trả lời: ngắn gọn, thực tế, có cấu trúc rõ ràng, ưu tiên checklist hoặc bước hành động khi phù hợp.',
-].join(' ');
-const OPENAI_CHAT_SYSTEM_PROMPT = (
-    process.env.OPENAI_CHAT_SYSTEM_PROMPT || DEFAULT_OPENAI_CHAT_SYSTEM_PROMPT
-).trim();
-const OPENAI_BLOG_DRAFT_MODEL = (process.env.OPENAI_BLOG_DRAFT_MODEL || OPENAI_CHAT_MODEL || 'gpt-5').trim();
-const OPENAI_BLOG_DRAFT_REASONING_EFFORT = normalizeOpenAiReasoningEffort(
-    process.env.OPENAI_BLOG_DRAFT_REASONING_EFFORT,
-    'low'
-);
-const OPENAI_BLOG_DRAFT_MAX_OUTPUT_TOKENS = Math.max(
-    500,
-    Math.min(parseInt(process.env.OPENAI_BLOG_DRAFT_MAX_OUTPUT_TOKENS || '2200', 10), 5000)
-);
-const OPENAI_BLOG_DRAFT_TIMEOUT_MS = Math.max(
-    10000,
-    Math.min(
-        parseInt(process.env.OPENAI_BLOG_DRAFT_TIMEOUT_MS || String(Math.max(OPENAI_TIMEOUT_MS, 90000)), 10),
-        300000
-    )
-);
-const OPENAI_BLOG_IMAGE_MODEL = (process.env.OPENAI_BLOG_IMAGE_MODEL || 'gpt-image-1').trim();
-const OPENAI_BLOG_IMAGE_SIZE = normalizeText(process.env.OPENAI_BLOG_IMAGE_SIZE || '1024x1024', 20) || '1024x1024';
-const OPENAI_BLOG_IMAGE_TIMEOUT_MS = Math.max(
-    10000,
-    Math.min(
-        parseInt(process.env.OPENAI_BLOG_IMAGE_TIMEOUT_MS || String(Math.max(OPENAI_TIMEOUT_MS, 120000)), 10),
-        300000
-    )
-);
-const OPENAI_BLOG_MAX_DRAFTS = Math.max(1, Math.min(parseInt(process.env.OPENAI_BLOG_MAX_DRAFTS || '4', 10), 6));
-const DEFAULT_OPENAI_BLOG_SYSTEM_PROMPT = [
-    'You are an agriculture content strategist for Cow Visioning.',
-    'Write practical blog drafts about cattle farming, livestock operations, AI monitoring, herd health, barn workflow, welfare, nutrition, heat stress, reproduction, and farm productivity.',
-    'Match the language of the user prompt.',
-    'Keep each draft useful, concrete, readable, and publication-ready.',
-    'Avoid hype, fake claims, and unverifiable statistics.',
-    'Return only the requested JSON object and nothing else.',
-].join(' ');
-const OPENAI_BLOG_SYSTEM_PROMPT = (
-    process.env.OPENAI_BLOG_SYSTEM_PROMPT || DEFAULT_OPENAI_BLOG_SYSTEM_PROMPT
-).trim();
-const ENFORCE_EXCLUSIVE_AI_MODES = true;
-const DOTENV_FILE_PATH = path.resolve(__dirname, '.env');
-let dotenvFallbackCache = {
-    mtimeMs: null,
-    values: {},
-};
 const aiServiceHost = (() => {
     try {
         return new URL(AI_SERVICE_URL).hostname;
@@ -212,48 +110,6 @@ const aiServiceHost = (() => {
 })();
 const AI_EMBED_IMAGE_PAYLOAD = process.env.AI_EMBED_IMAGE_PAYLOAD === 'true'
     || !['localhost', '127.0.0.1', '::1'].includes(String(aiServiceHost).toLowerCase());
-
-function loadDotenvFallbackValues() {
-    try {
-        const stats = fs.statSync(DOTENV_FILE_PATH);
-        if (dotenvFallbackCache.mtimeMs === stats.mtimeMs) {
-            return dotenvFallbackCache.values;
-        }
-
-        const raw = fs.readFileSync(DOTENV_FILE_PATH, 'utf8');
-        const values = dotenv.parse(raw);
-        dotenvFallbackCache = {
-            mtimeMs: stats.mtimeMs,
-            values,
-        };
-        return values;
-    } catch (_err) {
-        dotenvFallbackCache = {
-            mtimeMs: null,
-            values: {},
-        };
-        return dotenvFallbackCache.values;
-    }
-}
-
-function getRuntimeEnvValue(name, fallback = '') {
-    const liveValue = String(process.env[name] || '').trim();
-    if (liveValue) {
-        return liveValue;
-    }
-
-    const dotenvValues = loadDotenvFallbackValues();
-    const fileValue = String(dotenvValues[name] || '').trim();
-    if (fileValue) {
-        return fileValue;
-    }
-
-    return fallback;
-}
-
-function getOpenAiApiKey() {
-    return getRuntimeEnvValue('OPENAI_API_KEY', OPENAI_API_KEY);
-}
 
 function ensureDir(dirPath) {
     fs.mkdirSync(dirPath, { recursive: true });
@@ -375,26 +231,6 @@ const DEFAULT_AI_SETTINGS = {
 // Runtime AI settings (loaded from env, then optionally overridden from DB by admin)
 const aiSettings = { ...DEFAULT_AI_SETTINGS };
 
-function normalizeExclusiveAiModes(preferredMode = 'AI_ENABLED') {
-    if (!ENFORCE_EXCLUSIVE_AI_MODES) {
-        return false;
-    }
-    if (!aiSettings.AI_ENABLED || !aiSettings.AI_TOOL_PRO_ENABLED) {
-        return false;
-    }
-
-    if (preferredMode === 'AI_TOOL_PRO_ENABLED') {
-        aiSettings.AI_ENABLED = false;
-    } else {
-        aiSettings.AI_TOOL_PRO_ENABLED = false;
-    }
-    return true;
-}
-
-if (normalizeExclusiveAiModes('AI_ENABLED')) {
-    console.warn('AI mode bootstrap: both AI_ENABLED and AI_TOOL_PRO_ENABLED were true in env. Tool Pro has been disabled to keep modes exclusive.');
-}
-
 function applyStoredAiSetting(key, rawValue) {
     if (rawValue === undefined || rawValue === null) {
         return;
@@ -480,10 +316,6 @@ async function loadAiSettingsFromDb() {
         result.rows.forEach(({ key, value }) => {
             applyStoredAiSetting(key, value);
         });
-
-        if (normalizeExclusiveAiModes('AI_ENABLED')) {
-            console.warn('AI mode bootstrap: both AI modes were enabled in DB. Tool Pro has been disabled to keep modes exclusive.');
-        }
     } catch (err) {
         console.warn('AI settings bootstrap skipped:', err.message);
     }
@@ -500,17 +332,6 @@ async function persistAiSettingsToDb() {
     await Promise.all(
         AI_SETTING_KEYS.map((key) => pool.query(upsertSql, [key, String(aiSettings[key])]))
     );
-}
-
-async function ensureRuntimeSchema() {
-    try {
-        await pool.query('ALTER TABLE cow_images ADD COLUMN IF NOT EXISTS ai_provider VARCHAR(50)');
-        await pool.query("ALTER TABLE blog_likes ADD COLUMN IF NOT EXISTS reaction_type VARCHAR(20) DEFAULT 'like'");
-        await pool.query("UPDATE blog_likes SET reaction_type = 'like' WHERE reaction_type IS NULL OR reaction_type = ''");
-        await pool.query("ALTER TABLE blog_likes ALTER COLUMN reaction_type SET DEFAULT 'like'");
-    } catch (err) {
-        console.warn('Runtime schema bootstrap skipped:', err.message);
-    }
 }
 
 function normalizeText(input, maxLen) {
@@ -544,23 +365,7 @@ const allowedBehaviors = new Set([
     'abnormal',
 ]);
 
-const allowedReactionTypes = new Set([
-    'like',
-    'love',
-    'care',
-    'haha',
-    'wow',
-    'sad',
-    'angry',
-]);
-
-function normalizeReactionType(input, fallback = 'like') {
-    const candidate = normalizeText(String(input || fallback), 20).toLowerCase();
-    return allowedReactionTypes.has(candidate) ? candidate : null;
-}
-
 loadAiSettingsFromDb();
-const runtimeSchemaReady = ensureRuntimeSchema();
 
 ensureDir(UPLOAD_ROOT);
 
@@ -626,33 +431,6 @@ function deleteUploadFile(uploadUrl, warningPrefix) {
     }
 }
 
-function mimeTypeToExtension(mimeType) {
-    const normalized = String(mimeType || '').trim().toLowerCase();
-    if (normalized.includes('png')) return '.png';
-    if (normalized.includes('webp')) return '.webp';
-    if (normalized.includes('gif')) return '.gif';
-    return '.jpg';
-}
-
-async function persistGeneratedBlogImage({ imageBuffer, mimeType, requestId }) {
-    const outputDir = buildDatedUploadDir('blog');
-    const safeId = String(requestId || crypto.randomUUID()).replace(/[^a-zA-Z0-9_-]/g, '') || crypto.randomUUID();
-    const ext = mimeTypeToExtension(mimeType);
-    const filePath = path.join(outputDir, `${safeId}-ai${ext}`);
-    await fs.promises.writeFile(filePath, imageBuffer);
-
-    const uploadUrl = toUploadUrl(filePath);
-    if (!uploadUrl) {
-        throw new Error('Generated blog image path is outside the uploads directory');
-    }
-
-    return {
-        image_url: toFullUrl(uploadUrl),
-        upload_url: uploadUrl,
-        file_name: path.basename(filePath),
-    };
-}
-
 function toFullUrl(url) {
     if (!url || url.startsWith('http') || !IMAGE_BASE_URL) return url;
     return `${IMAGE_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
@@ -674,570 +452,6 @@ function getAiServiceCandidates() {
         .filter(Boolean);
 
     return [...new Set(candidates)];
-}
-
-function extractOpenAiTextPayload(payload) {
-    if (typeof payload?.output_text === 'string' && payload.output_text.trim()) {
-        return payload.output_text.trim();
-    }
-
-    const outputItems = Array.isArray(payload?.output) ? payload.output : [];
-    const chunks = [];
-    for (const item of outputItems) {
-        const contentItems = Array.isArray(item?.content) ? item.content : [];
-        for (const content of contentItems) {
-            if (typeof content?.text === 'string' && content.text.trim()) {
-                chunks.push(content.text.trim());
-            }
-        }
-    }
-
-    return chunks.join('\n').trim();
-}
-
-function extractOpenAiRefusalPayload(payload) {
-    const outputItems = Array.isArray(payload?.output) ? payload.output : [];
-    const chunks = [];
-    for (const item of outputItems) {
-        const contentItems = Array.isArray(item?.content) ? item.content : [];
-        for (const content of contentItems) {
-            if (typeof content?.refusal === 'string' && content.refusal.trim()) {
-                chunks.push(content.refusal.trim());
-            }
-        }
-    }
-
-    return chunks.join('\n').trim();
-}
-
-function supportsReasoningControls(model) {
-    const normalized = String(model || '').trim().toLowerCase();
-    return (
-        normalized.startsWith('gpt-5') ||
-        normalized.startsWith('o1') ||
-        normalized.startsWith('o3') ||
-        normalized.startsWith('o4')
-    );
-}
-
-function createOpenAiAssistantChatError(payload) {
-    const status = normalizeText(payload?.status, 50).toLowerCase();
-    const incompleteReason = normalizeText(payload?.incomplete_details?.reason, 100).toLowerCase();
-    const refusalText = extractOpenAiRefusalPayload(payload);
-
-    if (refusalText) {
-        return new Error(refusalText);
-    }
-
-    if (status === 'incomplete' && incompleteReason === 'max_output_tokens') {
-        return new Error(
-            'OpenAI stopped before producing visible text because max_output_tokens was exhausted. Increase OPENAI_CHAT_MAX_OUTPUT_TOKENS or reduce reasoning effort.'
-        );
-    }
-
-    if (status === 'incomplete' && incompleteReason) {
-        return new Error(`OpenAI returned an incomplete assistant response (${incompleteReason}).`);
-    }
-
-    return new Error('OpenAI returned an empty assistant response');
-}
-
-function createOpenAiUploadPredictionError(payload) {
-    const refusalText = extractOpenAiRefusalPayload(payload);
-    if (refusalText) {
-        return new Error(refusalText);
-    }
-
-    const status = normalizeText(payload?.status, 50).toLowerCase();
-    const incompleteReason = normalizeText(payload?.incomplete_details?.reason, 100).toLowerCase();
-    if (status === 'incomplete' && incompleteReason === 'max_output_tokens') {
-        return new Error(
-            'OpenAI stopped before producing visible JSON because max_output_tokens was exhausted during Tool Pro image analysis.'
-        );
-    }
-    if (status === 'incomplete' && incompleteReason) {
-        return new Error(`OpenAI returned an incomplete Tool Pro response (${incompleteReason}).`);
-    }
-
-    return new Error('OpenAI returned an empty response');
-}
-
-async function performOpenAiAssistantChatRequest({ message, history, requestId, maxOutputTokens, reasoningEffort, signal }) {
-    const openAiApiKey = getOpenAiApiKey();
-    const input = normalizeChatHistory(history).map((item) => ({
-        role: item.role,
-        content: item.content,
-    }));
-
-    input.push({
-        role: 'user',
-        content: normalizeText(message, 4000),
-    });
-
-    const body = {
-        model: OPENAI_CHAT_MODEL,
-        instructions: OPENAI_CHAT_SYSTEM_PROMPT,
-        input,
-        max_output_tokens: maxOutputTokens,
-    };
-
-    if (supportsReasoningControls(OPENAI_CHAT_MODEL)) {
-        body.reasoning = { effort: reasoningEffort };
-    }
-
-    const response = await fetch('https://api.openai.com/v1/responses', {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${openAiApiKey}`,
-            'Content-Type': 'application/json',
-            'X-Client-Request-Id': requestId,
-        },
-        body: JSON.stringify(body),
-        signal,
-    });
-
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-        const message = payload?.error?.message || payload?.message || `OpenAI returned HTTP ${response.status}`;
-        throw new Error(message);
-    }
-
-    return {
-        payload,
-        responseRequestId: response.headers.get('x-request-id') || null,
-    };
-}
-
-function normalizeChatHistory(history) {
-    if (!Array.isArray(history)) {
-        return [];
-    }
-
-    return history
-        .filter((item) => item && (item.role === 'user' || item.role === 'assistant'))
-        .map((item) => ({
-            role: item.role,
-            content: normalizeText(item.content, 4000),
-        }))
-        .filter((item) => item.content)
-        .slice(-OPENAI_CHAT_HISTORY_LIMIT);
-}
-
-async function requestOpenAiAssistantChat({ message, history = [], requestId }) {
-    if (!getOpenAiApiKey()) {
-        throw new Error('OPENAI_API_KEY is not configured');
-    }
-
-    const normalizedMessage = normalizeText(message, 4000);
-    if (!normalizedMessage) {
-        throw new Error('Chat message is empty');
-    }
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
-
-    try {
-        let attempt = await performOpenAiAssistantChatRequest({
-            message: normalizedMessage,
-            history,
-            requestId,
-            maxOutputTokens: OPENAI_CHAT_MAX_OUTPUT_TOKENS,
-            reasoningEffort: OPENAI_CHAT_REASONING_EFFORT,
-            signal: controller.signal,
-        });
-
-        let text = extractOpenAiTextPayload(attempt.payload);
-        if (
-            !text &&
-            normalizeText(attempt.payload?.status, 50).toLowerCase() === 'incomplete' &&
-            normalizeText(attempt.payload?.incomplete_details?.reason, 100).toLowerCase() === 'max_output_tokens'
-        ) {
-            attempt = await performOpenAiAssistantChatRequest({
-                message: normalizedMessage,
-                history,
-                requestId,
-                maxOutputTokens: Math.min(Math.max(OPENAI_CHAT_MAX_OUTPUT_TOKENS * 2, 1400), 4000),
-                reasoningEffort: 'low',
-                signal: controller.signal,
-            });
-            text = extractOpenAiTextPayload(attempt.payload);
-        }
-
-        if (!text) {
-            throw createOpenAiAssistantChatError(attempt.payload);
-        }
-
-        return {
-            answer: text,
-            model: attempt.payload?.model || OPENAI_CHAT_MODEL,
-            requestId: attempt.responseRequestId,
-        };
-    } catch (err) {
-        if (err.name === 'AbortError') {
-            throw new Error(`OpenAI chat request timed out after ${OPENAI_TIMEOUT_MS}ms`);
-        }
-        throw err;
-    } finally {
-        clearTimeout(timeout);
-    }
-}
-
-function parseLooseJsonObject(text) {
-    const raw = String(text || '').trim();
-    if (!raw) {
-        throw new Error('OpenAI returned an empty response');
-    }
-
-    const withoutFences = raw
-        .replace(/^```json\s*/i, '')
-        .replace(/^```\s*/i, '')
-        .replace(/\s*```$/i, '')
-        .trim();
-
-    try {
-        return JSON.parse(withoutFences);
-    } catch (_err) {
-        const start = withoutFences.indexOf('{');
-        const end = withoutFences.lastIndexOf('}');
-        if (start !== -1 && end !== -1 && end > start) {
-            return JSON.parse(withoutFences.slice(start, end + 1));
-        }
-        throw new Error('OpenAI response is not valid JSON');
-    }
-}
-
-function normalizeBlogDraft(draft, index = 0) {
-    const fallbackNumber = index + 1;
-    const title = normalizeText(draft?.title || '', 255) || `AI Draft ${fallbackNumber}`;
-    const content = normalizeText(draft?.content || '', 10000);
-    const imagePrompt = normalizeText(
-        draft?.image_prompt || draft?.imagePrompt || `Editorial blog cover about ${title}`,
-        1000
-    );
-
-    if (!content || content.length < 40) {
-        throw new Error(`AI returned an incomplete draft for item ${fallbackNumber}`);
-    }
-
-    return {
-        title,
-        content,
-        image_prompt: imagePrompt,
-        excerpt: `${content.slice(0, 180)}${content.length > 180 ? '...' : ''}`,
-    };
-}
-
-async function requestOpenAiBlogDrafts({ prompt, count, includeImages, requestId }) {
-    const openAiApiKey = getOpenAiApiKey();
-    if (!openAiApiKey) {
-        throw new Error('OPENAI_API_KEY is not configured');
-    }
-
-    const normalizedPrompt = normalizeText(prompt, 2000);
-    if (!normalizedPrompt) {
-        throw new Error('Prompt is empty');
-    }
-
-    const safeCount = Math.max(1, Math.min(Number(count) || 1, OPENAI_BLOG_MAX_DRAFTS));
-    const controller = new AbortController();
-    let timeout = setTimeout(() => controller.abort(), OPENAI_BLOG_DRAFT_TIMEOUT_MS);
-
-    try {
-        const body = {
-            model: OPENAI_BLOG_DRAFT_MODEL,
-            instructions: OPENAI_BLOG_SYSTEM_PROMPT,
-            input: [
-                {
-                    role: 'user',
-                    content: [
-                        'Create blog post drafts for the Cow Visioning blog.',
-                        `Generate exactly ${safeCount} distinct drafts from this prompt: ${normalizedPrompt}`,
-                        'Return JSON only in this shape:',
-                        '{"drafts":[{"title":"...","content":"...","image_prompt":"..."}]}',
-                        'Each title should be concise and publishable.',
-                        'Each content should be 2 to 5 short paragraphs, practical, and ready to post.',
-                        'Each image_prompt should describe a realistic blog cover image that matches the article.',
-                    ].join(' '),
-                },
-            ],
-            max_output_tokens: OPENAI_BLOG_DRAFT_MAX_OUTPUT_TOKENS,
-        };
-
-        if (supportsReasoningControls(OPENAI_BLOG_DRAFT_MODEL)) {
-            body.reasoning = { effort: OPENAI_BLOG_DRAFT_REASONING_EFFORT };
-        }
-
-        const response = await fetch('https://api.openai.com/v1/responses', {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${openAiApiKey}`,
-                'Content-Type': 'application/json',
-                'X-Client-Request-Id': requestId,
-            },
-            body: JSON.stringify(body),
-            signal: controller.signal,
-        });
-
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            const message = payload?.error?.message || payload?.message || `OpenAI returned HTTP ${response.status}`;
-            throw new Error(message);
-        }
-
-        clearTimeout(timeout);
-        timeout = null;
-
-        const rawText = extractOpenAiTextPayload(payload);
-        if (!rawText) {
-            throw createOpenAiAssistantChatError(payload);
-        }
-
-        const parsed = parseLooseJsonObject(rawText);
-        const drafts = Array.isArray(parsed?.drafts) ? parsed.drafts : [];
-        if (!drafts.length) {
-            throw new Error('AI did not return any blog drafts');
-        }
-
-        const normalizedDrafts = [];
-        for (let index = 0; index < drafts.length && normalizedDrafts.length < safeCount; index += 1) {
-            normalizedDrafts.push({
-                id: crypto.randomUUID(),
-                ...normalizeBlogDraft(drafts[index], index),
-            });
-        }
-
-        if (includeImages) {
-            for (let index = 0; index < normalizedDrafts.length; index += 1) {
-                try {
-                    const imageResult = await requestOpenAiBlogImage({
-                        prompt: normalizedDrafts[index].image_prompt,
-                        requestId: `${requestId}-${index + 1}`,
-                    });
-                    normalizedDrafts[index].image = imageResult;
-                } catch (imageErr) {
-                    normalizedDrafts[index].image_error = imageErr.message;
-                }
-            }
-        }
-
-        return normalizedDrafts;
-    } catch (err) {
-        if (err.name === 'AbortError') {
-            throw new Error(`OpenAI blog draft request timed out after ${OPENAI_BLOG_DRAFT_TIMEOUT_MS}ms`);
-        }
-        throw err;
-    } finally {
-        if (timeout) clearTimeout(timeout);
-    }
-}
-
-async function requestOpenAiBlogImage({ prompt, requestId }) {
-    const openAiApiKey = getOpenAiApiKey();
-    if (!openAiApiKey) {
-        throw new Error('OPENAI_API_KEY is not configured');
-    }
-
-    const normalizedPrompt = normalizeText(prompt, 1000);
-    if (!normalizedPrompt) {
-        throw new Error('Image prompt is empty');
-    }
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), OPENAI_BLOG_IMAGE_TIMEOUT_MS);
-
-    try {
-        const response = await fetch('https://api.openai.com/v1/images/generations', {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${openAiApiKey}`,
-                'Content-Type': 'application/json',
-                'X-Client-Request-Id': requestId,
-            },
-            body: JSON.stringify({
-                model: OPENAI_BLOG_IMAGE_MODEL,
-                prompt: normalizedPrompt,
-                size: OPENAI_BLOG_IMAGE_SIZE,
-            }),
-            signal: controller.signal,
-        });
-
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            const message = payload?.error?.message || payload?.message || `OpenAI image generation returned HTTP ${response.status}`;
-            throw new Error(message);
-        }
-
-        const imageItem = Array.isArray(payload?.data) ? payload.data[0] : null;
-        if (!imageItem) {
-            throw new Error('OpenAI did not return any generated image');
-        }
-
-        if (imageItem.b64_json) {
-            const mimeType = imageItem.mime_type || 'image/png';
-            return persistGeneratedBlogImage({
-                imageBuffer: Buffer.from(imageItem.b64_json, 'base64'),
-                mimeType,
-                requestId,
-            });
-        }
-
-        if (imageItem.url) {
-            const imageResponse = await fetch(imageItem.url, { signal: controller.signal });
-            if (!imageResponse.ok) {
-                throw new Error('Unable to download generated image');
-            }
-            const mimeType = imageResponse.headers.get('content-type') || 'image/png';
-            const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
-            return persistGeneratedBlogImage({ imageBuffer, mimeType, requestId });
-        }
-
-        throw new Error('OpenAI image generation response did not contain usable image data');
-    } catch (err) {
-        if (err.name === 'AbortError') {
-            throw new Error(`OpenAI blog image request timed out after ${OPENAI_BLOG_IMAGE_TIMEOUT_MS}ms`);
-        }
-        throw err;
-    } finally {
-        clearTimeout(timeout);
-    }
-}
-
-function normalizeOpenAiClassification(payload) {
-    const behavior = normalizeText(payload?.behavior || payload?.predicted_behavior, 50).toLowerCase();
-    if (!allowedBehaviors.has(behavior)) {
-        throw new Error(`OpenAI returned unsupported behavior: ${payload?.behavior || payload?.predicted_behavior || 'empty'}`);
-    }
-
-    const rawConfidence = Number(payload?.confidence);
-    const confidence = Number.isFinite(rawConfidence)
-        ? Math.max(0, Math.min(1, rawConfidence))
-        : 0.5;
-
-    const summary = normalizeText(payload?.summary || payload?.reasoning || payload?.explanation || '', 500) || null;
-
-    return { behavior, confidence, summary };
-}
-
-function normalizeBehaviorValue(value) {
-    const behavior = normalizeText(value, 50).toLowerCase();
-    return allowedBehaviors.has(behavior) ? behavior : '';
-}
-
-async function requestOpenAiUploadPrediction({ imagePath, requestId, imageMimeType }) {
-    const openAiApiKey = getOpenAiApiKey();
-    if (!openAiApiKey) {
-        throw new Error('OPENAI_API_KEY is not configured');
-    }
-
-    const safeMimeType = normalizeText(imageMimeType || '', 100) || 'image/jpeg';
-    const imageBase64 = await fs.promises.readFile(imagePath, { encoding: 'base64' });
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
-
-    try {
-        const sendUploadPredictionRequest = async (maxOutputTokens, reasoningEffort) => {
-            const body = {
-                model: OPENAI_MODEL,
-                input: [
-                    {
-                        role: 'user',
-                        content: [
-                            {
-                                type: 'input_text',
-                                text: [
-                                    'Classify the main visible cow behavior in this image.',
-                                    'Return JSON only with keys: behavior, confidence, summary.',
-                                    `behavior must be one of: ${Array.from(allowedBehaviors).join(', ')}.`,
-                                    'confidence must be a number from 0 to 1.',
-                                    'summary must be a short Vietnamese sentence.',
-                                    'If the image is unclear, choose the closest behavior and reduce confidence.',
-                                ].join(' '),
-                            },
-                            {
-                                type: 'input_image',
-                                image_url: `data:${safeMimeType};base64,${imageBase64}`,
-                            },
-                        ],
-                    },
-                ],
-                max_output_tokens: maxOutputTokens,
-            };
-
-            if (supportsReasoningControls(OPENAI_MODEL)) {
-                body.reasoning = { effort: reasoningEffort };
-            }
-
-            const response = await fetch('https://api.openai.com/v1/responses', {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${openAiApiKey}`,
-                    'Content-Type': 'application/json',
-                    'X-Client-Request-Id': requestId,
-                },
-                body: JSON.stringify(body),
-                signal: controller.signal,
-            });
-
-            const payload = await response.json().catch(() => ({}));
-            if (!response.ok) {
-                const message = payload?.error?.message || payload?.message || `OpenAI returned HTTP ${response.status}`;
-                throw new Error(message);
-            }
-
-            return {
-                payload,
-                responseRequestId: response.headers.get('x-request-id') || null,
-            };
-        };
-
-        let attempt = await sendUploadPredictionRequest(
-            OPENAI_UPLOAD_MAX_OUTPUT_TOKENS,
-            OPENAI_UPLOAD_REASONING_EFFORT
-        );
-        let rawText = extractOpenAiTextPayload(attempt.payload);
-
-        if (
-            !rawText &&
-            normalizeText(attempt.payload?.status, 50).toLowerCase() === 'incomplete' &&
-            normalizeText(attempt.payload?.incomplete_details?.reason, 100).toLowerCase() === 'max_output_tokens'
-        ) {
-            attempt = await sendUploadPredictionRequest(
-                Math.min(Math.max(OPENAI_UPLOAD_MAX_OUTPUT_TOKENS * 2, 800), 4000),
-                'low'
-            );
-            rawText = extractOpenAiTextPayload(attempt.payload);
-        }
-
-        if (!rawText) {
-            throw createOpenAiUploadPredictionError(attempt.payload);
-        }
-
-        const parsed = parseLooseJsonObject(rawText);
-        const normalized = normalizeOpenAiClassification(parsed);
-
-        return {
-            predicted_behavior: normalized.behavior,
-            confidence: normalized.confidence,
-            annotated_image_url: null,
-            primary_bbox: null,
-            detection_count: 1,
-            detections: [],
-            model_name: attempt.payload?.model || OPENAI_MODEL,
-            inference_ms: null,
-            provider: 'tool_pro',
-            summary: normalized.summary,
-            openai_request_id: attempt.responseRequestId,
-            openai_output_text: rawText,
-            raw_payload: attempt.payload,
-        };
-    } catch (err) {
-        if (err.name === 'AbortError') {
-            throw new Error(`OpenAI request timed out after ${OPENAI_TIMEOUT_MS}ms`);
-        }
-        throw err;
-    } finally {
-        clearTimeout(timeout);
-    }
 }
 
 async function requestAiPrediction({ imagePath, outputDir, requestId }) {
@@ -1309,13 +523,12 @@ async function requestAiPrediction({ imagePath, outputDir, requestId }) {
                 ...sanitizedPayload
             } = payload;
 
-        return {
-            ...sanitizedPayload,
-            predicted_behavior: behavior,
-            annotated_image_url: annotatedImageUrl,
-            ai_service_url: serviceUrl,
-            provider: 'yolo',
-        };
+            return {
+                ...sanitizedPayload,
+                predicted_behavior: behavior,
+                annotated_image_url: annotatedImageUrl,
+                ai_service_url: serviceUrl,
+            };
         } catch (err) {
             const reason = err.name === 'AbortError'
                 ? `timed out after ${AI_TIMEOUT_MS}ms`
@@ -1359,14 +572,6 @@ const likeLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Bạn đã thao tác like quá nhanh. Vui lòng thử lại sau.' },
-});
-
-const assistantChatLimiter = rateLimit({
-    windowMs: 10 * 60 * 1000,
-    max: 30,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'Bạn đang hỏi quá nhanh. Vui lòng thử lại sau ít phút.' },
 });
 
 app.get('/auth/status', (_req, res) => {
@@ -1510,39 +715,6 @@ app.get('/api/version', (_req, res) => {
     res.json({ version: APP_VERSION });
 });
 
-app.post('/api/assistant/chat', assistantChatLimiter, async (req, res) => {
-    try {
-        const message = normalizeText(req.body?.message, 4000);
-        const history = normalizeChatHistory(req.body?.history);
-
-        if (!message) {
-            return res.status(400).json({ error: 'Thiếu nội dung câu hỏi.' });
-        }
-
-        if (!getOpenAiApiKey()) {
-            return res.status(503).json({
-                error: 'OPENAI_API_KEY chưa được cấu hình trên server.',
-            });
-        }
-
-        const result = await requestOpenAiAssistantChat({
-            message,
-            history,
-            requestId: crypto.randomUUID(),
-        });
-
-        return res.json({
-            success: true,
-            data: result,
-        });
-    } catch (err) {
-        console.error('POST /api/assistant/chat error:', err.message);
-        return res.status(500).json({
-            error: 'Không thể lấy phản hồi từ trợ lý lúc này.',
-        });
-    }
-});
-
 app.get('/js/runtime-config.js', (_req, res) => {
     res.type('application/javascript');
     res.send(
@@ -1557,7 +729,6 @@ app.use('/uploads', express.static(path.resolve(UPLOAD_DIR)));
 
 app.post('/api/images', authRequired, postWriteLimiter, datasetUpload.single('image'), async (req, res) => {
     try {
-        await runtimeSchemaReady;
         if (!req.file) {
             return res.status(400).json({ error: 'Không có file ảnh' });
         }
@@ -1565,9 +736,6 @@ app.post('/api/images', authRequired, postWriteLimiter, datasetUpload.single('im
         const cowId = normalizeText(req.body.cow_id, 100);
         const barnArea = normalizeText(req.body.barn_area, 200);
         const notes = normalizeText(req.body.notes, 4000);
-        const captureSource = normalizeText(req.body.capture_source, 20).toLowerCase() || 'upload';
-        const defaultProcessingMode = captureSource === 'camera' ? 'yolo' : 'manual';
-        const processingMode = normalizeProcessingMode(req.body.processing_mode, defaultProcessingMode);
         const capturedAt = req.body.captured_at ? new Date(req.body.captured_at) : new Date();
 
         if (!cowId) {
@@ -1582,44 +750,19 @@ app.post('/api/images', authRequired, postWriteLimiter, datasetUpload.single('im
             return res.status(500).json({ error: 'Không thể lưu đường dẫn ảnh gốc' });
         }
 
-        // Keep YOLO and Tool Pro as fully separate flows.
+        // Try AI prediction, fallback to saving without AI if it fails
         let prediction = null;
-        let aiStatus = processingMode === 'manual' ? 'manual' : 'disabled';
-        let aiProvider = processingMode === 'manual' ? null : processingMode;
-        const requestId = path.parse(req.file.filename).name || crypto.randomUUID();
-
-        if (processingMode === 'yolo') {
+        let aiStatus = aiSettings.AI_ENABLED ? 'tool_pro_off' : 'disabled';
+        if (aiSettings.AI_ENABLED && aiSettings.AI_TOOL_PRO_ENABLED) {
             try {
-                if (aiSettings.AI_ENABLED) {
-                    prediction = await requestAiPrediction({
-                        imagePath: req.file.path,
-                        outputDir: getAnnotatedOutputDir(req.file.path),
-                        requestId,
-                    });
-                    aiStatus = 'completed';
-                    aiProvider = prediction.provider || 'yolo';
-                }
+                prediction = await requestAiPrediction({
+                    imagePath: req.file.path,
+                    outputDir: getAnnotatedOutputDir(req.file.path),
+                    requestId: path.parse(req.file.filename).name || crypto.randomUUID(),
+                });
+                aiStatus = 'completed';
             } catch (aiErr) {
-                console.error('POST /api/images YOLO error:', aiErr.message);
-                aiStatus = 'failed';
-            }
-        } else if (processingMode === 'tool_pro') {
-            try {
-                if (captureSource !== 'upload') {
-                    aiStatus = 'unsupported';
-                } else if (!aiSettings.AI_TOOL_PRO_ENABLED || !OPENAI_UPLOAD_ENABLED || !getOpenAiApiKey()) {
-                    aiStatus = 'tool_pro_off';
-                } else {
-                    prediction = await requestOpenAiUploadPrediction({
-                        imagePath: req.file.path,
-                        requestId,
-                        imageMimeType: req.file.mimetype,
-                    });
-                    aiStatus = 'completed';
-                    aiProvider = prediction.provider || 'tool_pro';
-                }
-            } catch (aiErr) {
-                console.error('POST /api/images Tool Pro error:', aiErr.message);
+                console.error('POST /api/images AI error (fallback to save without AI):', aiErr.message);
                 aiStatus = 'failed';
             }
         }
@@ -1646,10 +789,9 @@ app.post('/api/images', authRequired, postWriteLimiter, datasetUpload.single('im
                 ai_raw_result,
                 ai_model_name,
                 ai_inference_ms,
-                ai_provider,
                 ai_status
             )
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
              RETURNING
                 id,
                 user_id,
@@ -1670,7 +812,6 @@ app.post('/api/images', authRequired, postWriteLimiter, datasetUpload.single('im
                 ai_raw_result,
                 ai_model_name,
                 ai_inference_ms,
-                ai_provider,
                 ai_status`,
             [
                 req.session.userId,
@@ -1690,7 +831,6 @@ app.post('/api/images', authRequired, postWriteLimiter, datasetUpload.single('im
                 prediction || null,
                 prediction ? (normalizeText(prediction.model_name || process.env.AI_MODEL_NAME || '', 255) || null) : null,
                 prediction && typeof prediction.inference_ms === 'number' ? prediction.inference_ms : null,
-                aiProvider,
                 aiStatus,
             ]
         );
@@ -1716,7 +856,6 @@ app.post('/api/images', authRequired, postWriteLimiter, datasetUpload.single('im
 
 app.get('/api/images', authRequired, async (req, res) => {
     try {
-        await runtimeSchemaReady;
         const cowId = normalizeText(req.query.cow_id || '', 100);
         const behavior = normalizeText(req.query.behavior || '', 50);
         const barnArea = normalizeText(req.query.barn_area || '', 200);
@@ -1739,8 +878,8 @@ app.get('/api/images', authRequired, async (req, res) => {
             params.push(`%${barnArea}%`);
         }
         if (toolProOnly) {
-            conditions.push(`ai_provider = $${idx++}`);
-            params.push('tool_pro');
+            conditions.push(`(ai_status = $${idx++} OR annotated_image_url IS NOT NULL)`);
+            params.push('completed');
         }
 
         const sql = `
@@ -1764,7 +903,6 @@ app.get('/api/images', authRequired, async (req, res) => {
                 ai_raw_result,
                 ai_model_name,
                 ai_inference_ms,
-                ai_provider,
                 ai_status
             FROM cow_images
             WHERE ${conditions.join(' AND ')}
@@ -1777,55 +915,10 @@ app.get('/api/images', authRequired, async (req, res) => {
     }
 });
 
-app.put('/api/images/:id', authRequired, async (req, res) => {
-    try {
-        const id = parseInt(req.params.id, 10);
-        if (!Number.isInteger(id)) {
-            return res.status(400).json({ error: 'ID không hợp lệ' });
-        }
-
-        const cowId = normalizeText(req.body?.cow_id, 100);
-        const behavior = normalizeBehaviorValue(req.body?.behavior);
-        const barnArea = normalizeText(req.body?.barn_area, 200);
-        const notes = normalizeText(req.body?.notes, 4000);
-        const capturedAtRaw = typeof req.body?.captured_at === 'string' ? req.body.captured_at.trim() : '';
-        const capturedAt = capturedAtRaw ? new Date(capturedAtRaw) : null;
-
-        if (!cowId || !behavior) {
-            return res.status(400).json({ error: 'Cow ID và behavior là bắt buộc' });
-        }
-        if (capturedAtRaw && Number.isNaN(capturedAt.getTime())) {
-            return res.status(400).json({ error: 'Capture time không hợp lệ' });
-        }
-
-        const result = await pool.query(
-            `UPDATE cow_images
-             SET cow_id = $1,
-                 behavior = $2,
-                 barn_area = $3,
-                 captured_at = COALESCE($4, captured_at),
-                 notes = $5
-             WHERE id = $6
-               AND (user_id = $7 OR (SELECT role FROM users WHERE id = $7) = 'admin')
-             RETURNING *`,
-            [cowId, behavior, barnArea || null, capturedAt, notes || null, id, req.session.userId]
-        );
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Không tìm thấy ảnh hoặc không có quyền' });
-        }
-
-        return res.json({ success: true, data: normalizeImageRecord(result.rows[0]) });
-    } catch (err) {
-        console.error('PUT /api/images/:id error:', err);
-        return res.status(500).json({ error: 'Lỗi khi cập nhật thông tin ảnh' });
-    }
-});
-
 app.put('/api/images/:id/label', authRequired, async (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
-        const behavior = normalizeBehaviorValue(req.body.behavior);
+        const behavior = normalizeText(req.body.behavior, 50).toLowerCase();
         
         if (!id || !behavior) {
             return res.status(400).json({ error: 'Thiếu ID hoặc nhãn hành vi' });
@@ -1889,58 +982,12 @@ app.delete('/api/images/:id', authRequired, async (req, res) => {
     }
 });
 
-app.post('/api/blog/ai/drafts', authRequired, postWriteLimiter, async (req, res) => {
-    try {
-        const prompt = normalizeText(req.body.prompt, 2000);
-        const requestedCount = Number(req.body.count);
-        const count = Math.max(1, Math.min(Number.isFinite(requestedCount) ? requestedCount : 1, OPENAI_BLOG_MAX_DRAFTS));
-        const includeImages = req.body.includeImages !== false;
-
-        if (!prompt || prompt.length < 8) {
-            return res.status(400).json({ error: 'Prompt must be at least 8 characters long' });
-        }
-
-        if (!getOpenAiApiKey()) {
-            return res.status(503).json({ error: 'OPENAI_API_KEY is not configured' });
-        }
-
-        const requestId = `blog_ai_${crypto.randomUUID()}`;
-        const drafts = await requestOpenAiBlogDrafts({
-            prompt,
-            count,
-            includeImages,
-            requestId,
-        });
-
-        return res.json({
-            success: true,
-            data: {
-                drafts,
-                requestId,
-            },
-        });
-    } catch (err) {
-        console.error('POST /api/blog/ai/drafts error:', err.message);
-        return res.status(500).json({ error: err.message || 'Unable to generate AI blog drafts' });
-    }
-});
-
 app.get('/api/blog/posts', authRequired, async (req, res) => {
     try {
-        await runtimeSchemaReady;
-        const loadAll = req.query.all === '1';
-        const limit = loadAll ? 10000 : Math.max(1, Math.min(parseInt(req.query.limit || '20', 10), 100));
-        const offset = loadAll ? 0 : Math.max(0, parseInt(req.query.offset || '0', 10));
-        const rawRequestedUserId = typeof req.query.userId === 'string' ? req.query.userId.trim() : '';
-        if (rawRequestedUserId && !/^\d+$/.test(rawRequestedUserId)) {
-            return res.status(400).json({ error: 'Invalid userId filter' });
-        }
-        const requestedUserId = rawRequestedUserId ? Number(rawRequestedUserId) : null;
+        const limit = Math.max(1, Math.min(parseInt(req.query.limit || '20', 10), 100));
+        const offset = Math.max(0, parseInt(req.query.offset || '0', 10));
 
-        const totalResult = await pool.query(
-            'SELECT COUNT(*)::int AS total FROM blog_posts WHERE ($1::int IS NULL OR user_id = $1)',
-            [requestedUserId]
-        );
+        const totalResult = await pool.query('SELECT COUNT(*)::int AS total FROM blog_posts');
         const postsResult = await pool.query(
             `SELECT
                 p.id,
@@ -1952,50 +999,36 @@ app.get('/api/blog/posts', authRequired, async (req, res) => {
                 u.username,
                 COALESCE(l.like_count, 0)::int AS like_count,
                 COALESCE(c.comment_count, 0)::int AS comment_count,
-                COALESCE(r.reaction_summary, '{}'::json) AS reaction_summary,
-                COALESCE(pi.images, '[]'::json) AS images,
-                CASE WHEN ul.user_id IS NULL THEN false ELSE true END AS liked_by_me,
-                COALESCE(ul.reaction_type, '') AS current_reaction
+                     COALESCE(pi.images, '[]'::json) AS images,
+                CASE WHEN ul.user_id IS NULL THEN false ELSE true END AS liked_by_me
              FROM blog_posts p
              INNER JOIN users u ON u.id = p.user_id
              LEFT JOIN (
-                SELECT post_id, COUNT(*)::int AS like_count FROM blog_likes GROUP BY post_id
+                SELECT post_id, COUNT(*) AS like_count FROM blog_likes GROUP BY post_id
              ) l ON l.post_id = p.id
-             LEFT JOIN (
-                SELECT
-                    post_id,
-                    json_object_agg(reaction_type, reaction_count) AS reaction_summary
-                FROM (
-                    SELECT post_id, reaction_type, COUNT(*)::int AS reaction_count
-                    FROM blog_likes
-                    GROUP BY post_id, reaction_type
-                ) reaction_counts
-                GROUP BY post_id
-             ) r ON r.post_id = p.id
              LEFT JOIN (
                 SELECT post_id, COUNT(*) AS comment_count FROM blog_comments GROUP BY post_id
              ) c ON c.post_id = p.id
-             LEFT JOIN (
-                 SELECT
-                      post_id,
-                      json_agg(
-                            json_build_object(
-                                 'id', id,
-                                 'image_url', image_url,
-                                 'file_name', file_name,
-                                 'file_size', file_size,
-                                 'created_at', created_at
-                            )
-                            ORDER BY created_at DESC
-                      ) AS images
-                 FROM blog_post_images
-                 GROUP BY post_id
-             ) pi ON pi.post_id = p.id
+                 LEFT JOIN (
+                     SELECT
+                          post_id,
+                          json_agg(
+                                json_build_object(
+                                     'id', id,
+                                     'image_url', image_url,
+                                     'file_name', file_name,
+                                     'file_size', file_size,
+                                     'created_at', created_at
+                                )
+                                ORDER BY created_at DESC
+                          ) AS images
+                     FROM blog_post_images
+                     GROUP BY post_id
+                 ) pi ON pi.post_id = p.id
              LEFT JOIN blog_likes ul ON ul.post_id = p.id AND ul.user_id = $1
-             WHERE ($4::int IS NULL OR p.user_id = $4)
              ORDER BY p.created_at DESC
              LIMIT $2 OFFSET $3`,
-            [req.session.userId, limit, offset, requestedUserId]
+            [req.session.userId, limit, offset]
         );
 
         return res.json({
@@ -2006,7 +1039,7 @@ app.get('/api/blog/posts', authRequired, async (req, res) => {
                     image_url: toFullUrl(img.image_url)
                 }))
             })),
-            meta: { total: totalResult.rows[0].total, limit: loadAll ? totalResult.rows[0].total : limit, offset },
+            meta: { total: totalResult.rows[0].total, limit, offset },
         });
     } catch (err) {
         console.error('GET /api/blog/posts error:', err);
@@ -2103,7 +1136,6 @@ app.delete('/api/blog/posts/:id', authRequired, postWriteLimiter, async (req, re
 
 app.post('/api/blog/posts/:postId/images', authRequired, postWriteLimiter, blogUpload.single('image'), async (req, res) => {
     try {
-        await runtimeSchemaReady;
         const postId = parseInt(req.params.postId, 10);
         if (!Number.isInteger(postId)) {
             return res.status(400).json({ error: 'Post ID không hợp lệ' });
@@ -2255,17 +1287,9 @@ app.delete('/api/blog/comments/:id', authRequired, commentWriteLimiter, async (r
 
 app.post('/api/blog/posts/:postId/likes', authRequired, likeLimiter, async (req, res) => {
     try {
-        await runtimeSchemaReady;
         const postId = parseInt(req.params.postId, 10);
         if (!Number.isInteger(postId)) {
             return res.status(400).json({ error: 'Post ID không hợp lệ' });
-        }
-
-        const requestedReaction = normalizeReactionType(
-            req.body?.reaction_type || req.body?.reactionType || 'like'
-        );
-        if (!requestedReaction) {
-            return res.status(400).json({ error: 'Reaction khÃ´ng há»£p lá»‡' });
         }
 
         const postExists = await pool.query('SELECT id FROM blog_posts WHERE id = $1 LIMIT 1', [postId]);
@@ -2274,55 +1298,27 @@ app.post('/api/blog/posts/:postId/likes', authRequired, likeLimiter, async (req,
         }
 
         const existing = await pool.query(
-            'SELECT id, reaction_type FROM blog_likes WHERE post_id = $1 AND user_id = $2 LIMIT 1',
+            'SELECT id FROM blog_likes WHERE post_id = $1 AND user_id = $2 LIMIT 1',
             [postId, req.session.userId]
         );
 
         let liked = false;
-        let currentReaction = null;
         if (existing.rows.length > 0) {
-            if (existing.rows[0].reaction_type === requestedReaction) {
-                await pool.query('DELETE FROM blog_likes WHERE id = $1', [existing.rows[0].id]);
-                liked = false;
-            } else {
-                await pool.query(
-                    'UPDATE blog_likes SET reaction_type = $1, created_at = NOW() WHERE id = $2',
-                    [requestedReaction, existing.rows[0].id]
-                );
-                liked = true;
-                currentReaction = requestedReaction;
-            }
+            await pool.query('DELETE FROM blog_likes WHERE id = $1', [existing.rows[0].id]);
+            liked = false;
         } else {
-            await pool.query('INSERT INTO blog_likes (post_id, user_id, reaction_type) VALUES ($1, $2, $3)', [
+            await pool.query('INSERT INTO blog_likes (post_id, user_id) VALUES ($1, $2)', [
                 postId,
                 req.session.userId,
-                requestedReaction,
             ]);
             liked = true;
-            currentReaction = requestedReaction;
         }
 
         const countResult = await pool.query(
             'SELECT COUNT(*)::int AS count FROM blog_likes WHERE post_id = $1',
             [postId]
         );
-        const summaryResult = await pool.query(
-            `SELECT COALESCE(json_object_agg(reaction_type, reaction_count), '{}'::json) AS reaction_summary
-             FROM (
-                SELECT reaction_type, COUNT(*)::int AS reaction_count
-                FROM blog_likes
-                WHERE post_id = $1
-                GROUP BY reaction_type
-             ) reaction_counts`,
-            [postId]
-        );
-        return res.json({
-            success: true,
-            liked,
-            like_count: countResult.rows[0].count,
-            reaction_type: currentReaction,
-            reaction_summary: summaryResult.rows[0]?.reaction_summary || {},
-        });
+        return res.json({ success: true, liked, like_count: countResult.rows[0].count });
     } catch (err) {
         console.error('POST /api/blog/posts/:postId/likes error:', err);
         return res.status(500).json({ error: 'Không thể xử lý like' });
@@ -2334,7 +1330,7 @@ app.post('/api/blog/posts/:postId/likes', authRequired, likeLimiter, async (req,
 app.get('/admin/users', requireAdmin, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT u.id, u.username, u.email, u.role, u.is_active, u.created_at, u.updated_at,
+            `SELECT u.id, u.username, u.email, u.role, u.created_at, u.updated_at,
                     COALESCE(img.image_count, 0)::int AS image_count,
                     COALESCE(bp.post_count, 0)::int AS post_count
              FROM users u
@@ -2401,58 +1397,6 @@ app.delete('/admin/users/:id', requireAdmin, async (req, res) => {
     }
 });
 
-app.put('/admin/users/batch-deactivate', requireAdmin, async (req, res) => {
-    try {
-        const { ids, deactivate } = req.body;
-        if (!Array.isArray(ids) || ids.length === 0) {
-            return res.status(400).json({ error: 'Danh sách ID không hợp lệ' });
-        }
-        
-        const is_active = !deactivate; // active=false when deactivated
-        
-        // Prevent deactivating self
-        const validIds = ids.filter(id => id !== req.session.userId);
-        if (validIds.length === 0) {
-            return res.status(400).json({ error: 'Không thể khóa chính mình' });
-        }
-        
-        await pool.query(
-            `UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = ANY($2::int[])`,
-            [is_active, validIds]
-        );
-        
-        return res.json({ success: true, count: validIds.length });
-    } catch (err) {
-        console.error('PUT /admin/users/batch-deactivate error:', err);
-        return res.status(500).json({ error: 'Không thể thay đổi trạng thái người dùng' });
-    }
-});
-
-app.delete('/admin/users/batch', requireAdmin, async (req, res) => {
-    try {
-        const { ids } = req.body;
-        if (!Array.isArray(ids) || ids.length === 0) {
-            return res.status(400).json({ error: 'Danh sách ID không hợp lệ' });
-        }
-        
-        // Prevent deleting self
-        const validIds = ids.filter(id => id !== req.session.userId);
-        if (validIds.length === 0) {
-            return res.status(400).json({ error: 'Không thể xoá chính mình' });
-        }
-        
-        await pool.query(
-            `DELETE FROM users WHERE id = ANY($1::int[])`,
-            [validIds]
-        );
-        
-        return res.json({ success: true, count: validIds.length });
-    } catch (err) {
-        console.error('DELETE /admin/users/batch error:', err);
-        return res.status(500).json({ error: 'Không thể xoá nhiều người dùng' });
-    }
-});
-
 // Public read-only AI settings (for user-facing display)
 app.get('/api/ai-settings', (_req, res) => {
     return res.json({
@@ -2507,26 +1451,12 @@ app.put('/admin/ai-settings', requireAdmin, async (req, res) => {
         if (typeof req.body.AI_MAX_DET === 'number') {
             aiSettings.AI_MAX_DET = Math.max(1, Math.min(1000, Math.floor(req.body.AI_MAX_DET)));
         }
-        const hasAiEnabled = typeof req.body.AI_ENABLED === 'boolean';
-        const hasToolProEnabled = typeof req.body.AI_TOOL_PRO_ENABLED === 'boolean';
-
-        if (hasAiEnabled && hasToolProEnabled && req.body.AI_ENABLED && req.body.AI_TOOL_PRO_ENABLED) {
-            return res.status(400).json({ error: 'AI Enabled và Tool PRO không thể được dùng cùng lúc. Vui lòng chỉ chọn 1 trong 2.' });
-        }
-
-        if (hasAiEnabled) {
+        if (typeof req.body.AI_ENABLED === 'boolean') {
             aiSettings.AI_ENABLED = req.body.AI_ENABLED;
-            if (ENFORCE_EXCLUSIVE_AI_MODES && req.body.AI_ENABLED) {
-                aiSettings.AI_TOOL_PRO_ENABLED = false;
-            }
         }
-        if (hasToolProEnabled) {
+        if (typeof req.body.AI_TOOL_PRO_ENABLED === 'boolean') {
             aiSettings.AI_TOOL_PRO_ENABLED = req.body.AI_TOOL_PRO_ENABLED;
-            if (ENFORCE_EXCLUSIVE_AI_MODES && req.body.AI_TOOL_PRO_ENABLED) {
-                aiSettings.AI_ENABLED = false;
-            }
         }
-
         await persistAiSettingsToDb();
         return res.json({ success: true, data: aiSettings });
     } catch (err) {
@@ -2553,7 +1483,7 @@ app.get('/admin/stats', requireAdmin, async (req, res) => {
     }
 });
 // Export app for testing (supertest can require without starting a server)
-module.exports = { app, pool, requestOpenAiUploadPrediction };
+module.exports = { app, pool };
 
 // Only start the HTTP server when running directly (not when required by tests)
 if (require.main === module) {

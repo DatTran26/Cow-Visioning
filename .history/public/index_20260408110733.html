@@ -358,7 +358,7 @@
         <p class="app-sub">Upload images with YOLO or Tool Pro, or capture directly with the YOLO camera pipeline.</p>
 
         <!-- AI Status Bar (user-facing, read-only) -->
-        <div class="ai-status-bar" id="ai-status-bar" hidden>
+        <div class="ai-status-bar" id="ai-status-bar">
           <div class="ai-status-indicator">
             <span class="ai-status-dot" id="ai-status-dot"></span>
             <span id="ai-status-text">AI: Loading...</span>
@@ -380,74 +380,65 @@
 
         <!-- UPLOAD PANEL -->
         <div id="upload-panel" class="sub-panel active">
-          <div class="upload-workspace" id="upload-workspace">
-            <form id="upload-form" class="form-grid upload-form-grid">
-              <div class="form-group"><label for="cow-id">Cow ID <span class="req">*</span></label><input type="text"
-                  id="cow-id" placeholder="e.g. COW-001" required /></div>
-              <div class="form-group"><label for="barn-area">Barn Zone</label><input type="text" id="barn-area"
-                  placeholder="e.g. Barn A1" /></div>
-              <div class="form-group"><label for="upload-behavior">Behavior (optional)</label>
-                <select id="upload-behavior">
-                  <option value="standing">Standing</option>
-                  <option value="lying">Lying</option>
-                  <option value="eating">Eating</option>
-                  <option value="drinking">Drinking</option>
-                  <option value="walking">Walking</option>
-                  <option value="abnormal">Abnormal</option>
-                </select>
-                <p class="form-hint">Used as a manual or fallback label. Processing mode is selected automatically from Admin AI settings.</p>
+          <form id="upload-form" class="form-grid">
+            <div class="form-group"><label for="cow-id">Cow ID <span class="req">*</span></label><input type="text"
+                id="cow-id" placeholder="e.g. COW-001" required /></div>
+            <div class="form-group"><label for="barn-area">Barn Zone</label><input type="text" id="barn-area"
+                placeholder="e.g. Barn A1" /></div>
+            <div class="form-group"><label for="upload-processing-mode">Processing Mode</label>
+              <select id="upload-processing-mode">
+                <option value="yolo">YOLO (AI Enable)</option>
+                <option value="tool_pro">Tool Pro (OpenAI)</option>
+                <option value="manual">Manual only</option>
+              </select>
+              <p id="upload-processing-mode-hint" class="form-hint">Choose how this upload should be processed.</p>
+            </div>
+            <div class="form-group"><label for="upload-behavior">Behavior (if AI is off)</label>
+              <select id="upload-behavior">
+                <option value="standing">Standing</option>
+                <option value="lying">Lying</option>
+                <option value="eating">Eating</option>
+                <option value="drinking">Drinking</option>
+                <option value="walking">Walking</option>
+                <option value="abnormal">Abnormal</option>
+              </select>
+            </div>
+            <div class="form-group"><label for="captured-at">Capture Time</label><input type="datetime-local"
+                id="captured-at" /></div>
+            <div class="form-group full-width"><label for="notes">Notes</label><textarea id="notes" rows="2"
+                placeholder="Add a note..."></textarea></div>
+            <div class="form-group full-width">
+              <label>Select Images <span class="req">*</span></label>
+              <div class="dropzone" id="dropzone">
+                <span class="dropzone-icon">
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </span>
+                <p>Drag &amp; drop images here or <strong>click to browse</strong></p>
+                <p class="dropzone-hint">JPG, PNG, WebP &mdash; Max 10MB/image</p>
+                <input type="file" id="file-input" multiple accept="image/*" hidden />
               </div>
-              <div class="form-group"><label for="captured-at">Capture Time</label><input type="datetime-local"
-                  id="captured-at" /></div>
-              <div class="form-group full-width"><label for="notes">Notes</label><textarea id="notes" rows="2"
-                  placeholder="Add a note..."></textarea></div>
-              <div class="form-group full-width">
-                <label>Select Images <span class="req">*</span></label>
-                <div class="dropzone" id="dropzone">
-                  <span class="dropzone-icon">
-                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  </span>
-                  <p>Drag &amp; drop images here or <strong>click to browse</strong></p>
-                  <p class="dropzone-hint">JPG, PNG, WebP &mdash; Max 10MB/image</p>
-                  <input type="file" id="file-input" multiple accept="image/*" hidden />
-                </div>
-                <div id="file-preview" class="file-preview"></div>
+              <div id="file-preview" class="file-preview"></div>
+            </div>
+            <div class="form-group full-width"><button type="submit" class="btn btn-primary" id="upload-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+              Upload Images
+            </button></div>
+            <div id="upload-progress" class="progress-bar" hidden>
+              <div class="progress-fill"></div>
+            </div>
+            <div id="upload-status" class="status-msg"></div>
+            <div id="upload-ai-result" class="ai-result-card" hidden>
+              <div class="ai-result-media">
+                <img id="upload-ai-image" alt="AI annotated result" />
               </div>
-              <div class="form-group full-width">
-                <div class="upload-actions-row">
-                  <button type="submit" class="btn btn-primary upload-submit-btn" id="upload-btn">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
-                    Upload Images
-                  </button>
-                  <button type="button" class="btn btn-results" id="toggle-results-btn" hidden aria-label="View upload results">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                    Results
-                    <span class="results-count-badge" id="results-count">0</span>
-                  </button>
-                </div>
+              <div class="ai-result-body">
+                <p class="ai-result-eyebrow">Latest AI Result</p>
+                <h3 id="upload-ai-behavior">Waiting for analysis</h3>
+                <p id="upload-ai-meta" class="ai-result-meta"></p>
+                <a id="upload-ai-original-link" class="ai-result-link" href="#" target="_blank" rel="noopener" hidden>View original</a>
               </div>
-              <div id="upload-progress" class="progress-bar" hidden>
-                <div class="progress-fill"></div>
-              </div>
-              <div id="upload-status" class="status-msg"></div>
-            </form>
-
-            <aside id="upload-results-panel" class="upload-results-panel" hidden>
-              <div class="upload-results-header">
-                <div class="upload-results-header-left">
-                  <h3 class="upload-results-title">Results</h3>
-                  <span class="upload-results-subtitle" id="results-panel-count">0 results</span>
-                </div>
-                <div class="upload-results-header-right">
-                  <button type="button" class="btn-text-small" id="clear-results-btn">Clear all</button>
-                  <button type="button" class="upload-results-close" id="close-results-btn" aria-label="Close results panel">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                  </button>
-                </div>
-              </div>
-              <div id="upload-results-list" class="upload-results-list"></div>
-            </aside>
-          </div>
+            </div>
+          </form>
         </div><!-- /upload-panel -->
 
         <!-- CAMERA PANEL -->
@@ -477,7 +468,7 @@
                 <div class="ai-result-body">
                   <p class="ai-result-eyebrow">Last processed image</p>
                   <h3 id="cam-ai-behavior">Waiting for analysis</h3>
-                  <div id="cam-ai-meta" class="ai-result-meta"></div>
+                  <p id="cam-ai-meta" class="ai-result-meta"></p>
                   <a id="cam-ai-original-link" class="ai-result-link" href="#" target="_blank" rel="noopener" hidden>View original</a>
                 </div>
               </div>
@@ -566,60 +557,39 @@
           <button class="gal-chip gal-chip-abnormal" data-behavior="abnormal">Abnormal</button>
         </div>
 
-        <!-- Premium Search toolbar -->
-        <div class="gal-toolbar-glass">
-          <div class="gal-search-field enhanced">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" id="filter-cow-id" placeholder="Search Cow ID..." aria-label="Filter by cow ID" />
+        <!-- Search toolbar -->
+        <div class="gal-toolbar">
+          <div class="gal-search-field">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="filter-cow-id" placeholder="Cow ID..." aria-label="Filter by cow ID" />
           </div>
-          
-          <div class="gal-search-divider"></div>
-          
-          <div class="gal-search-field enhanced">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-            <input type="text" id="filter-barn" placeholder="Filter Zone..." aria-label="Filter by zone" />
+          <!-- Hidden behavior select — JS still reads this, chips update it -->
+          <select id="filter-behavior" style="display:none">
+            <option value="">All behaviors</option>
+            <option value="standing">Standing</option>
+            <option value="lying">Lying</option>
+            <option value="eating">Eating</option>
+            <option value="drinking">Drinking</option>
+            <option value="walking">Walking</option>
+            <option value="abnormal">Abnormal</option>
+          </select>
+          <input type="hidden" id="filter-tool-pro" value="" />
+          <div class="gal-search-field">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <input type="text" id="filter-barn" placeholder="Zone..." aria-label="Filter by zone" />
           </div>
-
-          <button class="btn btn-primary gal-search-btn enhanced" id="search-btn">
+          <button class="btn btn-primary gal-search-btn" id="search-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             Search
           </button>
-          
-          <button class="btn btn-secondary gal-reset-btn enhanced" id="reset-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-            Reset
-          </button>
+          <button class="btn btn-secondary" id="reset-btn">Reset</button>
         </div>
-
-        <select id="filter-behavior" style="display:none">
-          <option value="">All behaviors</option>          
-          <option value="standing">Standing</option>
-          <option value="lying">Lying</option>
-          <option value="eating">Eating</option>
-          <option value="drinking">Drinking</option>
-          <option value="walking">Walking</option>
-          <option value="abnormal">Abnormal</option>
-        </select>
-        <input type="hidden" id="filter-tool-pro" value="" />
 
         <!-- Status bar -->
         <div id="gallery-status" class="gal-status"></div>
 
         <!-- Image grid -->
-        <div class="gallery-grid" id="gallery-grid"></div>
-
-        <!-- Floating Batch Action Bar -->
-        <div id="gal-batch-bar" class="gal-batch-bar hidden">
-            <div class="batch-content">
-                <span class="batch-count">Selected: <b id="batch-count-val">0</b></span>
-                <div class="batch-actions">
-                    <button class="btn btn-danger" id="batch-delete-btn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-                        Delete Selected
-                    </button>
-                    <button class="btn btn-secondary" id="batch-cancel-btn">Cancel</button>
-                </div>
-            </div>
-        </div>
+        <div id="gallery-grid" class="gallery-grid"></div>
 
       </div>
     </div>
@@ -729,43 +699,6 @@
                 </div>
                 <section class="blog-composer">
                 <form id="blog-post-form" class="blog-form">
-                  <div class="blog-ai-assist">
-                    <div class="blog-ai-assist-header">
-                      <div>
-                        <p class="blog-ai-kicker">AI Writer</p>
-                        <h3>Generate blog drafts from a prompt</h3>
-                      </div>
-                      <span class="blog-ai-badge">Beta</span>
-                    </div>
-                    <div class="form-group full-width">
-                      <label for="blog-ai-prompt">Prompt for AI</label>
-                      <textarea id="blog-ai-prompt" rows="4" maxlength="2000" placeholder="Ví dụ: Viết 3 bài về cách phát hiện bò bị stress nhiệt, giọng điệu thực tế cho nông hộ Việt Nam, có CTA nhẹ ở cuối..."></textarea>
-                    </div>
-                    <div class="blog-ai-controls">
-                      <div class="form-group">
-                        <label for="blog-ai-draft-count">Number of draft posts</label>
-                        <select id="blog-ai-draft-count">
-                          <option value="1">1 draft</option>
-                          <option value="2">2 drafts</option>
-                          <option value="3" selected>3 drafts</option>
-                          <option value="4">4 drafts</option>
-                        </select>
-                      </div>
-                      <label class="blog-ai-checkbox">
-                        <input type="checkbox" id="blog-ai-include-images" checked />
-                        <span>Generate cover images</span>
-                      </label>
-                      <button type="button" class="btn btn-secondary" id="blog-ai-generate-btn">Generate with AI</button>
-                    </div>
-                    <div id="blog-ai-status" class="status-msg"></div>
-                    <div id="blog-ai-suggestions-wrap" class="blog-ai-suggestions-wrap" hidden>
-                      <div class="blog-ai-suggestions-toolbar">
-                        <strong>AI suggestions</strong>
-                        <button type="button" class="btn btn-primary" id="blog-ai-create-selected-btn" disabled>Create selected posts</button>
-                      </div>
-                      <div id="blog-ai-suggestions" class="blog-ai-suggestions"></div>
-                    </div>
-                  </div>
                   <div class="form-group full-width">
                     <label for="blog-title">Title <span class="req">*</span></label>
                     <input type="text" id="blog-title" maxlength="255" placeholder="Enter post title..." required />
@@ -941,14 +874,10 @@
             <table class="admin-table">
               <thead>
                 <tr>
-                  <th style="width: 40px; text-align: center;">
-                    <input type="checkbox" id="admin-users-select-all" class="admin-cb" />
-                  </th>
                   <th>ID</th>
                   <th>Username</th>
                   <th>Email</th>
                   <th>Role</th>
-                  <th>Status</th>
                   <th>Images</th>
                   <th>Posts</th>
                   <th>Created</th>
@@ -957,25 +886,6 @@
               </thead>
               <tbody id="admin-users-tbody"></tbody>
             </table>
-          </div>
-
-          <!-- Floating Batch Action Bar for Admin Users -->
-          <div id="admin-batch-bar" class="gal-batch-bar hidden">
-            <div class="batch-content">
-                <span class="batch-count">Selected: <b id="admin-batch-count">0</b></span>
-                <div class="batch-actions">
-                    <button class="btn btn-primary" id="admin-batch-deactivate-btn">
-                        Deactivate
-                    </button>
-                    <button class="btn btn-primary" id="admin-batch-activate-btn">
-                        Activate
-                    </button>
-                    <button class="btn btn-danger" id="admin-batch-delete-btn">
-                        Delete
-                    </button>
-                    <button class="btn btn-secondary" id="admin-batch-cancel-btn">Cancel</button>
-                </div>
-            </div>
           </div>
         </div>
       </div>
@@ -998,48 +908,6 @@
     </div>
   </div>
 
-  <!-- EDIT IMAGE MODAL -->
-  <div class="modal-overlay" id="edit-image-modal" hidden>
-    <div class="modal gal-edit-modal">
-      <h3>Edit Image Info</h3>
-      <form id="edit-image-form" class="gal-edit-form">
-        <input type="hidden" id="edit-image-id" />
-        <div class="form-group">
-          <label for="edit-cow-id">Cow ID <span class="req">*</span></label>
-          <input type="text" id="edit-cow-id" maxlength="100" required />
-        </div>
-        <div class="form-group">
-          <label for="edit-behavior">Behavior <span class="req">*</span></label>
-          <select id="edit-behavior" required>
-            <option value="standing">Standing</option>
-            <option value="lying">Lying</option>
-            <option value="eating">Eating</option>
-            <option value="drinking">Drinking</option>
-            <option value="walking">Walking</option>
-            <option value="abnormal">Abnormal</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="edit-barn-area">Barn Zone</label>
-          <input type="text" id="edit-barn-area" maxlength="200" />
-        </div>
-        <div class="form-group">
-          <label for="edit-captured-at">Capture Time</label>
-          <input type="datetime-local" id="edit-captured-at" />
-        </div>
-        <div class="form-group full-width">
-          <label for="edit-notes">Notes</label>
-          <textarea id="edit-notes" rows="3" maxlength="4000"></textarea>
-        </div>
-        <div id="edit-image-status" class="status-msg"></div>
-        <div class="modal-actions">
-          <button class="btn btn-secondary" type="button" id="cancel-edit-image">Cancel</button>
-          <button class="btn btn-primary" type="submit" id="save-edit-image">Save</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
   <!-- GALLERY LIGHTBOX -->
   <div class="gal-lightbox" id="gal-lightbox" hidden role="dialog" aria-label="Image preview">
     <button class="gal-lightbox-close" id="gal-lightbox-close" aria-label="Close preview">
@@ -1058,7 +926,7 @@
       <div class="chat-av">🐄</div>
       <div>
         <h4>Cow Visioning Assistant</h4>
-        <p><span class="chat-dot"></span>Agriculture Focus</p>
+        <p><span class="chat-dot"></span>ChatGPT 5 • Agriculture Focus</p>
       </div>
       <button class="chat-x" id="chatX">✕</button>
     </div>
@@ -1526,23 +1394,12 @@
     // ── USER-FACING AI STATUS ──
     (function() {
       function renderAiStatus(s) {
-        const bar = document.getElementById('ai-status-bar');
         const dot = document.getElementById('ai-status-dot');
         const txt = document.getElementById('ai-status-text');
-        if (!bar || !dot || !txt || !s) return;
-
-        if (!s.AI_ENABLED) {
-          bar.hidden = true;
-          if (typeof AiDisplay !== 'undefined' && typeof AiDisplay.setPublicSettings === 'function') {
-            AiDisplay.setPublicSettings(s);
-          }
-          return;
-        }
-
-        bar.hidden = false;
+        if (!dot || !txt || !s) return;
 
         dot.classList.remove('active', 'inactive');
-
+        
         if (s.AI_ENABLED || s.AI_TOOL_PRO_ENABLED) {
           dot.classList.add('active');
           txt.textContent = s.AI_ENABLED ? 'YOLO: Active' : 'YOLO: Disabled';
@@ -1572,9 +1429,7 @@
             })
           );
         } catch (e) {
-          const bar = document.getElementById('ai-status-bar');
           const txt = document.getElementById('ai-status-text');
-          if (bar) bar.hidden = true;
           if (txt) txt.textContent = 'AI: Unable to load configuration';
         }
       }

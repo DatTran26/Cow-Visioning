@@ -2,6 +2,7 @@ const Gallery = (() => {
     let deleteTargetId = null;
     let currentData = [];
     let currentView = 'grid';
+    let selectedCardIds = new Set();
 
     const ICONS = {
         zone: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
@@ -32,6 +33,9 @@ const Gallery = (() => {
         document.getElementById('confirm-delete').addEventListener('click', confirmDelete);
         document.getElementById('cancel-edit-image').addEventListener('click', closeEditModal);
         document.getElementById('edit-image-form').addEventListener('submit', saveEdit);
+        
+        document.getElementById('batch-cancel-btn')?.addEventListener('click', clearBatchSelection);
+        document.getElementById('batch-delete-btn')?.addEventListener('click', confirmBatchDelete);
 
         ['filter-cow-id', 'filter-barn'].forEach((id) => {
             document.getElementById(id)?.addEventListener('keydown', (event) => {
@@ -101,14 +105,17 @@ const Gallery = (() => {
             if (sorted.length === 0) {
                 showEmpty(grid, cowId || behavior || barn || toolPro);
                 setStatus('No images found', 'info');
+                clearBatchSelection();
                 return;
             }
 
             renderCards(sorted);
             setStatus(`${sorted.length} image${sorted.length !== 1 ? 's' : ''} found`, 'success');
+            clearBatchSelection();
         } catch (err) {
             grid.innerHTML = '';
             setStatus(`Error: ${err.message}`, 'error');
+            clearBatchSelection();
         }
     }
 
@@ -146,17 +153,21 @@ const Gallery = (() => {
                     : 'gal-conf-low';
         const behavior = record.behavior || '';
         const chipColor = CHIP_COLORS[behavior] || { bg: '#f1f5f9', text: '#64748b' };
+        
+        const isSelected = selectedCardIds.has(record.id);
 
         const card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = `
+            <div class="gal-select-cb-wrap ${isSelected ? 'checked' : ''}" onclick="event.stopPropagation()">
+                <input type="checkbox" class="gal-select-cb" value="${record.id}" ${isSelected ? 'checked' : ''}>
+            </div>
             <div class="gal-img-wrap">
                 <img class="card-img" src="${escHtml(imageUrl)}" alt="Cow ${escHtml(record.cow_id)}" loading="lazy"
                      onerror="this.parentElement.style.background='#eef4f3';this.style.display='none'">
                 <div class="gal-img-overlay">
                     <button class="gal-overlay-btn gal-view-full-btn" type="button">${ICONS.eye} Preview</button>
-                    ${record.original_image_url ? `<a class="gal-overlay-btn" href="${escHtml(buildApiUrl(record.original_image_url))}" target="_blank" rel="noopener">Original</a>` : ''}
-                    ${record.annotated_image_url ? `<a class="gal-overlay-btn" href="${escHtml(buildApiUrl(record.annotated_image_url))}" target="_blank" rel="noopener">Annotated</a>` : ''}
+                    ${record.annotated_image_url ? `<a class="gal-overlay-btn" href="${escHtml(buildApiUrl(record.annotated_image_url))}" target="_blank" rel="noopener">Bounding Box</a>` : ''}
                 </div>
                 <span class="gal-behavior-tag" style="background:${chipColor.bg};color:${chipColor.text}">${escHtml(behaviorLabel)}</span>
             </div>
@@ -177,8 +188,7 @@ const Gallery = (() => {
                 ${record.notes ? `<p style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.5">${escHtml(record.notes)}</p>` : ''}
                 <div class="gal-card-footer">
                     <div class="gal-links">
-                        ${record.original_image_url ? `<a class="gallery-link" href="${escHtml(buildApiUrl(record.original_image_url))}" target="_blank" rel="noopener">Original</a>` : ''}
-                        ${record.annotated_image_url ? `<a class="gallery-link" href="${escHtml(buildApiUrl(record.annotated_image_url))}" target="_blank" rel="noopener">Annotated</a>` : ''}
+                        ${record.annotated_image_url || record.original_image_url ? `<a class="gallery-link" href="${escHtml(buildApiUrl(record.annotated_image_url || record.original_image_url))}" target="_blank" rel="noopener">Bounding Box</a>` : ''}
                     </div>
                     <div class="gal-card-actions">
                         <button class="gal-edit-btn" type="button" title="Edit image info" aria-label="Edit image info for cow ${escHtml(record.cow_id)}">${ICONS.edit} Edit</button>
@@ -186,6 +196,20 @@ const Gallery = (() => {
                     </div>
                 </div>
             </div>`;
+
+        const checkbox = card.querySelector('.gal-select-cb');
+        const cbWrap = card.querySelector('.gal-select-cb-wrap');
+        
+        checkbox.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                selectedCardIds.add(record.id);
+                cbWrap.classList.add('checked');
+            } else {
+                selectedCardIds.delete(record.id);
+                cbWrap.classList.remove('checked');
+            }
+            updateBatchToolbar();
+        });
 
         card.querySelector('.gal-view-full-btn').addEventListener('click', (event) => {
             event.preventDefault();
@@ -201,6 +225,59 @@ const Gallery = (() => {
         });
 
         return card;
+    }
+
+    function updateBatchToolbar() {
+        const batchBar = document.getElementById('gal-batch-bar');
+        const countVal = document.getElementById('batch-count-val');
+        if (!batchBar || !countVal) return;
+        
+        if (selectedCardIds.size > 0) {
+            countVal.textContent = selectedCardIds.size;
+            batchBar.classList.remove('hidden');
+            // Allow layout before adding animation class
+            requestAnimationFrame(() => batchBar.classList.add('show'));
+        } else {
+            batchBar.classList.remove('show');
+            setTimeout(() => {
+                if (selectedCardIds.size === 0) batchBar.classList.add('hidden');
+            }, 300);
+        }
+    }
+
+    function clearBatchSelection() {
+        selectedCardIds.clear();
+        document.querySelectorAll('.gal-select-cb').forEach(cb => {
+            cb.checked = false;
+            if (cb.parentElement) cb.parentElement.classList.remove('checked');
+        });
+        updateBatchToolbar();
+    }
+
+    async function confirmBatchDelete() {
+        if (selectedCardIds.size === 0) return;
+        
+        if (!confirm(`Are you sure you want to permanently delete ${selectedCardIds.size} selected image(s)?`)) return;
+        
+        const btn = document.getElementById('batch-delete-btn');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Deleting...';
+        }
+        
+        try {
+            const deletePromises = Array.from(selectedCardIds).map(id => fetch(`${API_BASE}/api/images/${id}`, { method: 'DELETE' }));
+            await Promise.all(deletePromises);
+            clearBatchSelection();
+            loadGallery();
+        } catch (err) {
+            alert(`Error deleting batch: ${err.message}`);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>Delete Selected';
+            }
+        }
     }
 
     function showSkeletons(grid) {
@@ -252,27 +329,69 @@ const Gallery = (() => {
         const providerLabel = typeof AiDisplay !== 'undefined' ? AiDisplay.getAiProviderLabel(record) : 'AI';
         const behaviorLabel = BEHAVIOR_MAP[record.behavior] || record.behavior || '—';
         const confidence = typeof record.ai_confidence === 'number' ? `${(record.ai_confidence * 100).toFixed(1)}%` : 'N/A';
-        const imageUrl = buildApiUrl(record.annotated_image_url || record.original_image_url || record.image_url || '');
+        const originalUrl = record.original_image_url ? buildApiUrl(record.original_image_url) : '';
+        const annotatedUrl = record.annotated_image_url ? buildApiUrl(record.annotated_image_url) : '';
+        const defaultModeUrl = annotatedUrl || originalUrl || buildApiUrl(record.image_url || '');
 
-        img.src = imageUrl;
+        img.src = defaultModeUrl;
         img.alt = `Cow ${record.cow_id} — ${behaviorLabel}`;
 
         info.innerHTML = `
-            <h4>Cow ${escHtml(record.cow_id)}</h4>
-            <div class="gal-lb-row"><span class="gal-lb-label">Provider</span><span class="gal-lb-value">${escHtml(providerLabel)}</span></div>
-            <div class="gal-lb-row"><span class="gal-lb-label">Behavior</span><span class="gal-lb-value">${escHtml(behaviorLabel)}</span></div>
-            <div class="gal-lb-row"><span class="gal-lb-label">Zone</span><span class="gal-lb-value">${escHtml(record.barn_area || '—')}</span></div>
-            <div class="gal-lb-row"><span class="gal-lb-label">Captured</span><span class="gal-lb-value">${escHtml(formatDate(record.captured_at) || '—')}</span></div>
-            <div class="gal-lb-row"><span class="gal-lb-label">AI Confidence</span><span class="gal-lb-value">${confidence}</span></div>
-            ${typeof record.detection_count === 'number' ? `<div class="gal-lb-row"><span class="gal-lb-label">Detections</span><span class="gal-lb-value">${record.detection_count}</span></div>` : ''}
-            ${record.notes ? `<div class="gal-lb-row"><span class="gal-lb-label">Notes</span><span class="gal-lb-value">${escHtml(record.notes)}</span></div>` : ''}
-            <div class="gal-lb-row">
-                <span class="gal-lb-label">Images</span>
-                <div class="gal-lb-links">
-                    ${record.original_image_url ? `<a class="gal-lb-link" href="${escHtml(buildApiUrl(record.original_image_url))}" target="_blank" rel="noopener">Original</a>` : ''}
-                    ${record.annotated_image_url ? `<a class="gal-lb-link" href="${escHtml(buildApiUrl(record.annotated_image_url))}" target="_blank" rel="noopener">Annotated</a>` : ''}
+            <div class="lb-header">
+                <h4>Cow ${escHtml(record.cow_id)}</h4>
+                <div class="lb-badge lb-provider-${escHtml(String(record.ai_provider).toLowerCase())}">${escHtml(providerLabel)}</div>
+            </div>
+            
+            <div class="lb-stats-grid">
+                <div class="lb-stat-box">
+                    <span class="lb-stat-label">Behavior</span>
+                    <span class="lb-stat-value text-primary">${escHtml(behaviorLabel)}</span>
                 </div>
-            </div>`;
+                <div class="lb-stat-box">
+                    <span class="lb-stat-label">Confidence</span>
+                    <span class="lb-stat-value">${confidence}</span>
+                </div>
+                <div class="lb-stat-box">
+                    <span class="lb-stat-label">Detections</span>
+                    <span class="lb-stat-value">${record.detection_count || 0}</span>
+                </div>
+                <div class="lb-stat-box">
+                    <span class="lb-stat-label">Zone</span>
+                    <span class="lb-stat-value">${escHtml(record.barn_area || '—')}</span>
+                </div>
+            </div>
+            
+            <div class="lb-detail-row">
+                <span class="lb-detail-label">Captured</span>
+                <span class="lb-detail-value">${escHtml(formatDate(record.captured_at) || '—')}</span>
+            </div>
+            
+            ${record.notes ? `
+            <div class="lb-notes">
+                <span class="lb-notes-title">Notes</span>
+                <p>${escHtml(record.notes)}</p>
+            </div>` : ''}
+
+            <div class="lb-actions-container">
+                <span class="lb-actions-title">Image View</span>
+                <div class="lb-view-toggles">
+                    <button class="lb-toggle-btn ${!annotatedUrl ? 'active' : ''}" type="button" data-src="${escHtml(originalUrl)}" ${!originalUrl ? 'disabled' : ''}>Original</button>
+                    ${annotatedUrl ? `<button class="lb-toggle-btn active" type="button" data-src="${escHtml(annotatedUrl)}">Bounding Box</button>` : ''}
+                </div>
+            </div>
+        `;
+
+        const toggleBtns = info.querySelectorAll('.lb-toggle-btn');
+        toggleBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const src = e.currentTarget.getAttribute('data-src');
+                if (src) {
+                    img.src = src;
+                    toggleBtns.forEach(b => b.classList.remove('active'));
+                    e.currentTarget.classList.add('active');
+                }
+            });
+        });
 
         box.hidden = false;
         document.body.classList.add('modal-open');

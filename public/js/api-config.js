@@ -19,8 +19,8 @@
     }
 
     const configuredOrigin = resolveOrigin(configuredBase);
-    const shouldPreferSameOrigin = isLocalPage && configuredOrigin && configuredOrigin !== currentOrigin;
-    const API_BASE = shouldPreferSameOrigin ? '' : configuredBase;
+    // Removed shouldPreferSameOrigin to allow localhost testing against VPS
+    const API_BASE = configuredBase;
 
     function isAbsoluteUrl(value) {
         return /^[a-zA-Z][a-zA-Z\d+.-]*:/.test(value) || value.startsWith('//');

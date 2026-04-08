@@ -12,7 +12,7 @@ window.AdminUsers = (() => {
         const status = document.getElementById('admin-users-status');
         if (!tbody) return;
 
-        status.textContent = 'Đang tải danh sách người dùng...';
+        status.textContent = 'Loading users...';
         status.className = 'status-msg info';
 
         try {
@@ -21,7 +21,7 @@ window.AdminUsers = (() => {
             if (!res.ok) throw new Error(result.details || result.error);
 
             const users = result.data || [];
-            status.textContent = `Tìm thấy ${users.length} người dùng`;
+            status.textContent = `Found ${users.length} user(s)`;
             status.className = 'status-msg success';
 
             tbody.innerHTML = users
@@ -33,16 +33,16 @@ window.AdminUsers = (() => {
                     <td>${user.email}</td>
                     <td>
                         <select class="admin-role-select" data-uid="${user.id}">
-                            <option value="user" ${user.role === 'user' ? 'selected' : ''}>Người dùng</option>
-                            <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Quản trị viên</option>
+                            <option value="user" ${user.role === 'user' ? 'selected' : ''}>User</option>
+                            <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
                         </select>
                     </td>
                     <td>${user.image_count}</td>
                     <td>${user.post_count}</td>
-                    <td>${new Date(user.created_at).toLocaleDateString('vi-VN')}</td>
+                    <td>${new Date(user.created_at).toLocaleDateString('en-US')}</td>
                     <td>
-                        <button class="btn btn-sm btn-primary admin-save-role-btn" data-uid="${user.id}">Lưu</button>
-                        <button class="btn btn-sm btn-danger admin-delete-btn" data-uid="${user.id}" data-uname="${user.username}">Xóa</button>
+                        <button class="btn btn-sm btn-primary admin-save-role-btn" data-uid="${user.id}">Save</button>
+                        <button class="btn btn-sm btn-danger admin-delete-btn" data-uid="${user.id}" data-uname="${user.username}">Delete</button>
                     </td>
                 </tr>
             `
@@ -59,13 +59,13 @@ window.AdminUsers = (() => {
 
             tbody.querySelectorAll('.admin-delete-btn').forEach((btn) => {
                 btn.addEventListener('click', () => {
-                    if (confirm(`Xác nhận xóa người dùng "${btn.dataset.uname}"? Toàn bộ dữ liệu liên quan sẽ bị xóa.`)) {
+                    if (confirm(`Confirm delete user "${btn.dataset.uname}"? All associated data will be permanently removed.`)) {
                         deleteUser(btn.dataset.uid);
                     }
                 });
             });
         } catch (err) {
-            status.textContent = `Lỗi: ${err.message}`;
+            status.textContent = `Error: ${err.message}`;
             status.className = 'status-msg error';
         }
     }
@@ -81,7 +81,7 @@ window.AdminUsers = (() => {
             if (!res.ok) throw new Error(result.error);
             loadUsers();
         } catch (err) {
-            alert(`Lỗi khi đổi vai trò: ${err.message}`);
+            alert(`Error changing role: ${err.message}`);
         }
     }
 
@@ -93,7 +93,7 @@ window.AdminUsers = (() => {
             loadUsers();
             if (typeof _onRefresh === 'function') _onRefresh();
         } catch (err) {
-            alert(`Lỗi khi xóa người dùng: ${err.message}`);
+            alert(`Error deleting user: ${err.message}`);
         }
     }
 

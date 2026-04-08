@@ -16,13 +16,13 @@ const Settings = (() => {
             statusEl.className = 'status-msg';
 
             if (code.length !== 6) {
-                statusEl.textContent = 'Vui lòng nhập đủ 6 ký tự số';
+                statusEl.textContent = 'Please enter a valid 6-digit code';
                 statusEl.className = 'status-msg error';
                 return;
             }
 
             resetBtn.disabled = true;
-            resetBtn.textContent = 'Đang xử lý...';
+            resetBtn.textContent = 'Processing...';
 
             try {
                 const res = await fetch(`${API_BASE}/api/totp/reset`, {
@@ -34,23 +34,23 @@ const Settings = (() => {
                 const data = await res.json();
 
                 if (res.ok && data.success) {
-                    statusEl.textContent = 'Đã đặt lại cấu hình thành công! Đang chuyển hướng...';
+                    statusEl.textContent = 'Configuration reset successfully! Redirecting...';
                     statusEl.className = 'status-msg success';
                     setTimeout(() => {
                         window.location.href = '/auth/setup';
                     }, 1000);
                 } else {
-                    statusEl.textContent = data.error || 'Mã xác thực không hợp lệ';
+                    statusEl.textContent = data.error || 'Invalid verification code';
                     statusEl.className = 'status-msg error';
                     codeInput.value = '';
                     codeInput.focus();
                 }
             } catch (err) {
-                statusEl.textContent = 'Lỗi kết nối máy chủ Hệ thống';
+                statusEl.textContent = 'Server connection error';
                 statusEl.className = 'status-msg error';
             } finally {
                 resetBtn.disabled = false;
-                resetBtn.textContent = 'Đặt lại mật khẩu bảo vệ';
+                resetBtn.textContent = 'Reset security password';
             }
         });
     }

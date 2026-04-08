@@ -30,7 +30,7 @@ window.BlogComposer = (() => {
         const $ = (id) => document.getElementById(id);
         if ($('blog-title')) $('blog-title').value = title;
         if ($('blog-content')) $('blog-content').value = content;
-        if ($('blog-submit-btn')) $('blog-submit-btn').textContent = 'Cập nhật bài viết';
+        if ($('blog-submit-btn')) $('blog-submit-btn').textContent = 'Update post';
         if ($('blog-cancel-edit-btn')) $('blog-cancel-edit-btn').hidden = false;
         renderComposerPreview();
         openComposer();
@@ -56,7 +56,7 @@ window.BlogComposer = (() => {
         if (!btn) return;
         try {
             const me = typeof AppSession !== 'undefined' ? AppSession.getCurrentUser() : null;
-            if (me?.username) btn.textContent = `Bạn muốn chia sẻ điều gì hôm nay, ${me.username}?`;
+            if (me?.username) btn.textContent = `What's on your mind today, ${me.username}?`;
         } catch (_err) {}
     }
 
@@ -67,15 +67,15 @@ window.BlogComposer = (() => {
         const contentTarget = document.getElementById('blog-preview-content');
         const timeTarget = document.getElementById('blog-preview-time');
         const imagesTarget = document.getElementById('blog-preview-images');
-        if (titleTarget) titleTarget.textContent = title || 'Tiêu đề bài viết sẽ hiển thị ở đây';
+        if (titleTarget) titleTarget.textContent = title || 'Post title will appear here';
         if (contentTarget) {
-            contentTarget.innerHTML = BlogUtils.escapeHtml(content || 'Nội dung xem trước sẽ tự động cập nhật khi bạn nhập.').replace(/\n/g, '<br>');
+            contentTarget.innerHTML = BlogUtils.escapeHtml(content || 'Preview content will update automatically as you type.').replace(/\n/g, '<br>');
         }
         if (timeTarget) timeTarget.textContent = BlogUtils.formatTime(new Date().toISOString());
         if (imagesTarget) {
             if (selectedImagePreviewUrl) {
                 imagesTarget.hidden = false;
-                imagesTarget.innerHTML = `<img class="blog-post-image" src="${BlogUtils.escapeHtml(selectedImagePreviewUrl)}" alt="Ảnh xem trước" />`;
+                imagesTarget.innerHTML = `<img class="blog-post-image" src="${BlogUtils.escapeHtml(selectedImagePreviewUrl)}" alt="Image preview" />`;
             } else {
                 imagesTarget.hidden = true;
                 imagesTarget.innerHTML = '';
@@ -91,7 +91,7 @@ window.BlogComposer = (() => {
         const cancel = document.getElementById('blog-cancel-edit-btn');
         if (title) title.value = '';
         if (content) content.value = '';
-        if (submit) submit.textContent = 'Đăng bài viết';
+        if (submit) submit.textContent = 'Publish post';
         if (cancel) cancel.hidden = true;
         clearSelectedImage();
         renderComposerPreview();
@@ -100,8 +100,8 @@ window.BlogComposer = (() => {
     function onImageChanged(event) {
         const file = event.target?.files?.[0];
         if (!file) { clearSelectedImage(); return; }
-        if (!file.type.startsWith('image/')) { clearSelectedImage(); BlogUtils.setStatus('Chỉ chấp nhận tệp ảnh.', 'error'); return; }
-        if (file.size > 10 * 1024 * 1024) { clearSelectedImage(); BlogUtils.setStatus('Ảnh tối đa 10 MB.', 'error'); return; }
+        if (!file.type.startsWith('image/')) { clearSelectedImage(); BlogUtils.setStatus('Only image files are accepted.', 'error'); return; }
+        if (file.size > 10 * 1024 * 1024) { clearSelectedImage(); BlogUtils.setStatus('Image must be under 10 MB.', 'error'); return; }
         selectedImageFile = file;
         const previewWrap = document.getElementById('blog-image-preview');
         const previewImg = document.getElementById('blog-image-preview-img');
@@ -136,9 +136,9 @@ window.BlogComposer = (() => {
         const title = document.getElementById('blog-title')?.value.trim();
         const content = document.getElementById('blog-content')?.value.trim();
         const submitBtn = document.getElementById('blog-submit-btn');
-        if (!title || !content) { BlogUtils.setStatus('Vui lòng nhập đầy đủ tiêu đề và nội dung bài viết.', 'error'); return; }
+        if (!title || !content) { BlogUtils.setStatus('Please enter both a title and content for the post.', 'error'); return; }
         submitBtn.disabled = true;
-        submitBtn.textContent = editingPostId ? 'Đang cập nhật...' : 'Đang đăng bài...';
+        submitBtn.textContent = editingPostId ? 'Updating...' : 'Publishing...';
         try {
             const payload = await BlogUtils.fetchJson(BlogUtils.buildApiUrl(editingPostId ? `/api/blog/posts/${editingPostId}` : '/api/blog/posts'), {
                 method: editingPostId ? 'PUT' : 'POST',
@@ -147,15 +147,15 @@ window.BlogComposer = (() => {
             });
             const savedPost = payload.data || payload.post || null;
             if (selectedImageFile && savedPost?.id) await uploadPostImage(savedPost.id, selectedImageFile);
-            BlogUtils.setStatus(editingPostId ? 'Đã cập nhật bài viết.' : 'Đăng bài thành công.', 'success');
+            BlogUtils.setStatus(editingPostId ? 'Post updated successfully.' : 'Post published successfully.', 'success');
             resetComposer();
             closeComposer();
             if (_onSaved) await _onSaved();
         } catch (err) {
-            BlogUtils.setStatus(`Lỗi: ${err.message}`, 'error');
+            BlogUtils.setStatus(`Error: ${err.message}`, 'error');
         } finally {
             submitBtn.disabled = false;
-            submitBtn.textContent = editingPostId ? 'Cập nhật bài viết' : 'Đăng bài viết';
+            submitBtn.textContent = editingPostId ? 'Update post' : 'Publish post';
         }
     }
 

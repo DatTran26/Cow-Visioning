@@ -29,7 +29,7 @@ window.CameraCapture = (() => {
             const thumb = document.createElement('div');
             thumb.className = 'file-thumb';
             thumb.innerHTML = `
-                <img src="${item.url}" alt="Ảnh ${state.savedCount - index}">
+                <img src="${item.url}" alt="Image ${state.savedCount - index}">
                 <span class="thumb-index">${state.savedCount - index}</span>
             `;
             strip.appendChild(thumb);
@@ -52,7 +52,7 @@ window.CameraCapture = (() => {
             if (!state.isOn) {
                 await startCameraFn();
                 if (!state.isOn) {
-                    cameraStatus.textContent = 'Vui lòng bật camera trước khi chụp.';
+                    cameraStatus.textContent = 'Please enable the camera before capturing.';
                     cameraStatus.className = 'status-msg error';
                     return;
                 }
@@ -69,7 +69,7 @@ window.CameraCapture = (() => {
             let sourceHeight = video.videoHeight || video.clientHeight;
 
             if (!sourceWidth || !sourceHeight) {
-                cameraStatus.textContent = 'Camera chưa sẵn sàng. Vui lòng thử lại sau khoảng một giây.';
+                cameraStatus.textContent = 'Camera not ready. Please try again in a moment.';
                 cameraStatus.className = 'status-msg error';
                 return;
             }
@@ -96,26 +96,26 @@ window.CameraCapture = (() => {
             }
 
             if (!blob) {
-                cameraStatus.textContent = 'Không thể tạo ảnh từ camera. Vui lòng thử lại.';
+                cameraStatus.textContent = 'Could not create image from camera. Please try again.';
                 cameraStatus.className = 'status-msg error';
                 return;
             }
 
             const thumbUrl = URL.createObjectURL(blob);
             const lastThumb = document.getElementById('cam-last-thumb');
-            lastThumb.innerHTML = `<img src="${thumbUrl}" alt="Ảnh vừa chụp">`;
+            lastThumb.innerHTML = `<img src="${thumbUrl}" alt="Last captured image">`;
             lastThumb.classList.add('has-img');
 
             if (!state.autoSaveEnabled && !cowId) {
-                cameraStatus.textContent = 'Chế độ tự lưu đang tắt. Vui lòng nhập mã con bò trước khi lưu.';
+                cameraStatus.textContent = 'Auto-save is off. Please enter a Cow ID before saving.';
                 cameraStatus.className = 'status-msg error';
                 return;
             }
 
             const ts = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
             const cowIdToSave = cowId || `AUTO-${ts}`;
-            const barnAreaToSave = barnArea || 'Chưa xác định';
-            const notesToSave = notes || 'Ảnh chụp tự động chưa có ghi chú';
+            const barnAreaToSave = barnArea || 'Unspecified';
+            const notesToSave = notes || 'Auto-captured image, no notes';
 
             state.savedCount += 1;
             state.savedThumbs.unshift({ url: thumbUrl });
@@ -138,25 +138,25 @@ window.CameraCapture = (() => {
                 });
 
                 const result = await res.json();
-                if (!res.ok) throw new Error(result.details || result.error || 'Lưu ảnh thất bại');
+                if (!res.ok) throw new Error(result.details || result.error || 'Failed to save image');
 
                 const savedRecord = result.data || null;
                 if (savedRecord) CameraAI.renderAiResult(savedRecord);
 
                 cameraStatus.textContent = savedRecord
-                    ? `Đã lưu ảnh. ${CameraAI.buildAiSummary(savedRecord)}`
-                    : 'Đã chụp và lưu ảnh lên hệ thống.';
+                    ? `Image saved. ${CameraAI.buildAiSummary(savedRecord)}`
+                    : 'Image captured and saved successfully.';
                 cameraStatus.className = 'status-msg success';
             } catch (err) {
                 console.error('Save error:', err);
-                status.textContent = `Lỗi khi lưu ảnh: ${err.message}`;
+                status.textContent = `Save error: ${err.message}`;
                 status.className = 'status-msg error';
             } finally {
                 saving.hidden = true;
             }
         } catch (err) {
             console.error('Capture error:', err);
-            cameraStatus.textContent = `Lỗi khi chụp ảnh: ${err.message || 'không xác định'}`;
+            cameraStatus.textContent = `Capture error: ${err.message || 'unknown'}`;
             cameraStatus.className = 'status-msg error';
         } finally {
             if (state.isOn) shutterBtn.disabled = false;

@@ -9,18 +9,18 @@ window.AiDisplay = (() => {
     }
 
     function buildAiSummary(record, prefix) {
-        const label = BEHAVIOR_MAP[record.behavior] || record.behavior || 'không xác định';
+        const label = BEHAVIOR_MAP[record.behavior] || record.behavior || 'unknown';
         const confidence = formatConfidence(record.ai_confidence);
-        const p = prefix || 'AI nhận diện';
-        return confidence ? `${p} ${label} (${confidence})` : `${p} ${label}`;
+        const p = prefix || 'AI detected';
+        return confidence ? `${p}: ${label} (${confidence})` : `${p}: ${label}`;
     }
 
     function buildAiMeta(record) {
         const parts = [];
         const confidence = formatConfidence(record.ai_confidence);
-        if (confidence) parts.push(`Độ tin cậy: ${confidence}`);
-        if (typeof record.detection_count === 'number') parts.push(`Số khung phát hiện: ${record.detection_count}`);
-        if (typeof record.ai_inference_ms === 'number') parts.push(`Thời gian xử lý: ${Math.round(record.ai_inference_ms)} ms`);
+        if (confidence) parts.push(`Confidence: ${confidence}`);
+        if (typeof record.detection_count === 'number') parts.push(`Detections: ${record.detection_count}`);
+        if (typeof record.ai_inference_ms === 'number') parts.push(`Processing time: ${Math.round(record.ai_inference_ms)} ms`);
         return parts.join(' • ');
     }
 

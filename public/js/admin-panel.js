@@ -25,9 +25,9 @@ const Admin = (() => {
             const element = document.getElementById('admin-stats');
             if (element) {
                 element.innerHTML = `
-                    <div class="admin-stat-card"><div class="admin-stat-num">${data.total_users}</div><div class="admin-stat-label">Người dùng</div></div>
-                    <div class="admin-stat-card"><div class="admin-stat-num">${data.total_images}</div><div class="admin-stat-label">Ảnh đã tải</div></div>
-                    <div class="admin-stat-card"><div class="admin-stat-num">${data.total_posts}</div><div class="admin-stat-label">Bài viết</div></div>
+                    <div class="admin-stat-card"><div class="admin-stat-num">${data.total_users}</div><div class="admin-stat-label">Users</div></div>
+                    <div class="admin-stat-card"><div class="admin-stat-num">${data.total_images}</div><div class="admin-stat-label">Images uploaded</div></div>
+                    <div class="admin-stat-card"><div class="admin-stat-num">${data.total_posts}</div><div class="admin-stat-label">Posts</div></div>
                 `;
             }
         } catch (error) {
@@ -68,7 +68,7 @@ const Admin = (() => {
         const btn = document.getElementById('admin-save-ai');
         const status = document.getElementById('admin-ai-status');
         btn.disabled = true;
-        btn.textContent = 'Đang lưu...';
+        btn.textContent = 'Saving...';
 
         try {
             const body = {
@@ -87,7 +87,7 @@ const Admin = (() => {
             const result = await res.json();
             if (!res.ok) throw new Error(result.error);
 
-            status.textContent = 'Đã lưu cấu hình AI thành công.';
+            status.textContent = 'AI configuration saved successfully.';
             status.className = 'status-msg success';
             document.dispatchEvent(
                 new CustomEvent('app:ai-settings-updated', {
@@ -96,11 +96,11 @@ const Admin = (() => {
             );
             setTimeout(() => { status.textContent = ''; }, 3000);
         } catch (err) {
-            status.textContent = `Lỗi: ${err.message}`;
+            status.textContent = `Error: ${err.message}`;
             status.className = 'status-msg error';
         } finally {
             btn.disabled = false;
-            btn.textContent = 'Lưu thay đổi';
+            btn.textContent = 'Save Changes';
         }
     }
 

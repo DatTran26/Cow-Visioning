@@ -14,7 +14,7 @@ window.BlogCard = (() => {
         card.dataset.postContent = post.content || '';
 
         const imagesHtml = images
-            .map((img) => `<img class="blog-post-image" src="${BlogUtils.escapeHtml(img.image_url)}" alt="Ảnh bài viết" loading="lazy" />`)
+            .map((img) => `<img class="blog-post-image" src="${BlogUtils.escapeHtml(img.image_url)}" alt="Post image" loading="lazy" />`)
             .join('');
 
         const commentsHtml = comments
@@ -27,7 +27,7 @@ window.BlogCard = (() => {
                             <span>${BlogUtils.escapeHtml(BlogUtils.formatTime(comment.created_at))}</span>
                         </div>
                         <p>${BlogUtils.escapeHtml(comment.content)}</p>
-                        ${ownComment ? `<button class="btn btn-link" data-delete-comment="${comment.id}">Xóa bình luận</button>` : ''}
+                        ${ownComment ? `<button class="btn btn-link" data-delete-comment="${comment.id}">Delete comment</button>` : ''}
                     </li>
                 `;
             })
@@ -37,27 +37,27 @@ window.BlogCard = (() => {
             <header class="blog-card-header">
                 <div>
                     <h3>${BlogUtils.escapeHtml(post.title)}</h3>
-                    <p>Bởi <strong>${BlogUtils.escapeHtml(post.username || 'Anonymous')}</strong> • ${BlogUtils.escapeHtml(BlogUtils.formatTime(post.created_at))}</p>
+                    <p>By <strong>${BlogUtils.escapeHtml(post.username || 'Anonymous')}</strong> &bull; ${BlogUtils.escapeHtml(BlogUtils.formatTime(post.created_at))}</p>
                 </div>
                 <div class="blog-card-actions">
-                    <button class="btn btn-secondary" data-like-post="${post.id}" ${!isAuthenticated ? 'disabled title="Đăng nhập để quan tâm"' : ''}>
-                        ${post.liked_by_me ? 'Bỏ quan tâm' : 'Quan tâm'} (${post.like_count || 0})
+                    <button class="btn btn-secondary" data-like-post="${post.id}" ${!isAuthenticated ? 'disabled title="Log in to like"' : ''}>
+                        ${post.liked_by_me ? 'Unlike' : 'Like'} (${post.like_count || 0})
                     </button>
-                    ${canManagePost ? '<button class="btn btn-secondary" data-edit-post="1">Sửa</button>' : ''}
-                    ${canManagePost ? '<button class="btn btn-danger" data-delete-post="1">Xóa</button>' : ''}
+                    ${canManagePost ? '<button class="btn btn-secondary" data-edit-post="1">Edit</button>' : ''}
+                    ${canManagePost ? '<button class="btn btn-danger" data-delete-post="1">Delete</button>' : ''}
                 </div>
             </header>
             <div class="blog-card-content">${BlogUtils.escapeHtml(post.content).replace(/\n/g, '<br>')}</div>
             ${imagesHtml ? `<div class="blog-post-images">${imagesHtml}</div>` : ''}
             <section class="blog-comments">
-                <h4>Bình luận (${comments.length})</h4>
-                <ul class="blog-comment-list">${commentsHtml || '<li class="blog-comment-item blog-comment-empty">Chưa có bình luận nào.</li>'}</ul>
+                <h4>Comments (${comments.length})</h4>
+                <ul class="blog-comment-list">${commentsHtml || '<li class="blog-comment-item blog-comment-empty">No comments yet.</li>'}</ul>
                 ${isAuthenticated ? `
                 <form class="blog-comment-form" data-post-id="${post.id}">
-                    <input type="text" name="comment" placeholder="Viết bình luận của bạn..." maxlength="2000" required />
-                    <button class="btn btn-primary" type="submit">Gửi bình luận</button>
+                    <input type="text" name="comment" placeholder="Write a comment..." maxlength="2000" required />
+                    <button class="btn btn-primary" type="submit">Post comment</button>
                 </form>
-                ` : `<p style="font-size: 0.85rem; color: var(--t3); margin-top: 1rem;">Đăng nhập để tương tác và bình luận.</p>`}
+                ` : `<p style="font-size: 0.85rem; color: var(--t3); margin-top: 1rem;">Log in to interact and comment.</p>`}
             </section>
         `;
         card.innerHTML = typeof DOMPurify !== 'undefined'

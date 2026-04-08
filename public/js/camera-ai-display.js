@@ -7,17 +7,17 @@ window.CameraAI = (() => {
     }
 
     function buildAiSummary(record) {
-        const label = BEHAVIOR_MAP[record.behavior] || record.behavior || 'không xác định';
+        const label = BEHAVIOR_MAP[record.behavior] || record.behavior || 'unknown';
         const confidence = formatConfidence(record.ai_confidence);
-        return confidence ? `AI nhận diện ${label} (${confidence})` : `AI nhận diện ${label}`;
+        return confidence ? `AI detected: ${label} (${confidence})` : `AI detected: ${label}`;
     }
 
     function buildAiMeta(record) {
         const parts = [];
         const confidence = formatConfidence(record.ai_confidence);
-        if (confidence) parts.push(`Độ tin cậy: ${confidence}`);
-        if (typeof record.detection_count === 'number') parts.push(`Số khung phát hiện: ${record.detection_count}`);
-        if (typeof record.ai_inference_ms === 'number') parts.push(`Thời gian xử lý: ${Math.round(record.ai_inference_ms)} ms`);
+        if (confidence) parts.push(`Confidence: ${confidence}`);
+        if (typeof record.detection_count === 'number') parts.push(`Detections: ${record.detection_count}`);
+        if (typeof record.ai_inference_ms === 'number') parts.push(`Processing time: ${Math.round(record.ai_inference_ms)} ms`);
         return parts.join(' • ');
     }
 
@@ -33,7 +33,7 @@ window.CameraAI = (() => {
 
         const displayUrl = record.annotated_image_url || record.image_url || record.original_image_url || '';
         imageEl.src = displayUrl;
-        behaviorEl.textContent = BEHAVIOR_MAP[record.behavior] || record.behavior || 'Không xác định';
+        behaviorEl.textContent = BEHAVIOR_MAP[record.behavior] || record.behavior || 'Unknown';
         metaEl.textContent = buildAiMeta(record);
 
         if (record.original_image_url) {
@@ -44,7 +44,7 @@ window.CameraAI = (() => {
         }
 
         if (displayUrl && lastThumb) {
-            lastThumb.innerHTML = `<img src="${displayUrl}" alt="Kết quả AI">`;
+            lastThumb.innerHTML = `<img src="${displayUrl}" alt="AI result">`;
             lastThumb.classList.add('has-img');
         }
 

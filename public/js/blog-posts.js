@@ -14,24 +14,24 @@ const Blog = (() => {
     async function loadFeed() {
         const feed = document.getElementById('blog-feed');
         if (!feed) return;
-        BlogUtils.setStatus('Đang tải danh sách bài viết...', 'info');
+        BlogUtils.setStatus('Loading posts...', 'info');
         feed.innerHTML = '';
         try {
             const me = typeof AppSession !== 'undefined' ? AppSession.getCurrentUser() : null;
             const payload = await BlogUtils.fetchJson(BlogUtils.buildApiUrl('/api/blog/posts?limit=30&offset=0'));
             const posts = payload.data || [];
             if (posts.length === 0) {
-                feed.innerHTML = '<div class="blog-empty">Chưa có bài viết nào. Hãy tạo bài viết đầu tiên.</div>';
-                BlogUtils.setStatus('Chưa có bài viết nào trong hệ thống.', 'info');
+                feed.innerHTML = '<div class="blog-empty">No posts yet. Be the first to create one!</div>';
+                BlogUtils.setStatus('No posts found.', 'info');
                 return;
             }
             for (const post of posts) {
                 const comments = await BlogComments.fetchComments(post.id);
                 feed.appendChild(BlogCard.createPostCard(post, comments, me ? me.id : null));
             }
-            BlogUtils.setStatus(`Đã tải ${posts.length} bài viết.`, 'success');
+            BlogUtils.setStatus(`Loaded ${posts.length} post(s).`, 'success');
         } catch (err) {
-            BlogUtils.setStatus(`Lỗi khi tải bài viết: ${err.message}`, 'error');
+            BlogUtils.setStatus(`Error loading posts: ${err.message}`, 'error');
         }
     }
 
@@ -52,7 +52,7 @@ const Blog = (() => {
             try {
                 await BlogComments.deleteComment(target.dataset.deleteComment, () => loadFeed());
             } catch (err) {
-                BlogUtils.setStatus(`Lỗi khi xóa bình luận: ${err.message}`, 'error');
+                BlogUtils.setStatus(`Error deleting comment: ${err.message}`, 'error');
             }
         }
     }
@@ -71,7 +71,7 @@ const Blog = (() => {
                 await loadFeed();
             });
         } catch (err) {
-            BlogUtils.setStatus(`Lỗi khi gửi bình luận: ${err.message}`, 'error');
+            BlogUtils.setStatus(`Error submitting comment: ${err.message}`, 'error');
         }
     }
 
@@ -80,18 +80,18 @@ const Blog = (() => {
             await BlogUtils.fetchJson(BlogUtils.buildApiUrl(`/api/blog/posts/${postId}/likes`), { method: 'POST' });
             await loadFeed();
         } catch (err) {
-            BlogUtils.setStatus(`Lỗi khi bày tỏ quan tâm: ${err.message}`, 'error');
+            BlogUtils.setStatus(`Error toggling like: ${err.message}`, 'error');
         }
     }
 
     async function deletePost(postId) {
-        if (!window.confirm('Bạn có chắc muốn xóa bài viết này không?')) return;
+        if (!window.confirm('Are you sure you want to delete this post?')) return;
         try {
             await BlogUtils.fetchJson(BlogUtils.buildApiUrl(`/api/blog/posts/${postId}`), { method: 'DELETE' });
-            BlogUtils.setStatus('Đã xóa bài viết.', 'success');
+            BlogUtils.setStatus('Post deleted.', 'success');
             await loadFeed();
         } catch (err) {
-            BlogUtils.setStatus(`Lỗi khi xóa bài viết: ${err.message}`, 'error');
+            BlogUtils.setStatus(`Error deleting post: ${err.message}`, 'error');
         }
     }
 

@@ -56,11 +56,11 @@
     };
 
     window.BEHAVIOR_MAP = {
-        standing: 'Đứng',
-        lying: 'Nằm',
-        eating: 'Ăn',
-        drinking: 'Uống nước',
-        walking: 'Đi lại',
-        abnormal: 'Bất thường',
+        standing: 'Standing',
+        lying: 'Lying',
+        eating: 'Eating',
+        drinking: 'Drinking',
+        walking: 'Walking',
+        abnormal: 'Abnormal',
     };
 })();

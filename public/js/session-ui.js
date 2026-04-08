@@ -43,26 +43,26 @@ window.SessionUI = (() => {
         if (logoutBtn) setVisibility(logoutBtn, isAuthenticated, 'inline-flex');
 
         if (userBadge) {
-            userBadge.textContent = isAuthenticated ? `Xin chào, ${currentUser.username}` : '';
+            userBadge.textContent = isAuthenticated ? `Hello, ${currentUser.username}` : '';
             setVisibility(userBadge, isAuthenticated, 'inline-flex');
         }
 
         if (primaryAction && secondaryAction && ctaTitle && ctaCopy && ctaNote) {
             if (isAuthenticated) {
-                ctaTitle.textContent = 'Tài khoản đã sẵn sàng';
-                ctaCopy.textContent = 'Bạn có thể mở ngay khu thu thập ảnh, dùng camera trực tiếp, xem lại thư viện dữ liệu và truy cập khu quản trị nếu được cấp quyền.';
-                ctaNote.textContent = 'Phiên đăng nhập đang hoạt động. Hệ thống sẽ giữ nguyên trạng thái người dùng khi bạn chuyển qua các khu làm việc.';
-                primaryAction.textContent = 'Mở khu thu thập ảnh';
+                ctaTitle.textContent = 'Your Account is Ready';
+                ctaCopy.textContent = 'You can now access the image collection hub, use live camera capture, browse your data library, and access the admin panel if you have the required permissions.';
+                ctaNote.textContent = 'Session is active. The system will maintain your user state as you switch between workspaces.';
+                primaryAction.textContent = 'Open Image Collection';
                 primaryAction.href = '/?tab=thu-thap';
-                secondaryAction.textContent = 'Mở thư viện dữ liệu';
+                secondaryAction.textContent = 'Open Data Library';
                 secondaryAction.href = '/?tab=gallery';
             } else {
-                ctaTitle.textContent = 'Cùng xây dựng Dataset';
-                ctaCopy.textContent = 'Đăng nhập để theo dõi lịch sử đóng góp, được ghi danh, và tham gia cộng đồng. Bạn vẫn có thể trải nghiệm AI thu thập ảnh ẩn danh nếu muốn.';
-                ctaNote.textContent = 'Ảnh ẩn danh được chia sẻ vào thư viện cộng đồng chung.';
-                primaryAction.textContent = 'Trải nghiệm Upload (Khách)';
+                ctaTitle.textContent = 'Build the Dataset Together';
+                ctaCopy.textContent = 'Sign in to track your contribution history, get credited, and join the community. You can still try the AI image collection anonymously if you prefer.';
+                ctaNote.textContent = 'Anonymous images are shared into the community library.';
+                primaryAction.textContent = 'Try Upload (Guest)';
                 primaryAction.href = '/?tab=thu-thap';
-                secondaryAction.textContent = 'Mở Thư viện (Khách)';
+                secondaryAction.textContent = 'Open Library (Guest)';
                 secondaryAction.href = '/?tab=gallery';
             }
         }

@@ -16,18 +16,18 @@ const Camera = (() => {
     };
 
     function mapCameraError(err) {
-        if (!err || !err.name) return 'Không thể mở camera. Vui lòng thử lại.';
+        if (!err || !err.name) return 'Unable to open camera. Please try again.';
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')
-            return 'Bạn đã từ chối quyền dùng camera. Hãy cấp quyền cho trình duyệt rồi thử lại.';
+            return 'Camera access was denied. Please grant camera permissions in your browser settings and try again.';
         if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError')
-            return 'Không tìm thấy camera trên thiết bị này.';
+            return 'No camera found on this device.';
         if (err.name === 'NotReadableError' || err.name === 'TrackStartError')
-            return 'Camera đang được ứng dụng khác sử dụng. Hãy đóng ứng dụng đó rồi thử lại.';
+            return 'Camera is in use by another application. Please close it and try again.';
         if (err.name === 'OverconstrainedError' || err.name === 'ConstraintNotSatisfiedError')
-            return 'Thiết bị không hỗ trợ cấu hình camera đã chọn.';
+            return 'This device does not support the selected camera configuration.';
         if (err.name === 'SecurityError')
-            return 'Trình duyệt đang chặn camera vì lý do bảo mật. Hãy dùng HTTPS hoặc localhost.';
-        return `Không thể mở camera: ${err.message || err.name}`;
+            return 'Browser is blocking camera access for security reasons. Please use HTTPS or localhost.';
+        return `Unable to open camera: ${err.message || err.name}`;
     }
 
     function updateAutoSaveUI() {
@@ -35,12 +35,12 @@ const Camera = (() => {
         if (!label) return;
         const isMobile = window.matchMedia('(max-width: 768px)').matches;
         if (isMobile) {
-            label.textContent = state.autoSaveEnabled ? 'Tự lưu: Bật' : 'Tự lưu: Tắt';
+            label.textContent = state.autoSaveEnabled ? 'Auto-save: On' : 'Auto-save: Off';
             return;
         }
         label.textContent = state.autoSaveEnabled
-            ? 'Tự lưu không cần thiết lập: Bật'
-            : 'Tự lưu không cần thiết lập: Tắt';
+            ? 'Auto-save without setup: On'
+            : 'Auto-save without setup: Off';
     }
 
     function updateSettingsUI() {
@@ -52,10 +52,10 @@ const Camera = (() => {
         camPage.classList.toggle('settings-hidden', !state.settingsVisible);
 
         if (fullText && mobileText) {
-            fullText.textContent = state.settingsVisible ? 'Ẩn thiết lập' : 'Hiển thị thiết lập';
-            mobileText.textContent = state.settingsVisible ? 'Ẩn' : 'Thiết lập';
+            fullText.textContent = state.settingsVisible ? 'Hide settings' : 'Show settings';
+            mobileText.textContent = state.settingsVisible ? 'Hide' : 'Settings';
         } else if (toggleBtn) {
-            toggleBtn.textContent = state.settingsVisible ? 'Ẩn thiết lập' : 'Hiển thị thiết lập';
+            toggleBtn.textContent = state.settingsVisible ? 'Hide settings' : 'Show settings';
         }
 
         updateAutoSaveUI();
@@ -78,13 +78,13 @@ const Camera = (() => {
         if (state.isOn) return;
 
         if (!window.isSecureContext) {
-            status.textContent = 'Camera cần HTTPS hoặc localhost để hoạt động.';
+            status.textContent = 'Camera requires HTTPS or localhost to work.';
             status.className = 'status-msg error';
             return;
         }
 
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            status.textContent = 'Trình duyệt không hỗ trợ truy cập camera.';
+            status.textContent = 'Your browser does not support camera access.';
             status.className = 'status-msg error';
             return;
         }
@@ -111,7 +111,7 @@ const Camera = (() => {
             document.getElementById('camera-overlay').hidden = true;
             document.getElementById('capture-btn').disabled = false;
             toggleBtn.classList.add('active');
-            document.getElementById('toggle-cam-icon').textContent = 'Tắt camera';
+            document.getElementById('toggle-cam-icon').textContent = 'Stop camera';
             state.isOn = true;
             status.textContent = '';
             status.className = 'status-msg';
@@ -132,7 +132,7 @@ const Camera = (() => {
         document.getElementById('camera-overlay').hidden = false;
         document.getElementById('capture-btn').disabled = true;
         toggleBtn.classList.remove('active');
-        document.getElementById('toggle-cam-icon').textContent = 'Mở camera';
+        document.getElementById('toggle-cam-icon').textContent = 'Start camera';
         state.isOn = false;
     }
 

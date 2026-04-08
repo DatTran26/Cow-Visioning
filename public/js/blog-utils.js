@@ -1,6 +1,16 @@
 // blog-utils.js — Shared utilities for blog modules
 // Exposed as window.BlogUtils
 window.BlogUtils = (() => {
+    const REACTION_CATALOG = {
+        like: { emoji: '👍', label: 'Like' },
+        love: { emoji: '❤️', label: 'Love' },
+        care: { emoji: '🥰', label: 'Care' },
+        haha: { emoji: '😄', label: 'Haha' },
+        wow: { emoji: '😮', label: 'Wow' },
+        sad: { emoji: '😢', label: 'Sad' },
+        angry: { emoji: '😠', label: 'Angry' },
+    };
+
     function buildApiUrl(path) {
         const base = typeof API_BASE === 'string' ? API_BASE.replace(/\/$/, '') : '';
         return `${base}${path}`;
@@ -48,5 +58,42 @@ window.BlogUtils = (() => {
         return d.toLocaleString('en-US');
     }
 
-    return { buildApiUrl, fetchJson, escapeHtml, setStatus, formatTime };
+    function getReactionCatalog() {
+        return Object.entries(REACTION_CATALOG).map(([type, meta]) => ({ type, ...meta }));
+    }
+
+    function getReactionMeta(type) {
+        return REACTION_CATALOG[type] || REACTION_CATALOG.like;
+    }
+
+    function normalizeReactionSummary(summary) {
+        if (!summary || typeof summary !== 'object') return {};
+        const normalized = {};
+        for (const key of Object.keys(summary)) {
+            if (!REACTION_CATALOG[key]) continue;
+            const value = Number(summary[key] || 0);
+            if (value > 0) normalized[key] = value;
+        }
+        return normalized;
+    }
+
+    function getReactionBadges(summary, maxItems = 3) {
+        const normalized = normalizeReactionSummary(summary);
+        return Object.entries(normalized)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, maxItems)
+            .map(([type, count]) => ({ type, count, ...getReactionMeta(type) }));
+    }
+
+    return {
+        buildApiUrl,
+        fetchJson,
+        escapeHtml,
+        setStatus,
+        formatTime,
+        getReactionCatalog,
+        getReactionMeta,
+        normalizeReactionSummary,
+        getReactionBadges,
+    };
 })();

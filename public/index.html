@@ -13,6 +13,7 @@
     href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap"
     rel="stylesheet" />
   <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/blog.css" />
 </head>
 
 <body>
@@ -354,10 +355,10 @@
     <div id="tab-thu-thap" class="tab-panel app-panel">
       <div class="app-inner">
         <h1>Collect Images</h1>
-        <p class="app-sub">Upload or capture directly &mdash; AI will automatically analyze behavior and draw bounding boxes</p>
+        <p class="app-sub">Upload images with YOLO or Tool Pro, or capture directly with the YOLO camera pipeline.</p>
 
         <!-- AI Status Bar (user-facing, read-only) -->
-        <div class="ai-status-bar" id="ai-status-bar">
+        <div class="ai-status-bar" id="ai-status-bar" hidden>
           <div class="ai-status-indicator">
             <span class="ai-status-dot" id="ai-status-dot"></span>
             <span id="ai-status-text">AI: Loading...</span>
@@ -367,6 +368,7 @@
             <span class="ai-param" title="IOU Threshold">IOU: <strong id="ai-user-iou">--</strong></span>
             <span class="ai-param" title="Max Detections">Max: <strong id="ai-user-maxdet">--</strong></span>
             <span class="ai-param" title="Device">Device: <strong id="ai-user-device">--</strong></span>
+            <span class="ai-param" title="Tool Pro Mode">Tool Pro: <strong id="ai-user-toolpro">--</strong></span>
           </div>
         </div>
 
@@ -383,7 +385,7 @@
                 id="cow-id" placeholder="e.g. COW-001" required /></div>
             <div class="form-group"><label for="barn-area">Barn Zone</label><input type="text" id="barn-area"
                 placeholder="e.g. Barn A1" /></div>
-            <div class="form-group"><label for="upload-behavior">Behavior (if AI is off)</label>
+            <div class="form-group"><label for="upload-behavior">Behavior (optional)</label>
               <select id="upload-behavior">
                 <option value="standing">Standing</option>
                 <option value="lying">Lying</option>
@@ -392,6 +394,7 @@
                 <option value="walking">Walking</option>
                 <option value="abnormal">Abnormal</option>
               </select>
+              <p class="form-hint">Used as a manual or fallback label. Processing mode is selected automatically from Admin AI settings.</p>
             </div>
             <div class="form-group"><label for="captured-at">Capture Time</label><input type="datetime-local"
                 id="captured-at" /></div>
@@ -538,6 +541,7 @@
         <!-- Behavior chip filters -->
         <div class="gal-chips" role="group" aria-label="Filter by behavior">
           <button class="gal-chip gal-chip-all active" data-behavior="">All</button>
+          <button class="gal-chip gal-chip-tool-pro" id="gal-chip-tool-pro" data-tool-pro="1">Tool Pro</button>
           <button class="gal-chip gal-chip-standing" data-behavior="standing">Standing</button>
           <button class="gal-chip gal-chip-lying" data-behavior="lying">Lying</button>
           <button class="gal-chip gal-chip-eating" data-behavior="eating">Eating</button>
@@ -562,6 +566,7 @@
             <option value="walking">Walking</option>
             <option value="abnormal">Abnormal</option>
           </select>
+          <input type="hidden" id="filter-tool-pro" value="" />
           <div class="gal-search-field">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
             <input type="text" id="filter-barn" placeholder="Zone..." aria-label="Filter by zone" />
@@ -616,22 +621,62 @@
       <div class="app-inner blog-layout">
         <div class="blog-page-grid">
           <aside class="blog-left-rail">
-            <div class="blog-rail-card">
-              <h3>Your Page</h3>
-              <p>Manage content, interact, and follow the latest posts in the community.</p>
-            </div>
+            <a href="#" class="blog-profile-badge">
+              <div class="blog-profile-avatar" id="blog-user-badge-initial">?</div>
+              <span class="blog-profile-name" id="blog-user-badge-name">Loading...</span>
+            </a>
             <div class="blog-rail-card">
               <h3>Shortcuts</h3>
               <ul class="blog-rail-list">
-                <li>Saved posts</li>
-                <li>My posts</li>
-                <li>Followed topics</li>
+                <li data-blog-shortcut="saved">Saved posts</li>
+                <li data-blog-shortcut="my-posts">My posts</li>
+                <li data-blog-shortcut="followed">Followed topics</li>
               </ul>
             </div>
           </aside>
 
           <section class="blog-center-rail">
-            <section class="blog-quick-create">
+            <section class="blog-profile-view" id="blog-profile-view" hidden>
+              <div class="blog-profile-shell">
+                <div class="blog-profile-cover">
+                  <div class="blog-profile-cover-glow"></div>
+                  <div class="blog-profile-identity">
+                    <div class="blog-profile-hero-avatar" id="blog-profile-avatar">?</div>
+                    <div class="blog-profile-hero-copy">
+                      <p class="blog-profile-kicker">Cow Visioning Journal</p>
+                      <h2 id="blog-profile-title">Profile</h2>
+                      <p id="blog-profile-subtitle">All published posts will appear here.</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="blog-profile-toolbar">
+                  <div class="blog-profile-stats">
+                    <div class="blog-profile-stat">
+                      <span class="blog-profile-stat-label">Posts</span>
+                      <strong id="blog-profile-post-count">0</strong>
+                    </div>
+                    <div class="blog-profile-stat">
+                      <span class="blog-profile-stat-label">Total likes</span>
+                      <strong id="blog-profile-like-count">0</strong>
+                    </div>
+                    <div class="blog-profile-stat">
+                      <span class="blog-profile-stat-label">Comments</span>
+                      <strong id="blog-profile-comment-count">0</strong>
+                    </div>
+                  </div>
+                  <div class="blog-profile-actions">
+                    <button type="button" class="btn btn-secondary" id="blog-profile-back-btn">Back to feed</button>
+                  </div>
+                </div>
+              </div>
+
+              <section class="blog-feed-section blog-profile-posts">
+                <h2 id="blog-profile-posts-heading">Posts</h2>
+                <div id="blog-profile-feed" class="blog-feed"></div>
+              </section>
+            </section>
+
+            <section class="blog-quick-create" id="blog-quick-create">
               <div class="blog-quick-create-row">
                 <div class="blog-avatar" aria-hidden="true">🐄</div>
                 <button type="button" class="blog-mind-btn" id="blog-open-composer-btn">What's on your mind?</button>
@@ -657,9 +702,18 @@
                   </div>
                   <div class="form-group full-width">
                     <label for="blog-image">Post Image (optional)</label>
-                    <input type="file" id="blog-image" accept="image/*" />
-                    <div id="blog-image-preview" class="blog-image-preview" hidden>
-                      <img id="blog-image-preview-img" alt="Post image preview" />
+                    <div class="blog-file-upload">
+                      <input type="file" id="blog-image" accept="image/*" hidden />
+                      <label for="blog-image" class="blog-file-upload-trigger">
+                        <span class="blog-file-upload-icon" aria-hidden="true">⤴</span>
+                        <span>Choose image</span>
+                      </label>
+                      <div class="blog-file-upload-meta">
+                        <span id="blog-image-file-name" class="blog-file-upload-name">No image selected</span>
+                        <span class="blog-file-upload-note">PNG, JPG, WEBP up to 10 MB</span>
+                      </div>
+                    </div>
+                    <div id="blog-image-clear-row" hidden>
                       <button type="button" class="btn btn-link" id="blog-image-clear-btn">Remove selected image</button>
                     </div>
                   </div>
@@ -674,10 +728,11 @@
                 <section class="blog-preview-pane">
                   <h2>Post Preview</h2>
                   <article class="blog-card blog-card-preview" id="blog-live-preview">
+                  <div class="blog-card-inner">
                   <header class="blog-card-header">
-                    <div>
+                    <div class="blog-card-header-left">
                       <h3 id="blog-preview-title">Post title will appear here</h3>
-                      <p>By <strong>You</strong> · <span id="blog-preview-time"></span></p>
+                      <p>By <strong>You</strong> &middot; <span id="blog-preview-time"></span></p>
                     </div>
                     <div class="blog-card-actions">
                       <button class="btn btn-secondary" type="button" disabled>Like (0)</button>
@@ -685,19 +740,22 @@
                   </header>
                   <div class="blog-card-content" id="blog-preview-content">Preview content will update automatically as you type.</div>
                   <div class="blog-post-images" id="blog-preview-images" hidden></div>
+                  </div>
+                  <div class="blog-card-footer-area">
                   <section class="blog-comments">
                     <h4>Comments (0)</h4>
                     <ul class="blog-comment-list">
                       <li class="blog-comment-item blog-comment-empty">Comments will appear after publishing.</li>
                     </ul>
                   </section>
+                  </div>
                   </article>
                 </section>
               </div>
             </div>
 
-            <section class="blog-feed-section">
-              <h2>Latest Posts</h2>
+            <section class="blog-feed-section" id="blog-main-feed-section">
+              <h2 id="blog-main-feed-heading">Latest Posts</h2>
               <div id="blog-feed" class="blog-feed"></div>
             </section>
           </section>
@@ -705,15 +763,26 @@
           <aside class="blog-right-rail">
             <div class="blog-rail-card">
               <h3>Trending</h3>
-              <ul class="blog-rail-list">
-                <li>#AICowMonitoring</li>
-                <li>#DatasetCollection</li>
-                <li>#FarmAutomation</li>
-              </ul>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <div class="blog-trending-tag"><span class="tag-icon">#</span><span class="tag-text">#AICowMonitoring</span><span class="tag-num">12</span></div>
+                <div class="blog-trending-tag"><span class="tag-icon">#</span><span class="tag-text">#DatasetCollection</span><span class="tag-num">9</span></div>
+                <div class="blog-trending-tag"><span class="tag-icon">#</span><span class="tag-text">#FarmAutomation</span><span class="tag-num">7</span></div>
+              </div>
             </div>
             <div class="blog-rail-card">
               <h3>Suggested Connections</h3>
-              <p>Follow active members to stay updated faster.</p>
+              <div style="display:flex;flex-direction:column">
+                <div class="blog-suggested-member">
+                  <div class="blog-member-avatar">R</div>
+                  <div class="blog-member-info"><div class="blog-member-name">researcher_01</div><div class="blog-member-role">AI Researcher</div></div>
+                  <button class="blog-follow-btn">Follow</button>
+                </div>
+                <div class="blog-suggested-member">
+                  <div class="blog-member-avatar">D</div>
+                  <div class="blog-member-info"><div class="blog-member-name">dev_farmer</div><div class="blog-member-role">Smart Farming</div></div>
+                  <button class="blog-follow-btn">Follow</button>
+                </div>
+              </div>
             </div>
           </aside>
         </div>
@@ -735,11 +804,21 @@
           <h2 class="admin-section-title">AI Detection Configuration</h2>
           <div class="admin-ai-grid">
             <div class="admin-ai-card">
-              <label class="admin-label">AI Enabled</label>
+              <label class="admin-label">AI Enabled (YOLO)</label>
               <label class="admin-toggle">
                 <input type="checkbox" id="admin-ai-enabled" checked />
                 <span class="admin-toggle-slider"></span>
               </label>
+              <p class="admin-card-note">Controls the local YOLO pipeline used by camera capture and upload mode "YOLO".</p>
+            </div>
+
+            <div class="admin-ai-card">
+              <label class="admin-label">Tool Pro (OpenAI)</label>
+              <label class="admin-toggle">
+                <input type="checkbox" id="admin-tool-pro-enabled" />
+                <span class="admin-toggle-slider"></span>
+              </label>
+              <p class="admin-card-note">Runs the separate OpenAI labeling flow for uploaded images and enables the Tool Pro filter in Gallery.</p>
             </div>
 
             <div class="admin-ai-card">
@@ -822,6 +901,48 @@
     </div>
   </div>
 
+  <!-- EDIT IMAGE MODAL -->
+  <div class="modal-overlay" id="edit-image-modal" hidden>
+    <div class="modal gal-edit-modal">
+      <h3>Edit Image Info</h3>
+      <form id="edit-image-form" class="gal-edit-form">
+        <input type="hidden" id="edit-image-id" />
+        <div class="form-group">
+          <label for="edit-cow-id">Cow ID <span class="req">*</span></label>
+          <input type="text" id="edit-cow-id" maxlength="100" required />
+        </div>
+        <div class="form-group">
+          <label for="edit-behavior">Behavior <span class="req">*</span></label>
+          <select id="edit-behavior" required>
+            <option value="standing">Standing</option>
+            <option value="lying">Lying</option>
+            <option value="eating">Eating</option>
+            <option value="drinking">Drinking</option>
+            <option value="walking">Walking</option>
+            <option value="abnormal">Abnormal</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="edit-barn-area">Barn Zone</label>
+          <input type="text" id="edit-barn-area" maxlength="200" />
+        </div>
+        <div class="form-group">
+          <label for="edit-captured-at">Capture Time</label>
+          <input type="datetime-local" id="edit-captured-at" />
+        </div>
+        <div class="form-group full-width">
+          <label for="edit-notes">Notes</label>
+          <textarea id="edit-notes" rows="3" maxlength="4000"></textarea>
+        </div>
+        <div id="edit-image-status" class="status-msg"></div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" type="button" id="cancel-edit-image">Cancel</button>
+          <button class="btn btn-primary" type="submit" id="save-edit-image">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- GALLERY LIGHTBOX -->
   <div class="gal-lightbox" id="gal-lightbox" hidden role="dialog" aria-label="Image preview">
     <button class="gal-lightbox-close" id="gal-lightbox-close" aria-label="Close preview">
@@ -840,22 +961,23 @@
       <div class="chat-av">🐄</div>
       <div>
         <h4>Cow Visioning Assistant</h4>
-        <p><span class="chat-dot"></span>Active</p>
+        <p><span class="chat-dot"></span>Agriculture Focus</p>
       </div>
       <button class="chat-x" id="chatX">✕</button>
     </div>
     <div class="chat-msgs" id="chatMsgs">
       <div class="msg bot">
-        <div class="msg-bbl">Hello! 👋 I'm the <strong>Cow Visioning</strong> assistant. Ask me about capturing images, uploading, or exporting datasets!</div>
+        <div class="msg-bbl">Xin chào, tôi là trợ lý Cow Visioning. Bạn có thể hỏi về nông nghiệp, chăn nuôi bò, stress nhiệt, dinh dưỡng, hoặc cách dùng hệ thống upload, camera và export dữ liệu.</div>
       </div>
     </div>
     <div class="chat-chips">
-      <span class="chip" onclick="chatAsk('How to upload images?')">📤 Upload</span>
-      <span class="chip" onclick="chatAsk('What is Burst Mode?')">📷 Burst Mode</span>
-      <span class="chip" onclick="chatAsk('How to export CSV?')">📊 Export data</span>
+      <span class="chip" onclick="chatAsk('Cách upload ảnh vào hệ thống?')">📤 Upload ảnh</span>
+      <span class="chip" onclick="chatAsk('Bò ăn kém thì nên kiểm tra những gì trước?')">🌾 Bò ăn kém</span>
+      <span class="chip" onclick="chatAsk('Dấu hiệu stress nhiệt ở bò là gì?')">🌡️ Stress nhiệt</span>
+      <span class="chip" onclick="chatAsk('Xuất dữ liệu CSV ở đâu?')">📊 Export CSV</span>
     </div>
     <div class="chat-inp-row">
-      <input class="chat-inp" id="chatInp" placeholder="Ask a question..." />
+      <input class="chat-inp" id="chatInp" placeholder="Hỏi về nông nghiệp hoặc cách dùng hệ thống..." />
       <button class="chat-send" id="chatSend">➤</button>
     </div>
   </div>
@@ -893,6 +1015,19 @@
   <script src="js/app-helpers.js"></script>
   <script>
     // ── TAB SWITCHING ──
+    function syncTopnavState() {
+      const tnav = document.getElementById('topnav');
+      if (!tnav) return;
+
+      const activeNav = document.querySelector('.topnav-item.active');
+      const activeTab = activeNav?.dataset?.tab || 'home';
+      const isHomeAtTop = activeTab === 'home' && window.scrollY <= 24;
+
+      tnav.classList.toggle('home-top', isHomeAtTop);
+      tnav.classList.toggle('scrolled', !isHomeAtTop);
+      tnav.classList.toggle('is-solid', activeTab !== 'home');
+    }
+
     function switchTab(name) {
       const protectedTabs = new Set(['thu-thap', 'gallery', 'export', 'blog', 'admin']);
       if (protectedTabs.has(name) && typeof AppSession !== 'undefined' && !AppSession.requireAuth(name)) {
@@ -934,6 +1069,7 @@
         }
       }
       if (name !== 'thu-thap' && typeof Camera !== 'undefined' && typeof Camera.stopCamera === 'function') Camera.stopCamera();
+      syncTopnavState();
     }
 
     // ── SUB TABS (Upload / Camera within Thu thap) ──
@@ -961,8 +1097,8 @@
     });
 
     // ── NAVBAR SCROLL ──
-    const tnav = document.getElementById('topnav');
-    window.addEventListener('scroll', () => { tnav.classList.toggle('scrolled', window.scrollY > 80); });
+    window.addEventListener('scroll', syncTopnavState);
+    syncTopnavState();
 
     // ── PARALLAX HERO ──
     const heroBg = document.querySelector('.ci-hero-bg');
@@ -995,21 +1131,139 @@
     }
 
     // ── CHATBOT ──
-    const fab = document.getElementById('chatFab'), win = document.getElementById('chatWin');
-    fab.addEventListener('click', () => { win.classList.toggle('open'); fab.querySelector('.chat-notif').style.display = 'none'; });
+    const fab = document.getElementById('chatFab');
+    const win = document.getElementById('chatWin');
+    const chatMsgs = document.getElementById('chatMsgs');
+    const chatInp = document.getElementById('chatInp');
+    const chatSend = document.getElementById('chatSend');
+    const chatChips = document.querySelectorAll('.chat-chips .chip');
+    const chatState = { history: [], busy: false, typingEl: null };
+
+    fab.addEventListener('click', () => {
+      win.classList.toggle('open');
+      fab.querySelector('.chat-notif').style.display = 'none';
+    });
     document.getElementById('chatX').addEventListener('click', () => win.classList.remove('open'));
-    const answers = {
-      upload: 'Go to the <strong>Upload Images</strong> tab &rarr; drag and drop images into the dropzone. Supports JPG/PNG/WebP up to 10MB. 📤',
-      burst: '<strong>Burst Mode</strong>: Hold the capture button in the Camera tab &rarr; the system auto-captures ~1 image every 500ms. 📷',
-      csv: 'Go to the <strong>Export Data</strong> tab &rarr; click "Load Data" &rarr; choose CSV or JSON. 📊',
-      camera: '<strong>Camera</strong> tab &rarr; click 📷 to open webcam &rarr; configure settings &rarr; capture images. 🎥',
-      def: 'You can ask about: uploading images, camera features, Burst Mode, or how to export the dataset! 😊'
-    };
-    function getAns(q) { q = q.toLowerCase(); if (q.includes('upload') || q.includes('how to upload')) return answers.upload; if (q.includes('burst') || q.includes('continuous')) return answers.burst; if (q.includes('csv') || q.includes('export')) return answers.csv; if (q.includes('camera') || q.includes('capture')) return answers.camera; return answers.def; }
-    function addMsg(txt, role) { const d = document.createElement('div'); d.className = 'msg ' + role; d.innerHTML = `<div class="msg-bbl">${txt}</div>`; document.getElementById('chatMsgs').appendChild(d); document.getElementById('chatMsgs').scrollTop = 9999; }
-    function chatAsk(q) { addMsg(q, 'user'); setTimeout(() => addMsg(getAns(q), 'bot'), 500); }
-    document.getElementById('chatSend').addEventListener('click', () => { const v = document.getElementById('chatInp').value.trim(); if (v) { chatAsk(v); document.getElementById('chatInp').value = ''; } });
-    document.getElementById('chatInp').addEventListener('keydown', e => { if (e.key === 'Enter') { const v = e.target.value.trim(); if (v) { chatAsk(v); e.target.value = '' } } });
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function formatChatText(value) {
+      const safe = escapeHtml(value).replace(/\n{2,}/g, '<br><br>').replace(/\n/g, '<br>');
+      return window.DOMPurify ? DOMPurify.sanitize(safe) : safe;
+    }
+
+    function scrollChatToBottom() {
+      chatMsgs.scrollTop = chatMsgs.scrollHeight;
+    }
+
+    function addMsg(txt, role, extraClass = '') {
+      const d = document.createElement('div');
+      d.className = `msg ${role}${extraClass ? ' ' + extraClass : ''}`;
+      d.innerHTML = `<div class="msg-bbl">${formatChatText(txt)}</div>`;
+      chatMsgs.appendChild(d);
+      scrollChatToBottom();
+      return d;
+    }
+
+    function showTyping() {
+      if (chatState.typingEl) return;
+      const d = document.createElement('div');
+      d.className = 'msg bot msg-typing';
+      d.innerHTML = `
+        <div class="msg-bbl" aria-label="Assistant is typing">
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+        </div>`;
+      chatMsgs.appendChild(d);
+      chatState.typingEl = d;
+      scrollChatToBottom();
+    }
+
+    function hideTyping() {
+      if (chatState.typingEl) {
+        chatState.typingEl.remove();
+        chatState.typingEl = null;
+      }
+    }
+
+    function setChatBusy(isBusy) {
+      chatState.busy = isBusy;
+      chatInp.disabled = isBusy;
+      chatSend.disabled = isBusy;
+      chatSend.setAttribute('aria-busy', isBusy ? 'true' : 'false');
+      chatChips.forEach((chip) => chip.classList.toggle('disabled', isBusy));
+    }
+
+    async function requestAssistantReply(message) {
+      const res = await fetch('/api/assistant/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message,
+          history: chatState.history.slice(-8),
+        }),
+      });
+
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload.error || 'Không thể kết nối tới trợ lý.');
+      }
+
+      const answer = payload?.data?.answer;
+      if (!answer) {
+        throw new Error('Trợ lý chưa trả về nội dung hợp lệ.');
+      }
+
+      return answer;
+    }
+
+    async function chatAsk(q) {
+      const question = String(q || '').trim();
+      if (!question || chatState.busy) return;
+
+      addMsg(question, 'user');
+      chatState.history.push({ role: 'user', content: question });
+      showTyping();
+      setChatBusy(true);
+
+      try {
+        const answer = await requestAssistantReply(question);
+        hideTyping();
+        addMsg(answer, 'bot');
+        chatState.history.push({ role: 'assistant', content: answer });
+      } catch (err) {
+        hideTyping();
+        addMsg(err.message || 'Có lỗi xảy ra khi gọi trợ lý.', 'bot', 'error');
+      } finally {
+        setChatBusy(false);
+        chatInp.focus();
+      }
+    }
+
+    window.chatAsk = chatAsk;
+
+    chatSend.addEventListener('click', () => {
+      const v = chatInp.value.trim();
+      if (!v) return;
+      chatAsk(v);
+      chatInp.value = '';
+    });
+
+    chatInp.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const v = e.target.value.trim();
+      if (!v) return;
+      chatAsk(v);
+      e.target.value = '';
+    });
 
     // ── RIPPLE KEYFRAMES ──
     const s = document.createElement('style');
@@ -1175,22 +1429,38 @@
     // ── USER-FACING AI STATUS ──
     (function() {
       function renderAiStatus(s) {
+        const bar = document.getElementById('ai-status-bar');
         const dot = document.getElementById('ai-status-dot');
         const txt = document.getElementById('ai-status-text');
-        if (!dot || !txt || !s) return;
+        if (!bar || !dot || !txt || !s) return;
+
+        if (!s.AI_ENABLED) {
+          bar.hidden = true;
+          if (typeof AiDisplay !== 'undefined' && typeof AiDisplay.setPublicSettings === 'function') {
+            AiDisplay.setPublicSettings(s);
+          }
+          return;
+        }
+
+        bar.hidden = false;
 
         dot.classList.remove('active', 'inactive');
-        if (s.AI_ENABLED) {
+
+        if (s.AI_ENABLED || s.AI_TOOL_PRO_ENABLED) {
           dot.classList.add('active');
-          txt.textContent = 'AI: Active';
+          txt.textContent = s.AI_ENABLED ? 'YOLO: Active' : 'YOLO: Disabled';
         } else {
           dot.classList.add('inactive');
-          txt.textContent = 'AI: Disabled';
+          txt.textContent = 'YOLO: Disabled';
+        }
+        if (typeof AiDisplay !== 'undefined' && typeof AiDisplay.setPublicSettings === 'function') {
+          AiDisplay.setPublicSettings(s);
         }
         document.getElementById('ai-user-conf').textContent = Number(s.AI_CONF_THRESHOLD).toFixed(2);
         document.getElementById('ai-user-iou').textContent = Number(s.AI_IOU_THRESHOLD).toFixed(2);
         document.getElementById('ai-user-maxdet').textContent = s.AI_MAX_DET;
         document.getElementById('ai-user-device').textContent = String(s.AI_DEVICE || '--').toUpperCase();
+        document.getElementById('ai-user-toolpro').textContent = s.AI_TOOL_PRO_ENABLED ? 'ON' : 'OFF';
       }
 
       async function loadAiStatus() {
@@ -1199,8 +1469,15 @@
           const result = await res.json();
           if (!res.ok) throw new Error(result.error);
           renderAiStatus(result.data);
+          document.dispatchEvent(
+            new CustomEvent('app:ai-public-settings-ready', {
+              detail: { settings: result.data },
+            })
+          );
         } catch (e) {
+          const bar = document.getElementById('ai-status-bar');
           const txt = document.getElementById('ai-status-text');
+          if (bar) bar.hidden = true;
           if (txt) txt.textContent = 'AI: Unable to load configuration';
         }
       }

@@ -30,11 +30,15 @@ window.CameraAI = (() => {
         const lastThumb = document.getElementById('cam-last-thumb');
 
         if (!resultCard || !record) return;
+        if (!AiDisplay.hasAiResult(record)) {
+            hideAiResult();
+            return;
+        }
 
         const displayUrl = record.annotated_image_url || record.image_url || record.original_image_url || '';
         imageEl.src = displayUrl;
         behaviorEl.textContent = BEHAVIOR_MAP[record.behavior] || record.behavior || 'Unknown';
-        metaEl.textContent = buildAiMeta(record);
+        metaEl.textContent = [AiDisplay.getAiProviderLabel(record), buildAiMeta(record)].filter(Boolean).join(' • ');
 
         if (record.original_image_url) {
             originalLink.href = record.original_image_url;
@@ -51,5 +55,19 @@ window.CameraAI = (() => {
         resultCard.hidden = false;
     }
 
-    return { renderAiResult, buildAiSummary, buildAiMeta, formatConfidence };
+    function hideAiResult() {
+        const resultCard = document.getElementById('cam-ai-result');
+        const imageEl = document.getElementById('cam-ai-image');
+        const originalLink = document.getElementById('cam-ai-original-link');
+
+        if (!resultCard) return;
+        resultCard.hidden = true;
+        if (imageEl) imageEl.src = '';
+        if (originalLink) {
+            originalLink.hidden = true;
+            originalLink.removeAttribute('href');
+        }
+    }
+
+    return { renderAiResult, buildAiSummary, buildAiMeta, formatConfidence, hideAiResult };
 })();

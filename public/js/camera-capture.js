@@ -131,6 +131,8 @@ window.CameraCapture = (() => {
                 formData.append('barn_area', barnAreaToSave);
                 formData.append('captured_at', new Date().toISOString());
                 formData.append('notes', notesToSave);
+                formData.append('capture_source', 'camera');
+                formData.append('processing_mode', 'yolo');
 
                 const res = await fetch(`${API_BASE}/api/images`, {
                     method: 'POST',
@@ -141,10 +143,14 @@ window.CameraCapture = (() => {
                 if (!res.ok) throw new Error(result.details || result.error || 'Failed to save image');
 
                 const savedRecord = result.data || null;
-                if (savedRecord) CameraAI.renderAiResult(savedRecord);
+                if (AiDisplay.hasAiResult(savedRecord)) {
+                    CameraAI.renderAiResult(savedRecord);
+                } else if (typeof CameraAI.hideAiResult === 'function') {
+                    CameraAI.hideAiResult();
+                }
 
                 cameraStatus.textContent = savedRecord
-                    ? `Image saved. ${CameraAI.buildAiSummary(savedRecord)}`
+                    ? `Image saved. ${AiDisplay.buildAiStateMessage(savedRecord, 'yolo')}`
                     : 'Image captured and saved successfully.';
                 cameraStatus.className = 'status-msg success';
             } catch (err) {

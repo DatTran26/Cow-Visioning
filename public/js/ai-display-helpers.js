@@ -1,18 +1,57 @@
-// ai-display-helpers.js — Shared AI display utilities (upload + camera)
-// Extracted from upload.js and camera-ai-display.js
-// Exposed as window.AiDisplay = { buildAiSummary, buildAiMeta, formatConfidence }
-// Note: BEHAVIOR_MAP is defined in api-config.js as window.BEHAVIOR_MAP
-// Note: renderAiResult is kept module-specific (different DOM elements per module)
+// ai-display-helpers.js - Shared AI display utilities (upload + camera + gallery)
+// Exposed as window.AiDisplay.
 window.AiDisplay = (() => {
+    let publicSettings = {
+        AI_ENABLED: true,
+        AI_TOOL_PRO_ENABLED: false,
+    };
+
+    function setPublicSettings(nextSettings) {
+        publicSettings = {
+            ...publicSettings,
+            ...(nextSettings || {}),
+        };
+    }
+
+    function isToolProFeatureEnabled() {
+        return Boolean(publicSettings.AI_TOOL_PRO_ENABLED);
+    }
+
+    function isYoloActive() {
+        return Boolean(publicSettings.AI_ENABLED);
+    }
+
+    function isToolProActive() {
+        return Boolean(publicSettings.AI_TOOL_PRO_ENABLED);
+    }
+
     function formatConfidence(value) {
         return typeof value === 'number' ? `${(value * 100).toFixed(1)}%` : '';
+    }
+
+    function hasAiResult(record) {
+        return Boolean(
+            record
+            && record.ai_status === 'completed'
+            && (record.annotated_image_url || typeof record.ai_confidence === 'number')
+        );
+    }
+
+    function getAiProviderLabel(record) {
+        const provider = String(record?.ai_provider || '').toLowerCase();
+        if (provider === 'tool_pro') return 'Tool Pro';
+        if (provider === 'yolo') return 'YOLO';
+        if (provider === 'manual' || record?.ai_status === 'manual') return 'Manual';
+        return 'AI';
     }
 
     function buildAiSummary(record, prefix) {
         const label = BEHAVIOR_MAP[record.behavior] || record.behavior || 'unknown';
         const confidence = formatConfidence(record.ai_confidence);
-        const p = prefix || 'AI detected';
-        return confidence ? `${p}: ${label} (${confidence})` : `${p}: ${label}`;
+        const summaryPrefix = prefix || 'AI detected';
+        return confidence
+            ? `${summaryPrefix}: ${label} (${confidence})`
+            : `${summaryPrefix}: ${label}`;
     }
 
     function buildAiMeta(record) {
@@ -24,5 +63,35 @@ window.AiDisplay = (() => {
         return parts.join(' • ');
     }
 
-    return { buildAiSummary, buildAiMeta, formatConfidence };
+    function buildAiStateMessage(record, requestedMode = 'manual') {
+        const mode = String(requestedMode || '').toLowerCase();
+        const providerLabel = getAiProviderLabel(record);
+
+        if (hasAiResult(record)) {
+            return buildAiSummary(record, providerLabel);
+        }
+        if (record?.ai_status === 'failed') {
+            return `Saved image, but ${providerLabel} could not process it.`;
+        }
+        if (mode === 'yolo' && !isYoloActive()) {
+            return 'Saved image without YOLO analysis.';
+        }
+        if (mode === 'tool_pro' && !isToolProActive()) {
+            return 'Saved image without Tool Pro analysis.';
+        }
+        return 'Saved image without AI analysis.';
+    }
+
+    return {
+        buildAiMeta,
+        buildAiSummary,
+        buildAiStateMessage,
+        formatConfidence,
+        getAiProviderLabel,
+        hasAiResult,
+        isYoloActive,
+        isToolProActive,
+        isToolProFeatureEnabled,
+        setPublicSettings,
+    };
 })();

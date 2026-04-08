@@ -83,6 +83,7 @@ const Upload = (() => {
         const capturedAt = document.getElementById('captured-at').value;
         const notes = document.getElementById('notes').value.trim();
         const behavior = document.getElementById('upload-behavior').value;
+        const processingMode = getProcessingMode();
 
         if (!cowId) {
             showStatus(status, 'Please enter a Cow ID.', 'error');
@@ -95,7 +96,11 @@ const Upload = (() => {
 
         uploadBtn.disabled = true;
         progress.hidden = false;
-        showStatus(status, 'Uploading images and sending to AI for analysis...', 'info');
+        showStatus(
+            status,
+            buildProcessingMessage(processingMode),
+            'info'
+        );
 
         let uploaded = 0;
         let processed = 0;
@@ -112,6 +117,8 @@ const Upload = (() => {
                 formData.append('captured_at', capturedAt || new Date().toISOString());
                 formData.append('notes', notes);
                 formData.append('behavior', behavior);
+                formData.append('capture_source', 'upload');
+                formData.append('processing_mode', processingMode);
 
                 const res = await fetch(`${API_BASE}/api/images`, {
                     method: 'POST',
@@ -125,8 +132,10 @@ const Upload = (() => {
 
                 uploaded += 1;
                 lastSuccessfulRecord = result.data || null;
-                if (lastSuccessfulRecord) {
+                if (AiDisplay.hasAiResult(lastSuccessfulRecord)) {
                     renderAiResult(lastSuccessfulRecord);
+                } else {
+                    hideAiResult();
                 }
             } catch (err) {
                 console.error('Upload error:', err);
@@ -140,7 +149,11 @@ const Upload = (() => {
         uploadBtn.disabled = false;
 
         if (uploaded === total && lastSuccessfulRecord) {
-            showStatus(status, `Successfully uploaded ${uploaded} image(s). ${AiDisplay.buildAiSummary(lastSuccessfulRecord)}`, 'success');
+            showStatus(
+                status,
+                `Successfully uploaded ${uploaded} image(s). ${AiDisplay.buildAiStateMessage(lastSuccessfulRecord, processingMode)}`,
+                'success'
+            );
             selectedFiles = [];
             document.getElementById('file-preview').innerHTML = '';
         } else if (uploaded > 0 && lastSuccessfulRecord) {
@@ -150,7 +163,7 @@ const Upload = (() => {
                 'error'
             );
         } else {
-            showStatus(status, `AI processing failed: ${failures[0] || 'unknown'}`, 'error');
+            showStatus(status, `Upload failed: ${failures[0] || 'unknown'}`, 'error');
         }
 
         setTimeout(() => {
@@ -167,10 +180,14 @@ const Upload = (() => {
         const originalLink = document.getElementById('upload-ai-original-link');
 
         if (!card || !record) return;
+        if (!AiDisplay.hasAiResult(record)) {
+            hideAiResult();
+            return;
+        }
 
         image.src = record.annotated_image_url || record.image_url || record.original_image_url || '';
         behavior.textContent = BEHAVIOR_MAP[record.behavior] || record.behavior || 'Unknown';
-        meta.textContent = AiDisplay.buildAiMeta(record);
+        meta.textContent = [AiDisplay.getAiProviderLabel(record), AiDisplay.buildAiMeta(record)].filter(Boolean).join(' • ');
 
         if (record.original_image_url) {
             originalLink.href = record.original_image_url;
@@ -182,10 +199,47 @@ const Upload = (() => {
         card.hidden = false;
     }
 
+    function hideAiResult() {
+        const card = document.getElementById('upload-ai-result');
+        const image = document.getElementById('upload-ai-image');
+        const originalLink = document.getElementById('upload-ai-original-link');
+
+        if (!card) return;
+        card.hidden = true;
+        if (image) image.src = '';
+        if (originalLink) {
+            originalLink.hidden = true;
+            originalLink.removeAttribute('href');
+        }
+    }
+
     function showStatus(element, message, type) {
         element.textContent = message;
         element.className = `status-msg ${type}`;
     }
 
+    function getProcessingMode() {
+        if (AiDisplay.isYoloActive()) {
+            return 'yolo';
+        }
+        if (AiDisplay.isToolProActive()) {
+            return 'tool_pro';
+        }
+        return 'manual';
+    }
+
+    function buildProcessingMessage(processingMode) {
+        if (processingMode === 'yolo') {
+            return AiDisplay.isYoloActive()
+                ? 'Uploading images and running YOLO analysis...'
+                : 'Uploading images. YOLO is currently off, so manual labels will be kept.';
+        }
+        if (processingMode === 'tool_pro') {
+            return AiDisplay.isToolProActive()
+                ? 'Uploading images and sending them to Tool Pro...'
+                : 'Uploading images. Tool Pro is currently off, so manual labels will be kept.';
+        }
+        return 'Uploading images without AI analysis...';
+    }
     return { init };
 })();

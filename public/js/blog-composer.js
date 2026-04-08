@@ -103,13 +103,12 @@ window.BlogComposer = (() => {
         if (!file.type.startsWith('image/')) { clearSelectedImage(); BlogUtils.setStatus('Only image files are accepted.', 'error'); return; }
         if (file.size > 10 * 1024 * 1024) { clearSelectedImage(); BlogUtils.setStatus('Image must be under 10 MB.', 'error'); return; }
         selectedImageFile = file;
-        const previewWrap = document.getElementById('blog-image-preview');
-        const previewImg = document.getElementById('blog-image-preview-img');
-        if (!previewWrap || !previewImg) return;
+        const fileName = document.getElementById('blog-image-file-name');
+        const clearRow = document.getElementById('blog-image-clear-row');
         if (selectedImagePreviewUrl) URL.revokeObjectURL(selectedImagePreviewUrl);
         selectedImagePreviewUrl = URL.createObjectURL(file);
-        previewImg.src = selectedImagePreviewUrl;
-        previewWrap.hidden = false;
+        if (fileName) fileName.textContent = file.name;
+        if (clearRow) clearRow.hidden = false;
         renderComposerPreview();
     }
 
@@ -117,11 +116,11 @@ window.BlogComposer = (() => {
         selectedImageFile = null;
         if (selectedImagePreviewUrl) { URL.revokeObjectURL(selectedImagePreviewUrl); selectedImagePreviewUrl = null; }
         const input = document.getElementById('blog-image');
-        const previewWrap = document.getElementById('blog-image-preview');
-        const previewImg = document.getElementById('blog-image-preview-img');
+        const fileName = document.getElementById('blog-image-file-name');
+        const clearRow = document.getElementById('blog-image-clear-row');
         if (input) input.value = '';
-        if (previewImg) previewImg.src = '';
-        if (previewWrap) previewWrap.hidden = true;
+        if (fileName) fileName.textContent = 'No image selected';
+        if (clearRow) clearRow.hidden = true;
         renderComposerPreview();
     }
 

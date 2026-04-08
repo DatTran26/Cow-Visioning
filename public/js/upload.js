@@ -96,11 +96,7 @@ const Upload = (() => {
 
         uploadBtn.disabled = true;
         progress.hidden = false;
-        showStatus(
-            status,
-            buildProcessingMessage(processingMode),
-            'info'
-        );
+        showStatus(status, buildProcessingMessage(processingMode), 'info');
 
         let uploaded = 0;
         let processed = 0;
@@ -185,9 +181,9 @@ const Upload = (() => {
             return;
         }
 
-        image.src = record.annotated_image_url || record.image_url || record.original_image_url || '';
+        setAiPreviewImage(image, record);
         behavior.textContent = BEHAVIOR_MAP[record.behavior] || record.behavior || 'Unknown';
-        meta.textContent = [AiDisplay.getAiProviderLabel(record), AiDisplay.buildAiMeta(record)].filter(Boolean).join(' • ');
+        meta.innerHTML = AiDisplay.buildAiMetaMarkup(record);
 
         if (record.original_image_url) {
             originalLink.href = record.original_image_url;
@@ -202,14 +198,73 @@ const Upload = (() => {
     function hideAiResult() {
         const card = document.getElementById('upload-ai-result');
         const image = document.getElementById('upload-ai-image');
+        const meta = document.getElementById('upload-ai-meta');
         const originalLink = document.getElementById('upload-ai-original-link');
+        const media = image?.closest('.ai-result-media');
 
         if (!card) return;
         card.hidden = true;
-        if (image) image.src = '';
+        if (image) {
+            image.onload = null;
+            image.onerror = null;
+            image.removeAttribute('src');
+            delete image.dataset.previewCandidates;
+            delete image.dataset.previewIndex;
+        }
+        if (media) media.classList.remove('is-empty');
+        if (meta) meta.innerHTML = '';
         if (originalLink) {
             originalLink.hidden = true;
             originalLink.removeAttribute('href');
+        }
+    }
+
+    function setAiPreviewImage(image, record) {
+        const media = image?.closest('.ai-result-media');
+        if (!image || !media) return;
+
+        const candidates = [...new Set([
+            record?.annotated_image_url,
+            record?.original_image_url,
+            record?.image_url,
+        ].filter(Boolean))];
+
+        image.onload = () => {
+            media.classList.remove('is-empty');
+        };
+
+        image.onerror = () => {
+            const nextIndex = Number(image.dataset.previewIndex || '0') + 1;
+            const nextCandidates = safeParsePreviewCandidates(image.dataset.previewCandidates);
+
+            if (nextIndex < nextCandidates.length) {
+                image.dataset.previewIndex = String(nextIndex);
+                image.src = nextCandidates[nextIndex];
+                return;
+            }
+
+            image.removeAttribute('src');
+            media.classList.add('is-empty');
+        };
+
+        if (!candidates.length) {
+            image.removeAttribute('src');
+            media.classList.add('is-empty');
+            return;
+        }
+
+        media.classList.remove('is-empty');
+        image.dataset.previewCandidates = JSON.stringify(candidates);
+        image.dataset.previewIndex = '0';
+        image.src = candidates[0];
+    }
+
+    function safeParsePreviewCandidates(rawValue) {
+        try {
+            const parsed = JSON.parse(rawValue || '[]');
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+            return [];
         }
     }
 
@@ -241,5 +296,6 @@ const Upload = (() => {
         }
         return 'Uploading images without AI analysis...';
     }
+
     return { init };
 })();

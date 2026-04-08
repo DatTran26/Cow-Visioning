@@ -1,4 +1,4 @@
-// camera-ai-display.js — AI result rendering for camera tab
+// camera-ai-display.js - AI result rendering for camera tab
 // Exposes window.CameraAI = { renderAiResult, buildAiSummary, buildAiMeta, formatConfidence }
 // Note: BEHAVIOR_MAP is defined in api-config.js as window.BEHAVIOR_MAP
 window.CameraAI = (() => {
@@ -38,7 +38,7 @@ window.CameraAI = (() => {
         const displayUrl = record.annotated_image_url || record.image_url || record.original_image_url || '';
         imageEl.src = displayUrl;
         behaviorEl.textContent = BEHAVIOR_MAP[record.behavior] || record.behavior || 'Unknown';
-        metaEl.textContent = [AiDisplay.getAiProviderLabel(record), buildAiMeta(record)].filter(Boolean).join(' • ');
+        metaEl.innerHTML = AiDisplay.buildAiMetaMarkup(record);
 
         if (record.original_image_url) {
             originalLink.href = record.original_image_url;
@@ -58,11 +58,13 @@ window.CameraAI = (() => {
     function hideAiResult() {
         const resultCard = document.getElementById('cam-ai-result');
         const imageEl = document.getElementById('cam-ai-image');
+        const metaEl = document.getElementById('cam-ai-meta');
         const originalLink = document.getElementById('cam-ai-original-link');
 
         if (!resultCard) return;
         resultCard.hidden = true;
         if (imageEl) imageEl.src = '';
+        if (metaEl) metaEl.innerHTML = '';
         if (originalLink) {
             originalLink.hidden = true;
             originalLink.removeAttribute('href');

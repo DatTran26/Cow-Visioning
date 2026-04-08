@@ -1,4 +1,7 @@
-require('dotenv').config();
+const dotenv = require('dotenv');
+// In production this app is often started by PM2/systemd with inherited env vars.
+// Force `.env` to win so blank/stale process-level values do not mask local config.
+dotenv.config({ override: true });
 
 const express = require('express');
 const multer = require('multer');
@@ -157,7 +160,35 @@ const DEFAULT_OPENAI_CHAT_SYSTEM_PROMPT = [
 const OPENAI_CHAT_SYSTEM_PROMPT = (
     process.env.OPENAI_CHAT_SYSTEM_PROMPT || DEFAULT_OPENAI_CHAT_SYSTEM_PROMPT
 ).trim();
+const OPENAI_BLOG_DRAFT_MODEL = (process.env.OPENAI_BLOG_DRAFT_MODEL || OPENAI_CHAT_MODEL || 'gpt-5').trim();
+const OPENAI_BLOG_DRAFT_REASONING_EFFORT = normalizeOpenAiReasoningEffort(
+    process.env.OPENAI_BLOG_DRAFT_REASONING_EFFORT,
+    'low'
+);
+const OPENAI_BLOG_DRAFT_MAX_OUTPUT_TOKENS = Math.max(
+    500,
+    Math.min(parseInt(process.env.OPENAI_BLOG_DRAFT_MAX_OUTPUT_TOKENS || '2200', 10), 5000)
+);
+const OPENAI_BLOG_IMAGE_MODEL = (process.env.OPENAI_BLOG_IMAGE_MODEL || 'gpt-image-1').trim();
+const OPENAI_BLOG_IMAGE_SIZE = normalizeText(process.env.OPENAI_BLOG_IMAGE_SIZE || '1024x1024', 20) || '1024x1024';
+const OPENAI_BLOG_MAX_DRAFTS = Math.max(1, Math.min(parseInt(process.env.OPENAI_BLOG_MAX_DRAFTS || '4', 10), 6));
+const DEFAULT_OPENAI_BLOG_SYSTEM_PROMPT = [
+    'You are an agriculture content strategist for Cow Visioning.',
+    'Write practical blog drafts about cattle farming, livestock operations, AI monitoring, herd health, barn workflow, welfare, nutrition, heat stress, reproduction, and farm productivity.',
+    'Match the language of the user prompt.',
+    'Keep each draft useful, concrete, readable, and publication-ready.',
+    'Avoid hype, fake claims, and unverifiable statistics.',
+    'Return only the requested JSON object and nothing else.',
+].join(' ');
+const OPENAI_BLOG_SYSTEM_PROMPT = (
+    process.env.OPENAI_BLOG_SYSTEM_PROMPT || DEFAULT_OPENAI_BLOG_SYSTEM_PROMPT
+).trim();
 const ENFORCE_EXCLUSIVE_AI_MODES = true;
+const DOTENV_FILE_PATH = path.resolve(__dirname, '.env');
+let dotenvFallbackCache = {
+    mtimeMs: null,
+    values: {},
+};
 const aiServiceHost = (() => {
     try {
         return new URL(AI_SERVICE_URL).hostname;
@@ -167,6 +198,48 @@ const aiServiceHost = (() => {
 })();
 const AI_EMBED_IMAGE_PAYLOAD = process.env.AI_EMBED_IMAGE_PAYLOAD === 'true'
     || !['localhost', '127.0.0.1', '::1'].includes(String(aiServiceHost).toLowerCase());
+
+function loadDotenvFallbackValues() {
+    try {
+        const stats = fs.statSync(DOTENV_FILE_PATH);
+        if (dotenvFallbackCache.mtimeMs === stats.mtimeMs) {
+            return dotenvFallbackCache.values;
+        }
+
+        const raw = fs.readFileSync(DOTENV_FILE_PATH, 'utf8');
+        const values = dotenv.parse(raw);
+        dotenvFallbackCache = {
+            mtimeMs: stats.mtimeMs,
+            values,
+        };
+        return values;
+    } catch (_err) {
+        dotenvFallbackCache = {
+            mtimeMs: null,
+            values: {},
+        };
+        return dotenvFallbackCache.values;
+    }
+}
+
+function getRuntimeEnvValue(name, fallback = '') {
+    const liveValue = String(process.env[name] || '').trim();
+    if (liveValue) {
+        return liveValue;
+    }
+
+    const dotenvValues = loadDotenvFallbackValues();
+    const fileValue = String(dotenvValues[name] || '').trim();
+    if (fileValue) {
+        return fileValue;
+    }
+
+    return fallback;
+}
+
+function getOpenAiApiKey() {
+    return getRuntimeEnvValue('OPENAI_API_KEY', OPENAI_API_KEY);
+}
 
 function ensureDir(dirPath) {
     fs.mkdirSync(dirPath, { recursive: true });
@@ -539,6 +612,33 @@ function deleteUploadFile(uploadUrl, warningPrefix) {
     }
 }
 
+function mimeTypeToExtension(mimeType) {
+    const normalized = String(mimeType || '').trim().toLowerCase();
+    if (normalized.includes('png')) return '.png';
+    if (normalized.includes('webp')) return '.webp';
+    if (normalized.includes('gif')) return '.gif';
+    return '.jpg';
+}
+
+async function persistGeneratedBlogImage({ imageBuffer, mimeType, requestId }) {
+    const outputDir = buildDatedUploadDir('blog');
+    const safeId = String(requestId || crypto.randomUUID()).replace(/[^a-zA-Z0-9_-]/g, '') || crypto.randomUUID();
+    const ext = mimeTypeToExtension(mimeType);
+    const filePath = path.join(outputDir, `${safeId}-ai${ext}`);
+    await fs.promises.writeFile(filePath, imageBuffer);
+
+    const uploadUrl = toUploadUrl(filePath);
+    if (!uploadUrl) {
+        throw new Error('Generated blog image path is outside the uploads directory');
+    }
+
+    return {
+        image_url: toFullUrl(uploadUrl),
+        upload_url: uploadUrl,
+        file_name: path.basename(filePath),
+    };
+}
+
 function toFullUrl(url) {
     if (!url || url.startsWith('http') || !IMAGE_BASE_URL) return url;
     return `${IMAGE_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
@@ -649,6 +749,7 @@ function createOpenAiUploadPredictionError(payload) {
 }
 
 async function performOpenAiAssistantChatRequest({ message, history, requestId, maxOutputTokens, reasoningEffort, signal }) {
+    const openAiApiKey = getOpenAiApiKey();
     const input = normalizeChatHistory(history).map((item) => ({
         role: item.role,
         content: item.content,
@@ -673,7 +774,7 @@ async function performOpenAiAssistantChatRequest({ message, history, requestId, 
     const response = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: {
-            Authorization: `Bearer ${OPENAI_API_KEY}`,
+            Authorization: `Bearer ${openAiApiKey}`,
             'Content-Type': 'application/json',
             'X-Client-Request-Id': requestId,
         },
@@ -709,7 +810,7 @@ function normalizeChatHistory(history) {
 }
 
 async function requestOpenAiAssistantChat({ message, history = [], requestId }) {
-    if (!OPENAI_API_KEY) {
+    if (!getOpenAiApiKey()) {
         throw new Error('OPENAI_API_KEY is not configured');
     }
 
@@ -791,6 +892,186 @@ function parseLooseJsonObject(text) {
     }
 }
 
+function normalizeBlogDraft(draft, index = 0) {
+    const fallbackNumber = index + 1;
+    const title = normalizeText(draft?.title || '', 255) || `AI Draft ${fallbackNumber}`;
+    const content = normalizeText(draft?.content || '', 10000);
+    const imagePrompt = normalizeText(
+        draft?.image_prompt || draft?.imagePrompt || `Editorial blog cover about ${title}`,
+        1000
+    );
+
+    if (!content || content.length < 40) {
+        throw new Error(`AI returned an incomplete draft for item ${fallbackNumber}`);
+    }
+
+    return {
+        title,
+        content,
+        image_prompt: imagePrompt,
+        excerpt: `${content.slice(0, 180)}${content.length > 180 ? '...' : ''}`,
+    };
+}
+
+async function requestOpenAiBlogDrafts({ prompt, count, includeImages, requestId }) {
+    const openAiApiKey = getOpenAiApiKey();
+    if (!openAiApiKey) {
+        throw new Error('OPENAI_API_KEY is not configured');
+    }
+
+    const normalizedPrompt = normalizeText(prompt, 2000);
+    if (!normalizedPrompt) {
+        throw new Error('Prompt is empty');
+    }
+
+    const safeCount = Math.max(1, Math.min(Number(count) || 1, OPENAI_BLOG_MAX_DRAFTS));
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
+
+    try {
+        const body = {
+            model: OPENAI_BLOG_DRAFT_MODEL,
+            instructions: OPENAI_BLOG_SYSTEM_PROMPT,
+            input: [
+                {
+                    role: 'user',
+                    content: [
+                        'Create blog post drafts for the Cow Visioning blog.',
+                        `Generate exactly ${safeCount} distinct drafts from this prompt: ${normalizedPrompt}`,
+                        'Return JSON only in this shape:',
+                        '{"drafts":[{"title":"...","content":"...","image_prompt":"..."}]}',
+                        'Each title should be concise and publishable.',
+                        'Each content should be 2 to 5 short paragraphs, practical, and ready to post.',
+                        'Each image_prompt should describe a realistic blog cover image that matches the article.',
+                    ].join(' '),
+                },
+            ],
+            max_output_tokens: OPENAI_BLOG_DRAFT_MAX_OUTPUT_TOKENS,
+        };
+
+        if (supportsReasoningControls(OPENAI_BLOG_DRAFT_MODEL)) {
+            body.reasoning = { effort: OPENAI_BLOG_DRAFT_REASONING_EFFORT };
+        }
+
+        const response = await fetch('https://api.openai.com/v1/responses', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${openAiApiKey}`,
+                'Content-Type': 'application/json',
+                'X-Client-Request-Id': requestId,
+            },
+            body: JSON.stringify(body),
+            signal: controller.signal,
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const message = payload?.error?.message || payload?.message || `OpenAI returned HTTP ${response.status}`;
+            throw new Error(message);
+        }
+
+        const rawText = extractOpenAiTextPayload(payload);
+        if (!rawText) {
+            throw createOpenAiAssistantChatError(payload);
+        }
+
+        const parsed = parseLooseJsonObject(rawText);
+        const drafts = Array.isArray(parsed?.drafts) ? parsed.drafts : [];
+        if (!drafts.length) {
+            throw new Error('AI did not return any blog drafts');
+        }
+
+        const normalizedDrafts = [];
+        for (let index = 0; index < drafts.length && normalizedDrafts.length < safeCount; index += 1) {
+            normalizedDrafts.push({
+                id: crypto.randomUUID(),
+                ...normalizeBlogDraft(drafts[index], index),
+            });
+        }
+
+        if (includeImages) {
+            for (let index = 0; index < normalizedDrafts.length; index += 1) {
+                try {
+                    const imageResult = await requestOpenAiBlogImage({
+                        prompt: normalizedDrafts[index].image_prompt,
+                        requestId: `${requestId}-${index + 1}`,
+                    });
+                    normalizedDrafts[index].image = imageResult;
+                } catch (imageErr) {
+                    normalizedDrafts[index].image_error = imageErr.message;
+                }
+            }
+        }
+
+        return normalizedDrafts;
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            throw new Error(`OpenAI blog draft request timed out after ${OPENAI_TIMEOUT_MS}ms`);
+        }
+        throw err;
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+async function requestOpenAiBlogImage({ prompt, requestId }) {
+    const openAiApiKey = getOpenAiApiKey();
+    if (!openAiApiKey) {
+        throw new Error('OPENAI_API_KEY is not configured');
+    }
+
+    const normalizedPrompt = normalizeText(prompt, 1000);
+    if (!normalizedPrompt) {
+        throw new Error('Image prompt is empty');
+    }
+
+    const response = await fetch('https://api.openai.com/v1/images/generations', {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${openAiApiKey}`,
+            'Content-Type': 'application/json',
+            'X-Client-Request-Id': requestId,
+        },
+        body: JSON.stringify({
+            model: OPENAI_BLOG_IMAGE_MODEL,
+            prompt: normalizedPrompt,
+            size: OPENAI_BLOG_IMAGE_SIZE,
+        }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        const message = payload?.error?.message || payload?.message || `OpenAI image generation returned HTTP ${response.status}`;
+        throw new Error(message);
+    }
+
+    const imageItem = Array.isArray(payload?.data) ? payload.data[0] : null;
+    if (!imageItem) {
+        throw new Error('OpenAI did not return any generated image');
+    }
+
+    if (imageItem.b64_json) {
+        const mimeType = imageItem.mime_type || 'image/png';
+        return persistGeneratedBlogImage({
+            imageBuffer: Buffer.from(imageItem.b64_json, 'base64'),
+            mimeType,
+            requestId,
+        });
+    }
+
+    if (imageItem.url) {
+        const imageResponse = await fetch(imageItem.url);
+        if (!imageResponse.ok) {
+            throw new Error('Unable to download generated image');
+        }
+        const mimeType = imageResponse.headers.get('content-type') || 'image/png';
+        const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+        return persistGeneratedBlogImage({ imageBuffer, mimeType, requestId });
+    }
+
+    throw new Error('OpenAI image generation response did not contain usable image data');
+}
+
 function normalizeOpenAiClassification(payload) {
     const behavior = normalizeText(payload?.behavior || payload?.predicted_behavior, 50).toLowerCase();
     if (!allowedBehaviors.has(behavior)) {
@@ -813,7 +1094,8 @@ function normalizeBehaviorValue(value) {
 }
 
 async function requestOpenAiUploadPrediction({ imagePath, requestId, imageMimeType }) {
-    if (!OPENAI_API_KEY) {
+    const openAiApiKey = getOpenAiApiKey();
+    if (!openAiApiKey) {
         throw new Error('OPENAI_API_KEY is not configured');
     }
 
@@ -858,7 +1140,7 @@ async function requestOpenAiUploadPrediction({ imagePath, requestId, imageMimeTy
             const response = await fetch('https://api.openai.com/v1/responses', {
                 method: 'POST',
                 headers: {
-                    Authorization: `Bearer ${OPENAI_API_KEY}`,
+                    Authorization: `Bearer ${openAiApiKey}`,
                     'Content-Type': 'application/json',
                     'X-Client-Request-Id': requestId,
                 },
@@ -1207,7 +1489,7 @@ app.post('/api/assistant/chat', assistantChatLimiter, async (req, res) => {
             return res.status(400).json({ error: 'Thiếu nội dung câu hỏi.' });
         }
 
-        if (!OPENAI_API_KEY) {
+        if (!getOpenAiApiKey()) {
             return res.status(503).json({
                 error: 'OPENAI_API_KEY chưa được cấu hình trên server.',
             });
@@ -1295,7 +1577,7 @@ app.post('/api/images', authRequired, postWriteLimiter, datasetUpload.single('im
             try {
                 if (captureSource !== 'upload') {
                     aiStatus = 'unsupported';
-                } else if (!aiSettings.AI_TOOL_PRO_ENABLED || !OPENAI_UPLOAD_ENABLED || !OPENAI_API_KEY) {
+                } else if (!aiSettings.AI_TOOL_PRO_ENABLED || !OPENAI_UPLOAD_ENABLED || !getOpenAiApiKey()) {
                     aiStatus = 'tool_pro_off';
                 } else {
                     prediction = await requestOpenAiUploadPrediction({
@@ -1574,6 +1856,42 @@ app.delete('/api/images/:id', authRequired, async (req, res) => {
     } catch (err) {
         console.error('DELETE /api/images/:id error:', err);
         return res.status(500).json({ error: 'Xoá thất bại' });
+    }
+});
+
+app.post('/api/blog/ai/drafts', authRequired, postWriteLimiter, async (req, res) => {
+    try {
+        const prompt = normalizeText(req.body.prompt, 2000);
+        const requestedCount = Number(req.body.count);
+        const count = Math.max(1, Math.min(Number.isFinite(requestedCount) ? requestedCount : 1, OPENAI_BLOG_MAX_DRAFTS));
+        const includeImages = req.body.includeImages !== false;
+
+        if (!prompt || prompt.length < 8) {
+            return res.status(400).json({ error: 'Prompt must be at least 8 characters long' });
+        }
+
+        if (!getOpenAiApiKey()) {
+            return res.status(503).json({ error: 'OPENAI_API_KEY is not configured' });
+        }
+
+        const requestId = `blog_ai_${crypto.randomUUID()}`;
+        const drafts = await requestOpenAiBlogDrafts({
+            prompt,
+            count,
+            includeImages,
+            requestId,
+        });
+
+        return res.json({
+            success: true,
+            data: {
+                drafts,
+                requestId,
+            },
+        });
+    } catch (err) {
+        console.error('POST /api/blog/ai/drafts error:', err.message);
+        return res.status(500).json({ error: err.message || 'Unable to generate AI blog drafts' });
     }
 });
 

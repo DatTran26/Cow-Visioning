@@ -63,6 +63,39 @@ window.AiDisplay = (() => {
         return parts.join(' • ');
     }
 
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function buildAiMetaItems(record) {
+        const items = [];
+        const providerLabel = getAiProviderLabel(record);
+        const confidence = formatConfidence(record.ai_confidence);
+
+        if (providerLabel) items.push({ label: 'Mode', value: providerLabel });
+        if (confidence) items.push({ label: 'Confidence', value: confidence });
+        if (typeof record.detection_count === 'number') items.push({ label: 'Detections', value: record.detection_count });
+        if (typeof record.ai_inference_ms === 'number') items.push({ label: 'Processing Time', value: `${Math.round(record.ai_inference_ms)} ms` });
+
+        return items;
+    }
+
+    function buildAiMetaMarkup(record) {
+        return buildAiMetaItems(record)
+            .map((item) => [
+                '<div class="ai-result-meta-item">',
+                `<span class="ai-result-meta-label">${escapeHtml(item.label)}</span>`,
+                `<span class="ai-result-meta-value">${escapeHtml(item.value)}</span>`,
+                '</div>',
+            ].join(''))
+            .join('');
+    }
+
     function buildAiStateMessage(record, requestedMode = 'manual') {
         const mode = String(requestedMode || '').toLowerCase();
         const providerLabel = getAiProviderLabel(record);
@@ -84,6 +117,8 @@ window.AiDisplay = (() => {
 
     return {
         buildAiMeta,
+        buildAiMetaItems,
+        buildAiMetaMarkup,
         buildAiSummary,
         buildAiStateMessage,
         formatConfidence,

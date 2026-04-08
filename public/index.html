@@ -380,58 +380,61 @@
 
         <!-- UPLOAD PANEL -->
         <div id="upload-panel" class="sub-panel active">
-          <form id="upload-form" class="form-grid">
-            <div class="form-group"><label for="cow-id">Cow ID <span class="req">*</span></label><input type="text"
-                id="cow-id" placeholder="e.g. COW-001" required /></div>
-            <div class="form-group"><label for="barn-area">Barn Zone</label><input type="text" id="barn-area"
-                placeholder="e.g. Barn A1" /></div>
-            <div class="form-group"><label for="upload-behavior">Behavior (optional)</label>
-              <select id="upload-behavior">
-                <option value="standing">Standing</option>
-                <option value="lying">Lying</option>
-                <option value="eating">Eating</option>
-                <option value="drinking">Drinking</option>
-                <option value="walking">Walking</option>
-                <option value="abnormal">Abnormal</option>
-              </select>
-              <p class="form-hint">Used as a manual or fallback label. Processing mode is selected automatically from Admin AI settings.</p>
-            </div>
-            <div class="form-group"><label for="captured-at">Capture Time</label><input type="datetime-local"
-                id="captured-at" /></div>
-            <div class="form-group full-width"><label for="notes">Notes</label><textarea id="notes" rows="2"
-                placeholder="Add a note..."></textarea></div>
-            <div class="form-group full-width">
-              <label>Select Images <span class="req">*</span></label>
-              <div class="dropzone" id="dropzone">
-                <span class="dropzone-icon">
-                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                </span>
-                <p>Drag &amp; drop images here or <strong>click to browse</strong></p>
-                <p class="dropzone-hint">JPG, PNG, WebP &mdash; Max 10MB/image</p>
-                <input type="file" id="file-input" multiple accept="image/*" hidden />
+          <div class="upload-workspace">
+            <form id="upload-form" class="form-grid upload-form-grid">
+              <div class="form-group"><label for="cow-id">Cow ID <span class="req">*</span></label><input type="text"
+                  id="cow-id" placeholder="e.g. COW-001" required /></div>
+              <div class="form-group"><label for="barn-area">Barn Zone</label><input type="text" id="barn-area"
+                  placeholder="e.g. Barn A1" /></div>
+              <div class="form-group"><label for="upload-behavior">Behavior (optional)</label>
+                <select id="upload-behavior">
+                  <option value="standing">Standing</option>
+                  <option value="lying">Lying</option>
+                  <option value="eating">Eating</option>
+                  <option value="drinking">Drinking</option>
+                  <option value="walking">Walking</option>
+                  <option value="abnormal">Abnormal</option>
+                </select>
+                <p class="form-hint">Used as a manual or fallback label. Processing mode is selected automatically from Admin AI settings.</p>
               </div>
-              <div id="file-preview" class="file-preview"></div>
-            </div>
-            <div class="form-group full-width"><button type="submit" class="btn btn-primary" id="upload-btn">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
-              Upload Images
-            </button></div>
-            <div id="upload-progress" class="progress-bar" hidden>
-              <div class="progress-fill"></div>
-            </div>
-            <div id="upload-status" class="status-msg"></div>
-            <div id="upload-ai-result" class="ai-result-card" hidden>
+              <div class="form-group"><label for="captured-at">Capture Time</label><input type="datetime-local"
+                  id="captured-at" /></div>
+              <div class="form-group full-width"><label for="notes">Notes</label><textarea id="notes" rows="2"
+                  placeholder="Add a note..."></textarea></div>
+              <div class="form-group full-width">
+                <label>Select Images <span class="req">*</span></label>
+                <div class="dropzone" id="dropzone">
+                  <span class="dropzone-icon">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  </span>
+                  <p>Drag &amp; drop images here or <strong>click to browse</strong></p>
+                  <p class="dropzone-hint">JPG, PNG, WebP &mdash; Max 10MB/image</p>
+                  <input type="file" id="file-input" multiple accept="image/*" hidden />
+                </div>
+                <div id="file-preview" class="file-preview"></div>
+              </div>
+              <div class="form-group full-width"><button type="submit" class="btn btn-primary" id="upload-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+                Upload Images
+              </button></div>
+              <div id="upload-progress" class="progress-bar" hidden>
+                <div class="progress-fill"></div>
+              </div>
+              <div id="upload-status" class="status-msg"></div>
+            </form>
+            <aside id="upload-ai-result" class="ai-result-card ai-result-sidebar" hidden>
               <div class="ai-result-media">
                 <img id="upload-ai-image" alt="AI annotated result" />
+                <span class="ai-result-media-placeholder">Preview unavailable</span>
               </div>
               <div class="ai-result-body">
                 <p class="ai-result-eyebrow">Latest AI Result</p>
                 <h3 id="upload-ai-behavior">Waiting for analysis</h3>
-                <p id="upload-ai-meta" class="ai-result-meta"></p>
+                <div id="upload-ai-meta" class="ai-result-meta"></div>
                 <a id="upload-ai-original-link" class="ai-result-link" href="#" target="_blank" rel="noopener" hidden>View original</a>
               </div>
-            </div>
-          </form>
+            </aside>
+          </div>
         </div><!-- /upload-panel -->
 
         <!-- CAMERA PANEL -->
@@ -461,7 +464,7 @@
                 <div class="ai-result-body">
                   <p class="ai-result-eyebrow">Last processed image</p>
                   <h3 id="cam-ai-behavior">Waiting for analysis</h3>
-                  <p id="cam-ai-meta" class="ai-result-meta"></p>
+                  <div id="cam-ai-meta" class="ai-result-meta"></div>
                   <a id="cam-ai-original-link" class="ai-result-link" href="#" target="_blank" rel="noopener" hidden>View original</a>
                 </div>
               </div>
@@ -692,6 +695,43 @@
                 </div>
                 <section class="blog-composer">
                 <form id="blog-post-form" class="blog-form">
+                  <div class="blog-ai-assist">
+                    <div class="blog-ai-assist-header">
+                      <div>
+                        <p class="blog-ai-kicker">AI Writer</p>
+                        <h3>Generate blog drafts from a prompt</h3>
+                      </div>
+                      <span class="blog-ai-badge">Beta</span>
+                    </div>
+                    <div class="form-group full-width">
+                      <label for="blog-ai-prompt">Prompt for AI</label>
+                      <textarea id="blog-ai-prompt" rows="4" maxlength="2000" placeholder="Ví dụ: Viết 3 bài về cách phát hiện bò bị stress nhiệt, giọng điệu thực tế cho nông hộ Việt Nam, có CTA nhẹ ở cuối..."></textarea>
+                    </div>
+                    <div class="blog-ai-controls">
+                      <div class="form-group">
+                        <label for="blog-ai-draft-count">Number of draft posts</label>
+                        <select id="blog-ai-draft-count">
+                          <option value="1">1 draft</option>
+                          <option value="2">2 drafts</option>
+                          <option value="3" selected>3 drafts</option>
+                          <option value="4">4 drafts</option>
+                        </select>
+                      </div>
+                      <label class="blog-ai-checkbox">
+                        <input type="checkbox" id="blog-ai-include-images" checked />
+                        <span>Generate cover images</span>
+                      </label>
+                      <button type="button" class="btn btn-secondary" id="blog-ai-generate-btn">Generate with AI</button>
+                    </div>
+                    <div id="blog-ai-status" class="status-msg"></div>
+                    <div id="blog-ai-suggestions-wrap" class="blog-ai-suggestions-wrap" hidden>
+                      <div class="blog-ai-suggestions-toolbar">
+                        <strong>AI suggestions</strong>
+                        <button type="button" class="btn btn-primary" id="blog-ai-create-selected-btn" disabled>Create selected posts</button>
+                      </div>
+                      <div id="blog-ai-suggestions" class="blog-ai-suggestions"></div>
+                    </div>
+                  </div>
                   <div class="form-group full-width">
                     <label for="blog-title">Title <span class="req">*</span></label>
                     <input type="text" id="blog-title" maxlength="255" placeholder="Enter post title..." required />

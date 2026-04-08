@@ -17,7 +17,7 @@ window.BlogComments = (() => {
     }
 
     async function deleteComment(commentId, onSuccess) {
-        if (!window.confirm('Bạn có chắc muốn xóa bình luận này không?')) return;
+        if (!window.confirm('Are you sure you want to delete this comment?')) return;
         await BlogUtils.fetchJson(BlogUtils.buildApiUrl(`/api/blog/comments/${commentId}`), { method: 'DELETE' });
         if (typeof onSuccess === 'function') onSuccess();
     }

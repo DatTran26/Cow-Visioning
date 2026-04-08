@@ -54,12 +54,12 @@ const Upload = (() => {
 
             const img = document.createElement('img');
             img.src = URL.createObjectURL(file);
-            img.alt = `Ảnh xem trước ${index + 1}`;
+            img.alt = `Preview image ${index + 1}`;
 
             const btn = document.createElement('button');
             btn.className = 'remove-file';
             btn.type = 'button';
-            btn.textContent = 'Xóa';
+            btn.textContent = 'Remove';
             btn.onclick = (event) => {
                 event.stopPropagation();
                 removeFile(index);
@@ -85,17 +85,17 @@ const Upload = (() => {
         const behavior = document.getElementById('upload-behavior').value;
 
         if (!cowId) {
-            showStatus(status, 'Vui lòng nhập mã con bò.', 'error');
+            showStatus(status, 'Please enter a Cow ID.', 'error');
             return;
         }
         if (selectedFiles.length === 0) {
-            showStatus(status, 'Vui lòng chọn ít nhất một ảnh.', 'error');
+            showStatus(status, 'Please select at least one image.', 'error');
             return;
         }
 
         uploadBtn.disabled = true;
         progress.hidden = false;
-        showStatus(status, 'Đang tải ảnh lên và gửi AI phân tích...', 'info');
+        showStatus(status, 'Uploading images and sending to AI for analysis...', 'info');
 
         let uploaded = 0;
         let processed = 0;
@@ -120,7 +120,7 @@ const Upload = (() => {
 
                 const result = await res.json();
                 if (!res.ok) {
-                    throw new Error(result.details || result.error || 'Tải ảnh thất bại');
+                    throw new Error(result.details || result.error || 'Upload failed');
                 }
 
                 uploaded += 1;
@@ -130,7 +130,7 @@ const Upload = (() => {
                 }
             } catch (err) {
                 console.error('Upload error:', err);
-                failures.push(err.message || 'Tải ảnh thất bại');
+                failures.push(err.message || 'Upload failed');
             } finally {
                 processed += 1;
                 progressFill.style.width = `${(processed / total) * 100}%`;
@@ -140,17 +140,17 @@ const Upload = (() => {
         uploadBtn.disabled = false;
 
         if (uploaded === total && lastSuccessfulRecord) {
-            showStatus(status, `Đã tải thành công ${uploaded} ảnh. ${AiDisplay.buildAiSummary(lastSuccessfulRecord)}`, 'success');
+            showStatus(status, `Successfully uploaded ${uploaded} image(s). ${AiDisplay.buildAiSummary(lastSuccessfulRecord)}`, 'success');
             selectedFiles = [];
             document.getElementById('file-preview').innerHTML = '';
         } else if (uploaded > 0 && lastSuccessfulRecord) {
             showStatus(
                 status,
-                `Đã xử lý ${uploaded}/${total} ảnh. Lỗi đầu tiên: ${failures[0] || 'không xác định'}`,
+                `Processed ${uploaded}/${total} image(s). First error: ${failures[0] || 'unknown'}`,
                 'error'
             );
         } else {
-            showStatus(status, `AI xử lý thất bại: ${failures[0] || 'không xác định'}`, 'error');
+            showStatus(status, `AI processing failed: ${failures[0] || 'unknown'}`, 'error');
         }
 
         setTimeout(() => {
@@ -169,7 +169,7 @@ const Upload = (() => {
         if (!card || !record) return;
 
         image.src = record.annotated_image_url || record.image_url || record.original_image_url || '';
-        behavior.textContent = BEHAVIOR_MAP[record.behavior] || record.behavior || 'Không xác định';
+        behavior.textContent = BEHAVIOR_MAP[record.behavior] || record.behavior || 'Unknown';
         meta.textContent = AiDisplay.buildAiMeta(record);
 
         if (record.original_image_url) {

@@ -14,12 +14,12 @@ window.BlogUtils = (() => {
         try {
             payload = text ? JSON.parse(text) : {};
         } catch (_err) {
-            const snippet = text ? text.slice(0, 120) : 'phản hồi rỗng';
-            throw new Error(`Phản hồi từ máy chủ không hợp lệ: ${snippet}`);
+            const snippet = text ? text.slice(0, 120) : 'empty response';
+            throw new Error(`Invalid server response: ${snippet}`);
         }
 
         if (!response.ok) {
-            throw new Error(payload.error || `Yêu cầu thất bại (${response.status})`);
+            throw new Error(payload.error || `Request failed (${response.status})`);
         }
 
         return payload;
@@ -45,7 +45,7 @@ window.BlogUtils = (() => {
         if (!value) return '';
         const d = new Date(value);
         if (Number.isNaN(d.getTime())) return '';
-        return d.toLocaleString('vi-VN');
+        return d.toLocaleString('en-US');
     }
 
     return { buildApiUrl, fetchJson, escapeHtml, setStatus, formatTime };

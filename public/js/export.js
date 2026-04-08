@@ -38,7 +38,7 @@ const Export = (() => {
         const status = document.getElementById('export-status');
         const countEl = document.getElementById('export-count');
 
-        status.textContent = 'Đang tải dữ liệu để xuất...';
+        status.textContent = 'Loading data for export...';
         status.className = 'status-msg info';
 
         try {
@@ -46,17 +46,17 @@ const Export = (() => {
             const result = await res.json();
 
             if (!res.ok) {
-                throw new Error(result.error || 'Tải dữ liệu thất bại');
+                throw new Error(result.error || 'Failed to load data');
             }
 
             records = result.data || [];
         } catch (err) {
-            status.textContent = `Lỗi: ${err.message}`;
+            status.textContent = `Error: ${err.message}`;
             status.className = 'status-msg error';
             return;
         }
 
-        countEl.textContent = `Tổng cộng: ${records.length} bản ghi`;
+        countEl.textContent = `Total: ${records.length} record(s)`;
         document.getElementById('export-csv-btn').disabled = records.length === 0;
         document.getElementById('export-json-btn').disabled = records.length === 0;
 
@@ -73,16 +73,16 @@ const Export = (() => {
                 <td>${record.barn_area || '-'}</td>
                 <td>${(record.captured_at || '').slice(0, 16).replace('T', ' ')}</td>
                 <td>${formatConfidence(record.ai_confidence) || '-'}</td>
-                <td><a class="gallery-link" href="${previewImage}" target="_blank" rel="noopener">Mở ảnh</a></td>
+                <td><a class="gallery-link" href="${previewImage}" target="_blank" rel="noopener">View</a></td>
             `;
             tbody.appendChild(tr);
         });
 
         document.getElementById('export-table-wrap').hidden = false;
         if (records.length > 50) {
-            status.textContent = `Đang hiển thị 50/${records.length} bản ghi đầu tiên`;
+            status.textContent = `Showing first 50 of ${records.length} record(s)`;
         } else {
-            status.textContent = 'Dữ liệu đã sẵn sàng để tải xuống';
+            status.textContent = 'Data ready for download';
         }
         status.className = 'status-msg success';
     }

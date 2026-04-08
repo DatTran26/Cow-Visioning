@@ -12,7 +12,7 @@ const Gallery = (() => {
         const status = document.getElementById('gallery-status');
         const grid = document.getElementById('gallery-grid');
 
-        status.textContent = 'Đang tải dữ liệu ảnh...';
+        status.textContent = 'Loading images...';
         status.className = 'status-msg info';
         grid.innerHTML = '';
 
@@ -30,18 +30,18 @@ const Gallery = (() => {
             const result = await res.json();
 
             if (!res.ok) {
-                throw new Error(result.error || 'Tải dữ liệu thất bại');
+                throw new Error(result.error || 'Failed to load data');
             }
 
             const data = result.data || [];
-            status.textContent = `Tìm thấy ${data.length} ảnh`;
+            status.textContent = `Found ${data.length} image(s)`;
             status.className = 'status-msg success';
 
             data.forEach((record) => {
                 grid.appendChild(createCard(record));
             });
         } catch (err) {
-            status.textContent = `Lỗi: ${err.message}`;
+            status.textContent = `Error: ${err.message}`;
             status.className = 'status-msg error';
         }
     }
@@ -52,28 +52,28 @@ const Gallery = (() => {
         const imageUrl = record.annotated_image_url || record.image_url || record.original_image_url || '';
         const confidence = formatConfidence(record.ai_confidence);
         const aiStatus = record.ai_status || (record.annotated_image_url ? 'completed' : 'legacy');
-        const statusLabel = aiStatus === 'completed' ? 'Đã xử lý' : aiStatus === 'pending' ? 'Đang chờ' : 'Dữ liệu cũ';
+        const statusLabel = aiStatus === 'completed' ? 'Processed' : aiStatus === 'pending' ? 'Pending' : 'Legacy';
 
         const card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = `
-            <img class="card-img" src="${imageUrl}" alt="Bò ${record.cow_id}" onerror="this.style.display='none'">
+            <img class="card-img" src="${imageUrl}" alt="Cow ${record.cow_id}" onerror="this.style.display='none'">
             <div class="card-body">
                 <div class="card-top">
-                    <span class="card-cow-id">Bò: ${record.cow_id}</span>
+                    <span class="card-cow-id">Cow: ${record.cow_id}</span>
                     <span class="badge badge-${record.behavior}">${behaviorLabel}</span>
                 </div>
-                <p class="card-meta">Khu vực: ${record.barn_area || '-'}</p>
-                <p class="card-meta">Thời gian chụp: ${captured || '-'}</p>
-                <p class="card-meta">AI: ${confidence || 'chưa có'} • Trạng thái: ${statusLabel}</p>
-                ${typeof record.detection_count === 'number' ? `<p class="card-meta">Số khung phát hiện: ${record.detection_count}</p>` : ''}
-                ${record.notes ? `<p class="card-meta">Ghi chú: ${record.notes}</p>` : ''}
+                <p class="card-meta">Zone: ${record.barn_area || '-'}</p>
+                <p class="card-meta">Captured: ${captured || '-'}</p>
+                <p class="card-meta">AI: ${confidence || 'N/A'} &bull; Status: ${statusLabel}</p>
+                ${typeof record.detection_count === 'number' ? `<p class="card-meta">Detections: ${record.detection_count}</p>` : ''}
+                ${record.notes ? `<p class="card-meta">Notes: ${record.notes}</p>` : ''}
                 <div class="gallery-links">
-                    ${record.original_image_url ? `<a class="gallery-link" href="${record.original_image_url}" target="_blank" rel="noopener">Mở ảnh gốc</a>` : ''}
-                    ${record.annotated_image_url ? `<a class="gallery-link" href="${record.annotated_image_url}" target="_blank" rel="noopener">Mở ảnh đã gắn khung</a>` : ''}
+                    ${record.original_image_url ? `<a class="gallery-link" href="${record.original_image_url}" target="_blank" rel="noopener">Original</a>` : ''}
+                    ${record.annotated_image_url ? `<a class="gallery-link" href="${record.annotated_image_url}" target="_blank" rel="noopener">Annotated</a>` : ''}
                 </div>
                 <div class="card-actions">
-                    <button class="btn-icon" type="button" title="Xóa ảnh">Xóa ảnh</button>
+                    <button class="btn-icon" type="button" title="Delete image">Delete</button>
                 </div>
             </div>
         `;
@@ -87,7 +87,7 @@ const Gallery = (() => {
 
     function openDeleteModal(id, cowId) {
         deleteTargetId = id;
-        document.getElementById('delete-msg').textContent = `Bạn có chắc muốn xóa ảnh của bò ${cowId}?`;
+        document.getElementById('delete-msg').textContent = `Are you sure you want to delete the image for cow ${cowId}?`;
         document.getElementById('delete-modal').hidden = false;
     }
 
@@ -101,7 +101,7 @@ const Gallery = (() => {
 
         const confirmBtn = document.getElementById('confirm-delete');
         confirmBtn.disabled = true;
-        confirmBtn.textContent = 'Đang xóa...';
+        confirmBtn.textContent = 'Deleting...';
 
         try {
             const res = await fetch(`${API_BASE}/api/images/${deleteTargetId}`, {
@@ -110,16 +110,16 @@ const Gallery = (() => {
 
             const result = await res.json();
             if (!res.ok) {
-                throw new Error(result.error || 'Xóa ảnh thất bại');
+                throw new Error(result.error || 'Delete failed');
             }
 
             closeDeleteModal();
             loadGallery();
         } catch (err) {
-            alert(`Lỗi xóa ảnh: ${err.message}`);
+            alert(`Delete error: ${err.message}`);
         } finally {
             confirmBtn.disabled = false;
-            confirmBtn.textContent = 'Xóa';
+            confirmBtn.textContent = 'Delete';
         }
     }
 

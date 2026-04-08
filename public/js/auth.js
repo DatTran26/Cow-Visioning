@@ -61,29 +61,29 @@
             const password = passwordInput ? passwordInput.value : '';
             const nextUrl = sanitizeNext(searchParams.get('next'));
             if (!username || !password) {
-                showError('Vui lòng nhập đầy đủ thông tin.');
+                showError('Please fill in all fields.');
                 return;
             }
 
             let payload = { username, password };
             let endpoint = '/auth/login';
             let successRedirect = nextUrl || '/?tab=thu-thap';
-            let idleBtnText = 'Đăng nhập';
+            let idleBtnText = 'Log In';
 
             if (mode === 'register') {
                 const email = emailInput ? emailInput.value.trim() : '';
                 const passwordConfirm = passwordConfirmInput ? passwordConfirmInput.value : '';
 
                 if (!email) {
-                    showError('Vui lòng nhập địa chỉ email.');
+                    showError('Please enter your email address.');
                     return;
                 }
                 if (password.length < 8) {
-                    showError('Mật khẩu cần tối thiểu 8 ký tự.');
+                    showError('Password must be at least 8 characters.');
                     return;
                 }
                 if (password !== passwordConfirm) {
-                    showError('Mật khẩu xác nhận chưa khớp.');
+                    showError('Passwords do not match.');
                     return;
                 }
 
@@ -95,11 +95,11 @@
                     password_confirm: passwordConfirm,
                 };
                 successRedirect = nextUrl ? `/auth/login?next=${encodeURIComponent(nextUrl)}` : '/auth/login';
-                idleBtnText = 'Tạo tài khoản';
+                idleBtnText = 'Create Account';
             }
 
             submitBtn.disabled = true;
-            submitBtn.textContent = mode === 'register' ? 'Đang tạo tài khoản...' : 'Đang đăng nhập...';
+            submitBtn.textContent = mode === 'register' ? 'Creating account...' : 'Logging in...';
 
             try {
                 const res = await fetch(endpoint, {
@@ -113,13 +113,13 @@
                 if (res.ok && (data.success || data.user)) {
                     window.location.href = successRedirect;
                 } else {
-                    showError(data.error || 'Không thể hoàn tất yêu cầu xác thực.');
+                    showError(data.error || 'Unable to complete authentication.');
                     if (passwordInput) passwordInput.value = '';
                     if (passwordConfirmInput) passwordConfirmInput.value = '';
                     if (passwordInput) passwordInput.focus();
                 }
             } catch (_err) {
-                showError('Không thể kết nối tới máy chủ.');
+                showError('Unable to connect to server.');
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.textContent = idleBtnText;

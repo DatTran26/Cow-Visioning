@@ -15,7 +15,7 @@ window.AppHelpers = (() => {
 
         const updateClock = () => {
             const now = new Date();
-            const dayNames = ['Chu Nhat', 'Thu 2', 'Thu 3', 'Thu 4', 'Thu 5', 'Thu 6', 'Thu 7'];
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             const hh = String(now.getHours()).padStart(2, '0');
             const mm = String(now.getMinutes()).padStart(2, '0');
             const ss = String(now.getSeconds()).padStart(2, '0');
@@ -30,13 +30,13 @@ window.AppHelpers = (() => {
         updateClock();
         setInterval(updateClock, 1000);
 
-        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Khong ro mui gio';
+        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Unknown timezone';
         const setLocationText = (text) => {
             locationElements.forEach((el) => { el.textContent = text; });
         };
 
         if (!navigator.geolocation) {
-            setLocationText(`Vi tri: ${timeZone}`);
+            setLocationText(`Location: ${timeZone}`);
             return;
         }
 
@@ -44,9 +44,9 @@ window.AppHelpers = (() => {
             ({ coords }) => {
                 const lat = coords.latitude.toFixed(5);
                 const lng = coords.longitude.toFixed(5);
-                setLocationText(`Vi tri: ${lat}, ${lng}`);
+                setLocationText(`Location: ${lat}, ${lng}`);
             },
-            () => { setLocationText(`Vi tri: ${timeZone}`); },
+            () => { setLocationText(`Location: ${timeZone}`); },
             { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
         );
     }
@@ -61,12 +61,12 @@ window.AppHelpers = (() => {
             <div class="update-popup-content">
                 <span class="update-popup-icon">🔄</span>
                 <div class="update-popup-text">
-                    <strong>Phien ban moi!</strong>
-                    <p>Ung dung da duoc cap nhat. Tai lai trang de su dung phien ban moi nhat.</p>
+                    <strong>New Version Available!</strong>
+                    <p>The application has been updated. Reload the page to use the latest version.</p>
                 </div>
                 <div class="update-popup-actions">
-                    <button class="update-btn-refresh" onclick="location.reload()">Tai lai ngay</button>
-                    <button class="update-btn-dismiss" onclick="this.closest('.update-popup').remove()">De sau</button>
+                    <button class="update-btn-refresh" onclick="location.reload()">Reload Now</button>
+                    <button class="update-btn-dismiss" onclick="this.closest('.update-popup').remove()">Later</button>
                 </div>
             </div>
         `;

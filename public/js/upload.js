@@ -185,7 +185,7 @@ const Upload = (() => {
     }
 
     /**
-     * Append a single AI result card to the results panel.
+     * Append a single AI result card (compact design) to the results panel.
      * Shows the Results toggle button if this is the first result.
      */
     function appendAiResult(record) {
@@ -205,33 +205,70 @@ const Upload = (() => {
             panelCountEl.textContent = `${resultCount} result${resultCount !== 1 ? 's' : ''}`;
         }
 
-        // Reveal the Results button (first time)
+        // Reveal the Results button
         if (toggleBtn) toggleBtn.hidden = false;
 
-        // Build image sources with fallbacks
-        const imageSrc = record.annotated_image_url || record.original_image_url || record.image_url || '';
+        // Image: try annotated → original → stored image
+        const imageSrc = record.annotated_image_url
+            || record.original_image_url
+            || record.image_url
+            || '';
+
         const behaviorLabel = BEHAVIOR_MAP[record.behavior] || record.behavior || 'Unknown';
-        const metaMarkup = AiDisplay.buildAiMetaMarkup(record);
-        const originalUrl = record.original_image_url || '';
+        const behaviorKey = String(record.behavior || '').toLowerCase();
+        const confidence = AiDisplay.formatConfidence(record.ai_confidence);
+        const originalUrl = record.original_image_url || record.image_url || '';
+        const chipsHtml = buildResultChips(record);
 
         const item = document.createElement('div');
         item.className = 'upload-result-item';
+        item.dataset.index = String(resultCount);
         item.innerHTML = `
-            <div class="uri-thumb-wrap${imageSrc ? '' : ' is-empty'}">
-              ${imageSrc
-                ? `<img class="uri-thumb" src="${escapeAttr(imageSrc)}" alt="Result #${resultCount}" loading="lazy" onerror="this.parentElement.classList.add('is-empty');this.style.display='none'">`
-                : ''}
-              <span class="uri-thumb-empty">No preview</span>
+            <div class="uri-img-col">
+              <div class="uri-thumb-wrap${imageSrc ? '' : ' is-empty'}">
+                ${imageSrc
+                    ? `<img class="uri-thumb"
+                           src="${escapeAttr(imageSrc)}"
+                           alt="Result ${resultCount}"
+                           loading="lazy"
+                           onerror="this.parentElement.classList.add('is-empty');this.remove()">`
+                    : ''}
+                <svg class="uri-thumb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 9a2 2 0 0 1 2-2h1l1-2h8l1 2h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z"/>
+                  <circle cx="12" cy="13" r="3"/>
+                </svg>
+              </div>
+              <span class="uri-num">#${resultCount}</span>
             </div>
             <div class="uri-body">
-              <p class="uri-eyebrow">Result #${resultCount}</p>
-              <h4 class="uri-behavior">${escapeHtml(behaviorLabel)}</h4>
-              <div class="uri-meta">${metaMarkup}</div>
-              ${originalUrl ? `<a class="ai-result-link" href="${escapeAttr(originalUrl)}" target="_blank" rel="noopener">View original</a>` : ''}
+              <div class="uri-header-row">
+                <h4 class="uri-behavior badge-${escapeAttr(behaviorKey)}">${escapeHtml(behaviorLabel)}</h4>
+                ${confidence ? `<span class="uri-conf">${confidence}</span>` : ''}
+              </div>
+              ${chipsHtml ? `<div class="uri-chips">${chipsHtml}</div>` : ''}
+              ${originalUrl
+                ? `<a class="uri-view-link" href="${escapeAttr(originalUrl)}" target="_blank" rel="noopener">
+                    View image
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  </a>`
+                : ''}
             </div>`;
 
         // Newest on top
         list.prepend(item);
+    }
+
+    function buildResultChips(record) {
+        const chips = [];
+        const provider = AiDisplay.getAiProviderLabel(record);
+        if (provider) chips.push(escapeHtml(provider));
+        if (typeof record.detection_count === 'number') {
+            chips.push(`${record.detection_count} detection${record.detection_count !== 1 ? 's' : ''}`);
+        }
+        if (typeof record.ai_inference_ms === 'number') {
+            chips.push(`${Math.round(record.ai_inference_ms)} ms`);
+        }
+        return chips.map((c) => `<span class="uri-chip">${c}</span>`).join('');
     }
 
     function clearResults() {

@@ -35,13 +35,13 @@ window.CameraAI = (() => {
             return;
         }
 
-        const displayUrl = record.annotated_image_url || record.image_url || record.original_image_url || '';
+        const displayUrl = buildApiUrl(record.annotated_image_url || record.image_url || record.original_image_url || '');
         imageEl.src = displayUrl;
         behaviorEl.textContent = BEHAVIOR_MAP[record.behavior] || record.behavior || 'Unknown';
         metaEl.innerHTML = AiDisplay.buildAiMetaMarkup(record);
 
         if (record.original_image_url) {
-            originalLink.href = record.original_image_url;
+            originalLink.href = buildApiUrl(record.original_image_url);
             originalLink.hidden = false;
         } else {
             originalLink.hidden = true;

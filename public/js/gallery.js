@@ -133,7 +133,7 @@ const Gallery = (() => {
     function createCard(record) {
         const behaviorLabel = BEHAVIOR_MAP[record.behavior] || record.behavior;
         const captured = formatDate(record.captured_at);
-        const imageUrl = record.annotated_image_url || record.image_url || record.original_image_url || '';
+        const imageUrl = buildApiUrl(record.annotated_image_url || record.image_url || record.original_image_url || '');
         const aiStatus = record.ai_status || (record.annotated_image_url ? 'completed' : 'legacy');
         const providerLabel = typeof AiDisplay !== 'undefined' ? AiDisplay.getAiProviderLabel(record) : 'AI';
         const providerKey = String(record.ai_provider || '').toLowerCase() || 'manual';
@@ -155,8 +155,8 @@ const Gallery = (() => {
                      onerror="this.parentElement.style.background='#eef4f3';this.style.display='none'">
                 <div class="gal-img-overlay">
                     <button class="gal-overlay-btn gal-view-full-btn" type="button">${ICONS.eye} Preview</button>
-                    ${record.original_image_url ? `<a class="gal-overlay-btn" href="${escHtml(record.original_image_url)}" target="_blank" rel="noopener">Original</a>` : ''}
-                    ${record.annotated_image_url ? `<a class="gal-overlay-btn" href="${escHtml(record.annotated_image_url)}" target="_blank" rel="noopener">Annotated</a>` : ''}
+                    ${record.original_image_url ? `<a class="gal-overlay-btn" href="${escHtml(buildApiUrl(record.original_image_url))}" target="_blank" rel="noopener">Original</a>` : ''}
+                    ${record.annotated_image_url ? `<a class="gal-overlay-btn" href="${escHtml(buildApiUrl(record.annotated_image_url))}" target="_blank" rel="noopener">Annotated</a>` : ''}
                 </div>
                 <span class="gal-behavior-tag" style="background:${chipColor.bg};color:${chipColor.text}">${escHtml(behaviorLabel)}</span>
             </div>
@@ -177,8 +177,8 @@ const Gallery = (() => {
                 ${record.notes ? `<p style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.5">${escHtml(record.notes)}</p>` : ''}
                 <div class="gal-card-footer">
                     <div class="gal-links">
-                        ${record.original_image_url ? `<a class="gallery-link" href="${escHtml(record.original_image_url)}" target="_blank" rel="noopener">Original</a>` : ''}
-                        ${record.annotated_image_url ? `<a class="gallery-link" href="${escHtml(record.annotated_image_url)}" target="_blank" rel="noopener">Annotated</a>` : ''}
+                        ${record.original_image_url ? `<a class="gallery-link" href="${escHtml(buildApiUrl(record.original_image_url))}" target="_blank" rel="noopener">Original</a>` : ''}
+                        ${record.annotated_image_url ? `<a class="gallery-link" href="${escHtml(buildApiUrl(record.annotated_image_url))}" target="_blank" rel="noopener">Annotated</a>` : ''}
                     </div>
                     <div class="gal-card-actions">
                         <button class="gal-edit-btn" type="button" title="Edit image info" aria-label="Edit image info for cow ${escHtml(record.cow_id)}">${ICONS.edit} Edit</button>
@@ -252,7 +252,7 @@ const Gallery = (() => {
         const providerLabel = typeof AiDisplay !== 'undefined' ? AiDisplay.getAiProviderLabel(record) : 'AI';
         const behaviorLabel = BEHAVIOR_MAP[record.behavior] || record.behavior || '—';
         const confidence = typeof record.ai_confidence === 'number' ? `${(record.ai_confidence * 100).toFixed(1)}%` : 'N/A';
-        const imageUrl = record.annotated_image_url || record.original_image_url || record.image_url || '';
+        const imageUrl = buildApiUrl(record.annotated_image_url || record.original_image_url || record.image_url || '');
 
         img.src = imageUrl;
         img.alt = `Cow ${record.cow_id} — ${behaviorLabel}`;
@@ -269,8 +269,8 @@ const Gallery = (() => {
             <div class="gal-lb-row">
                 <span class="gal-lb-label">Images</span>
                 <div class="gal-lb-links">
-                    ${record.original_image_url ? `<a class="gal-lb-link" href="${escHtml(record.original_image_url)}" target="_blank" rel="noopener">Original</a>` : ''}
-                    ${record.annotated_image_url ? `<a class="gal-lb-link" href="${escHtml(record.annotated_image_url)}" target="_blank" rel="noopener">Annotated</a>` : ''}
+                    ${record.original_image_url ? `<a class="gal-lb-link" href="${escHtml(buildApiUrl(record.original_image_url))}" target="_blank" rel="noopener">Original</a>` : ''}
+                    ${record.annotated_image_url ? `<a class="gal-lb-link" href="${escHtml(buildApiUrl(record.annotated_image_url))}" target="_blank" rel="noopener">Annotated</a>` : ''}
                 </div>
             </div>`;
 

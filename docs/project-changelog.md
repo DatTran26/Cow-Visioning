@@ -4,7 +4,29 @@
 **Types**: FEATURE | FIX | SECURITY | REFACTOR | TEST | DOCS | CHORE
 
 ---
+## v0.2.1 (UI hardening + chatbot guardrails + User Management upgrade) - 2026-06-05
 
+### SECURITY
+- **AI chatbot boundary hardening**: Added request-length limits, history trimming, off-scope rejection, security-sensitive prompt blocking, and prompt-injection-resistant history filtering in `server.js`.
+- **Regression coverage**: Added targeted tests for chatbot scope rejection, security rejection, and unsafe history stripping in `tests/assistant-chat.test.js`.
+- **Admin user rendering safety**: Reworked `public/js/admin-users.js` to build DOM nodes directly instead of interpolating raw user fields into `innerHTML`.
+
+### FEATURE
+- **Export Data upgrade**: Redesigned Export tab with summary metrics, explicit empty/loading states, and responsive preview rows before CSV/JSON download.
+- **Settings upgrade**: Refined Telegram settings panel with clearer status presentation, grouped actions, and tighter link lifecycle handling.
+- **Admin User Management upgrade**: Added "Create User" modal dialog for direct user creation, updated the user list table to include responsive direct action columns (Delete, toggle active status, and auto-save role updates), and implemented backend endpoints `POST /admin/users` and `PUT /admin/users/:id/status` with self-modification safety checks.
+
+### FIX
+- **Mobile compatibility pass**: Added responsive layout rules for top navigation, app panels, export tables, settings cards, admin toolbars, and batch actions to prevent cramped or overlapping UI on smaller screens.
+- **Vietnamese encoding restoration**: Restored double-encoded mojibake strings in `server.js` and `tests/assistant-chat.test.js`, and cleaned up comment characters in `public/js/admin-panel.js` and `public/js/upload.js`. Resolved test failures by correcting seeded admin credentials in the local database.
+
+### TEST
+- Validated `node --check server.js`
+- Validated `node --check public/js/admin-users.js`
+- Validated `node --check public/js/export.js`
+- Validated `node --check public/js/settings.js`
+- Validated `npx jest tests/assistant-chat.test.js --runInBand --forceExit` (`6/6` passed)
+- Validated `npx jest tests/admin.test.js --runInBand --forceExit` with added tests for user creation and status toggle (`89/89` passed)
 ## v0.2.0 (Phase 1 Complete) — 2026-04-08
 
 ### REFACTOR
@@ -157,4 +179,11 @@
 | Security Issues | 1 (XSS) | 0 | -1 |
 | Env Vars Documented | 0 | 21+ | +21 |
 | Farm Readiness | 0% | 50% (schema) | +50% |
+
+
+
+
+
+
+
 

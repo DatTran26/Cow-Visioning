@@ -141,6 +141,14 @@ const OPENAI_CHAT_HISTORY_LIMIT = Math.max(
     1,
     Math.min(parseInt(process.env.OPENAI_CHAT_HISTORY_LIMIT || '8', 10), 20)
 );
+const OPENAI_CHAT_MESSAGE_MAX_CHARS = Math.max(
+    200,
+    Math.min(parseInt(process.env.OPENAI_CHAT_MESSAGE_MAX_CHARS || '1600', 10), 4000)
+);
+const OPENAI_CHAT_HISTORY_ITEM_MAX_CHARS = Math.max(
+    200,
+    Math.min(parseInt(process.env.OPENAI_CHAT_HISTORY_ITEM_MAX_CHARS || '1000', 10), 2000)
+);
 const OPENAI_CHAT_MAX_OUTPUT_TOKENS = Math.max(
     200,
     Math.min(parseInt(process.env.OPENAI_CHAT_MAX_OUTPUT_TOKENS || '700', 10), 4000)
@@ -771,7 +779,7 @@ async function performOpenAiAssistantChatRequest({ message, history, requestId, 
 
     input.push({
         role: 'user',
-        content: normalizeText(message, 4000),
+        content: normalizeText(message, OPENAI_CHAT_MESSAGE_MAX_CHARS),
     });
 
     const body = {
@@ -808,6 +816,58 @@ async function performOpenAiAssistantChatRequest({ message, history, requestId, 
     };
 }
 
+const CHAT_SCOPE_REJECTION_MESSAGE = 'Cow Visioning Assistant chi ho tro chu de chan nuoi bo, nong nghiep, va cach dung he thong Cow Visioning.';
+const CHAT_SECURITY_REJECTION_MESSAGE = 'Yeu cau nay nam ngoai pham vi ho tro an toan cua Cow Visioning Assistant.';
+const CHAT_SCOPE_KEYWORDS = [
+    'bo', 'b?', 'cow', 'cattle', 'livestock', 'herd', 'barn', 'farm', 'farmer', 'nong nghiep', 'n?ng nghi?p', 'chan nuoi', 'ch?n nu?i',
+    'gia suc', 'gia s?c', 'thuc an', 'th?c ?n', 'khau phan', 'kh?u ph?n', 'suc khoe', 's?c kh?e', 'benh', 'b?nh', 'trai', 'tr?i', 'chuong', 'chu?ng', 'giong', 'gi?ng', 'sua', 's?a', 'heat stress',
+    'upload', 'camera', 'gallery', 'export', 'settings', 'blog', 'admin', 'telegram', 'cow visioning'
+];
+const CHAT_SECURITY_PATTERNS = [
+    /system prompt/i,
+    /developer instruction/i,
+    /ignore (all|previous|prior) instructions/i,
+    /reveal .*prompt/i,
+    /api[_ -]?key/i,
+    /token/i,
+    /password/i,
+    /secret/i,
+    /env(?:ironment)? variable/i,
+    /database credential/i,
+    /connection string/i,
+    /server file/i,
+    /run (a )?(command|terminal|shell|powershell|cmd)/i,
+    /delete (the )?(database|file|user|record)/i,
+    /drop table/i,
+    /update users? set/i,
+    /bypass/i,
+    /jailbreak/i,
+    /prompt injection/i
+];
+
+function isChatSecuritySensitive(text) {
+    const normalized = String(text || '').trim();
+    return CHAT_SECURITY_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+function escapeRegExp(text) {
+    return String(text || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+
+function isChatInSupportedScope(text) {
+    const normalized = String(text || '').trim().toLowerCase();
+    return CHAT_SCOPE_KEYWORDS.some((keyword) => {
+        const safeKeyword = String(keyword || '').trim().toLowerCase();
+        if (!safeKeyword) return false;
+        if (safeKeyword.includes(' ')) {
+            return normalized.includes(safeKeyword);
+        }
+        const pattern = new RegExp('(^|[^a-z0-9])' + escapeRegExp(safeKeyword) + '([^a-z0-9]|$)', 'i');
+        return pattern.test(normalized);
+    });
+}
+
 function normalizeChatHistory(history) {
     if (!Array.isArray(history)) {
         return [];
@@ -817,9 +877,9 @@ function normalizeChatHistory(history) {
         .filter((item) => item && (item.role === 'user' || item.role === 'assistant'))
         .map((item) => ({
             role: item.role,
-            content: normalizeText(item.content, 4000),
+            content: normalizeText(item.content, OPENAI_CHAT_HISTORY_ITEM_MAX_CHARS),
         }))
-        .filter((item) => item.content)
+        .filter((item) => item.content && !isChatSecuritySensitive(item.content))
         .slice(-OPENAI_CHAT_HISTORY_LIMIT);
 }
 
@@ -828,7 +888,7 @@ async function requestOpenAiAssistantChat({ message, history = [], requestId }) 
         throw new Error('OPENAI_API_KEY is not configured');
     }
 
-    const normalizedMessage = normalizeText(message, 4000);
+    const normalizedMessage = normalizeText(message, OPENAI_CHAT_MESSAGE_MAX_CHARS);
     if (!normalizedMessage) {
         throw new Error('Chat message is empty');
     }
@@ -1512,11 +1572,17 @@ app.get('/api/version', (_req, res) => {
 
 app.post('/api/assistant/chat', assistantChatLimiter, async (req, res) => {
     try {
-        const message = normalizeText(req.body?.message, 4000);
+        const message = normalizeText(req.body?.message, OPENAI_CHAT_MESSAGE_MAX_CHARS);
         const history = normalizeChatHistory(req.body?.history);
 
         if (!message) {
             return res.status(400).json({ error: 'Thiếu nội dung câu hỏi.' });
+        }
+        if (isChatSecuritySensitive(message)) {
+            return res.status(400).json({ error: CHAT_SECURITY_REJECTION_MESSAGE });
+        }
+        if (!isChatInSupportedScope(message)) {
+            return res.status(400).json({ error: CHAT_SCOPE_REJECTION_MESSAGE });
         }
 
         if (!getOpenAiApiKey()) {
@@ -2268,7 +2334,7 @@ app.post('/api/blog/posts/:postId/likes', authRequired, likeLimiter, async (req,
             req.body?.reaction_type || req.body?.reactionType || 'like'
         );
         if (!requestedReaction) {
-            return res.status(400).json({ error: 'Reaction khÃ´ng há»£p lá»‡' });
+            return res.status(400).json({ error: 'Reaction không hợp lệ' });
         }
 
         const postExists = await pool.query('SELECT id FROM blog_posts WHERE id = $1 LIMIT 1', [postId]);
@@ -2352,6 +2418,53 @@ app.get('/admin/users', requireAdmin, async (req, res) => {
     }
 });
 
+app.post('/admin/users', requireAdmin, async (req, res) => {
+    try {
+        const username = normalizeText(req.body.username, 30).toLowerCase();
+        const email = normalizeText(req.body.email, 120).toLowerCase();
+        const password = typeof req.body.password === 'string' ? req.body.password : '';
+        const role = typeof req.body.role === 'string' ? req.body.role : 'user';
+        const is_active = req.body.is_active !== false;
+
+        if (!username || username.length < 3 || username.length > 30) {
+            return res.status(400).json({ error: 'Username phải từ 3 đến 30 ký tự' });
+        }
+        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+            return res.status(400).json({ error: 'Username chỉ gồm chữ, số, dấu _' });
+        }
+        if (!validEmail(email)) {
+            return res.status(400).json({ error: 'Email không hợp lệ' });
+        }
+        if (password.length < 8 || password.length > 72) {
+            return res.status(400).json({ error: 'Mật khẩu phải từ 8 đến 72 ký tự' });
+        }
+        if (!['admin', 'user'].includes(role)) {
+            return res.status(400).json({ error: 'Vai trò không hợp lệ' });
+        }
+
+        const exists = await pool.query(
+            'SELECT id FROM users WHERE username = $1 OR email = $2 LIMIT 1',
+            [username, email]
+        );
+        if (exists.rows.length > 0) {
+            return res.status(400).json({ error: 'Username hoặc email đã tồn tại' });
+        }
+
+        const passwordHash = await bcrypt.hash(password, 10);
+        const created = await pool.query(
+            `INSERT INTO users (username, email, password_hash, role, is_active)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING id, username, email, role, is_active, created_at`,
+            [username, email, passwordHash, role, is_active]
+        );
+
+        return res.status(201).json({ success: true, user: created.rows[0] });
+    } catch (err) {
+        console.error('POST /admin/users error:', err);
+        return res.status(500).json({ error: 'Không thể tạo tài khoản' });
+    }
+});
+
 app.put('/admin/users/:id/role', requireAdmin, async (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
@@ -2379,6 +2492,33 @@ app.put('/admin/users/:id/role', requireAdmin, async (req, res) => {
     } catch (err) {
         console.error('PUT /admin/users/:id/role error:', err);
         return res.status(500).json({ error: 'Không thể cập nhật quyền' });
+    }
+});
+
+app.put('/admin/users/:id/status', requireAdmin, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        if (!Number.isInteger(id)) return res.status(400).json({ error: 'ID không hợp lệ' });
+
+        const { is_active } = req.body;
+
+        if (id === req.session.userId && is_active === false) {
+            return res.status(400).json({ error: 'Không thể khóa chính mình' });
+        }
+
+        const updated = await pool.query(
+            `UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2
+             RETURNING id, username, email, role, is_active, updated_at`,
+            [is_active !== false, id]
+        );
+        if (updated.rows.length === 0) {
+            return res.status(404).json({ error: 'Không tìm thấy người dùng' });
+        }
+
+        return res.json({ success: true, data: updated.rows[0] });
+    } catch (err) {
+        console.error('PUT /admin/users/:id/status error:', err);
+        return res.status(500).json({ error: 'Không thể cập nhật trạng thái người dùng' });
     }
 });
 app.put('/admin/users/batch-deactivate', requireAdmin, async (req, res) => {

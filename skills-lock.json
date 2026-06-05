@@ -5,6 +5,12 @@
       "source": "anthropics/skills",
       "sourceType": "github",
       "computedHash": "516bd2154eb843a8240e43d5b285229129853114ad7075a5e141e1c08e408c84"
+    },
+    "telegram-bot-builder": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/telegram-bot-builder/SKILL.md",
+      "computedHash": "10d834d4ef683b85330843d46b67aca6d2e4267c40901a95dcd14908b1594a83"
     }
   }
 }

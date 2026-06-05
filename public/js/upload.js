@@ -120,11 +120,13 @@ const Upload = (() => {
         const failures = [];
         const total = selectedFiles.length;
 
-        for (const file of selectedFiles) {
+        for (let index = 0; index < selectedFiles.length; index += 1) {
+            const file = selectedFiles[index];
+            const uploadCowId = total > 1 ? `${cowId}_${index + 1}` : cowId;
             try {
                 const formData = new FormData();
                 formData.append('image', file);
-                formData.append('cow_id', cowId);
+                formData.append('cow_id', uploadCowId);
                 formData.append('barn_area', barnArea);
                 formData.append('captured_at', capturedAt || new Date().toISOString());
                 formData.append('notes', notes);
@@ -195,6 +197,8 @@ const Upload = (() => {
         const countBadge = document.getElementById('results-count');
         const panelCountEl = document.getElementById('results-panel-count');
         const toggleBtn = document.getElementById('toggle-results-btn');
+        const panel = document.getElementById('upload-results-panel');
+        const workspace = document.getElementById('upload-workspace');
         if (!list) return;
 
         resultCount += 1;
@@ -207,6 +211,10 @@ const Upload = (() => {
 
         // Reveal the Results button
         if (toggleBtn) toggleBtn.hidden = false;
+
+        // Open the results panel as soon as a new result arrives.
+        if (panel) panel.hidden = false;
+        if (workspace) workspace.classList.add('results-open');
 
         // Image: try annotated → original → stored image
         const imageSrc = record.annotated_image_url
@@ -330,3 +338,4 @@ const Upload = (() => {
 
     return { init };
 })();
+

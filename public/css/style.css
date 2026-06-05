@@ -1,5 +1,5 @@
-/* 
-    Cow-Visioning Modern Dark Theme 🐄
+﻿/* 
+    Cow-Visioning Modern Dark Theme ðŸ„
     Aesthetic: Premium Glassmorphism & Neon Accents
 */
 
@@ -406,7 +406,6 @@ input:focus, select:focus, textarea:focus {
         padding: 12px;
     }
 }
-<<<<<<< HEAD
 
 /* ===== About Tab ===== */
 .about-grid {
@@ -589,70 +588,133 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* ===== Settings Tab ===== */
-.settings-section {
-    max-width: 600px;
+.settings-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+    gap: 22px;
+    align-items: start;
 }
-.settings-card {
-    background: #fff;
-    border-radius: 12px;
+.settings-panel-card {
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 20px;
     padding: 24px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+}
+.settings-card-head {
     display: flex;
     gap: 16px;
     align-items: flex-start;
     margin-bottom: 20px;
 }
 .settings-card-icon {
-    font-size: 36px;
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.16), rgba(59, 130, 246, 0.14));
+    font-size: 24px;
     flex-shrink: 0;
 }
-.settings-card-body h3 {
-    font-size: 18px;
-    margin-bottom: 8px;
-    color: #1a1a2e;
+.settings-card-head h2 {
+    margin: 0 0 6px;
+    color: #0f172a;
+    font-size: 20px;
 }
-.settings-card-body p {
+.settings-card-head p,
+.settings-help,
+.settings-rule-list {
+    color: #64748b;
     font-size: 14px;
-    color: #555;
     line-height: 1.6;
 }
-.settings-reset-form {
-    background: #fff;
-    border-radius: 12px;
-    padding: 24px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-.settings-reset-hint {
-    font-size: 14px;
-    color: #555;
-    margin-bottom: 16px;
-}
-.settings-code-row {
+.settings-status-box {
     display: flex;
     gap: 12px;
-    align-items: center;
+    align-items: flex-start;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 18px;
+}
+.settings-status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    margin-top: 5px;
+    background: #94a3b8;
+    box-shadow: 0 0 0 5px rgba(148, 163, 184, 0.15);
+    flex-shrink: 0;
+}
+.settings-status-dot.active {
+    background: #22c55e;
+    box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.15);
+}
+.settings-status-box strong {
+    color: #0f172a;
+    display: block;
+    margin-bottom: 4px;
+}
+.settings-status-box p {
+    color: #64748b;
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+}
+.settings-action-row,
+.settings-copy-row {
+    display: flex;
+    gap: 10px;
     flex-wrap: wrap;
+    align-items: center;
 }
-.settings-code-row input {
-    width: 160px;
-    text-align: center;
-    font-size: 24px;
+.settings-link-box {
+    margin-top: 18px;
+    padding: 16px;
+    border-radius: 16px;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+}
+.settings-link-box label {
+    display: block;
+    margin-bottom: 8px;
+    color: #166534;
+    font-size: 13px;
     font-weight: 700;
-    letter-spacing: 6px;
-    padding: 10px 14px;
-    border: 2px solid #e0e0e0;
+}
+.settings-copy-row input {
+    flex: 1 1 320px;
+    min-width: 0;
+    border: 1px solid #86efac;
     border-radius: 10px;
-    outline: none;
-    transition: border-color 0.2s;
-    font-family: "Courier New", monospace;
+    padding: 11px 12px;
+    color: #14532d;
+    background: #fff;
 }
-.settings-code-row input:focus {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+.settings-rule-list {
+    margin: 0;
+    padding-left: 20px;
 }
-.settings-code-row input::placeholder {
-    color: #ccc;
-    letter-spacing: 6px;
+.settings-rule-list li + li {
+    margin-top: 10px;
 }
-=======
->>>>>>> origin/develop
+@media (max-width: 900px) {
+    .settings-grid {
+        grid-template-columns: 1fr;
+    }
+}
+@media (max-width: 640px) {
+    .settings-panel-card,
+    .settings-card-head,
+    .settings-action-row,
+    .settings-copy-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .settings-copy-row input {
+        flex-basis: auto;
+        width: 100%;
+    }
+}

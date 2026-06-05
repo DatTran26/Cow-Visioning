@@ -1,4 +1,4 @@
-// admin-panel.js â€” Admin init, stats, AI settings, session sync
+// admin-panel.js — Admin init, stats, AI settings, session sync
 // Depends on: AdminUsers
 // Exposes window.Admin = { init, loadPanel }
 const Admin = (() => {
